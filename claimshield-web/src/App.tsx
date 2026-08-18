@@ -1,6 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { LoginPage } from './routes/LoginPage'
-import { LoginOtpPage } from './routes/LoginOtpPage'
+import LoginPage from "./routes/LoginPage";
 import { ProtectedLayout } from './routes/ProtectedLayout'
 import { QueuePage } from './routes/QueuePage'
 import { ClaimDetailPage } from './routes/ClaimDetailPage'
@@ -24,6 +23,7 @@ import { RoleId } from './lib/roles'
 
 function HomeRedirect() {
   const { roleId } = useAuth()
+
   const target =
     roleId === RoleId.Repairer
       ? '/repairs'
@@ -32,45 +32,107 @@ function HomeRedirect() {
         : roleId === RoleId.Admin
           ? '/admin/dashboard'
           : '/queue'
+
   return <Navigate to={target} replace />
 }
 
 function App() {
   return (
     <Routes>
+      {/* Login - email/password only */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/login/otp" element={<LoginOtpPage />} />
 
       <Route element={<ProtectedLayout />}>
         <Route path="/queue" element={<QueuePage />} />
-        <Route path="/claims/:claimId" element={<ClaimDetailPage />} />
-        <Route path="/repairs" element={<RepairQueuePage />} />
+
+        <Route
+          path="/claims/:claimId"
+          element={<ClaimDetailPage />}
+        />
+
+        <Route
+          path="/repairs"
+          element={<RepairQueuePage />}
+        />
+
         <Route
           path="/repairs/:repairAssignmentId"
           element={<RepairAssignmentDetailPage />}
         />
-        <Route path="/dashboard" element={<CustomerDashboardPage />} />
-        <Route path="/my-policy" element={<MyPolicyPage />} />
-        <Route path="/my-vehicle" element={<MyVehiclePage />} />
-        <Route path="/my-claims" element={<MyClaimsPage />} />
-        <Route path="/my-claims/new" element={<RaiseClaimPage />} />
-        <Route path="/my-claims/:claimId" element={<MyClaimDetailPage />} />
+
+        <Route
+          path="/dashboard"
+          element={<CustomerDashboardPage />}
+        />
+
+        <Route
+          path="/my-policy"
+          element={<MyPolicyPage />}
+        />
+
+        <Route
+          path="/my-vehicle"
+          element={<MyVehiclePage />}
+        />
+
+        <Route
+          path="/my-claims"
+          element={<MyClaimsPage />}
+        />
+
+        <Route
+          path="/my-claims/new"
+          element={<RaiseClaimPage />}
+        />
+
+        <Route
+          path="/my-claims/:claimId"
+          element={<MyClaimDetailPage />}
+        />
 
         {/* Admin + Approver, not Admin-only - gates itself internally */}
-        <Route path="/admin/payments" element={<AdminPaymentsPage />} />
+        <Route
+          path="/admin/payments"
+          element={<AdminPaymentsPage />}
+        />
 
         <Route element={<AdminOnlyLayout />}>
-          <Route path="/admin/dashboard" element={<DashboardPage />} />
-          <Route path="/admin/claims" element={<AdminClaimsPage />} />
-          <Route path="/admin/users" element={<UsersPage />} />
-          <Route path="/admin/authority-limits" element={<AuthorityLimitsPage />} />
-          <Route path="/admin/scoring-rules" element={<ScoringRulesPage />} />
+          <Route
+            path="/admin/dashboard"
+            element={<DashboardPage />}
+          />
+
+          <Route
+            path="/admin/claims"
+            element={<AdminClaimsPage />}
+          />
+
+          <Route
+            path="/admin/users"
+            element={<UsersPage />}
+          />
+
+          <Route
+            path="/admin/authority-limits"
+            element={<AuthorityLimitsPage />}
+          />
+
+          <Route
+            path="/admin/scoring-rules"
+            element={<ScoringRulesPage />}
+          />
         </Route>
 
-        <Route path="/" element={<HomeRedirect />} />
+        <Route
+          path="/"
+          element={<HomeRedirect />}
+        />
       </Route>
 
-      <Route path="*" element={<HomeRedirect />} />
+      <Route
+        path="*"
+        element={<HomeRedirect />}
+      />
     </Routes>
   )
 }

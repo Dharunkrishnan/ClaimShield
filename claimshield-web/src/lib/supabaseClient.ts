@@ -15,3 +15,11 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
     autoRefreshToken: true,
   },
 })
+
+console.log("Supabase URL:", supabaseUrl)
+console.log(
+  "Supabase key loaded:",
+  !!supabasePublishableKey,
+  "prefix:",
+  supabasePublishableKey?.substring(0, 15)
+)
