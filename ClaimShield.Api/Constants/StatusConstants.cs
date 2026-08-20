@@ -104,6 +104,8 @@ namespace ClaimShield.Api.Constants
         public const int WorkshopQuotation = 10;
 
         public const int SurveyReportDocument = 11;
+
+        public const int DrivingLicense = 12;
     }
 
     public static class VehicleLocationConstants

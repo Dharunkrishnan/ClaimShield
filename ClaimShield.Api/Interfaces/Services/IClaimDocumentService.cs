@@ -1,4 +1,5 @@
 using ClaimShield.Api.Models.DTOs.ClaimDocuments;
+using ClaimShield.Api.Models.DTOs.Ocr;
 
 namespace ClaimShield.Api.Interfaces.Services
 {
@@ -34,6 +35,9 @@ namespace ClaimShield.Api.Interfaces.Services
             IFormFile file);
 
         Task<string?> GetDownloadUrlAsync(
+            Guid claimDocumentId);
+
+        Task<OcrExtractionResult?> GetOcrPreviewAsync(
             Guid claimDocumentId);
     }
 }

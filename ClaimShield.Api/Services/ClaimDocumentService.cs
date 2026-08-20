@@ -2,6 +2,7 @@ using ClaimShield.Api.Constants;
 using ClaimShield.Api.Interfaces.Repositories;
 using ClaimShield.Api.Interfaces.Services;
 using ClaimShield.Api.Models.DTOs.ClaimDocuments;
+using ClaimShield.Api.Models.DTOs.Ocr;
 using ClaimShield.Api.Models.Entities;
 using Microsoft.AspNetCore.Http;
 
@@ -15,6 +16,7 @@ namespace ClaimShield.Api.Services
         private readonly ISurveyAssignmentRepository _surveyAssignmentRepository;
         private readonly IRepairAssignmentRepository _repairAssignmentRepository;
         private readonly ISupabaseStorageService _storageService;
+        private readonly IOcrService _ocrService;
         private readonly IClaimDecisionService _claimDecisionService;
 
         public ClaimDocumentService(
@@ -24,6 +26,7 @@ namespace ClaimShield.Api.Services
             ISurveyAssignmentRepository surveyAssignmentRepository,
             IRepairAssignmentRepository repairAssignmentRepository,
             ISupabaseStorageService storageService,
+            IOcrService ocrService,
             IClaimDecisionService claimDecisionService)
         {
             _claimDocumentRepository = claimDocumentRepository;
@@ -32,6 +35,7 @@ namespace ClaimShield.Api.Services
             _surveyAssignmentRepository = surveyAssignmentRepository;
             _repairAssignmentRepository = repairAssignmentRepository;
             _storageService = storageService;
+            _ocrService = ocrService;
             _claimDecisionService = claimDecisionService;
         }
 
@@ -412,6 +416,36 @@ namespace ClaimShield.Api.Services
 
             return await _storageService.CreateSignedUrlAsync(
                 document.FilePath);
+        }
+
+        // =========================================================
+        // OCR PREVIEW (single document, on-demand)
+        // =========================================================
+        //
+        // Runs OCR against ONE already-uploaded document and returns
+        // the extraction immediately, so the customer can see what
+        // was read off their Number Plate / RC / DL right after
+        // uploading it - separate from the full cross-check that
+        // still happens once at Step 2 verification.
+        // =========================================================
+
+        public async Task<OcrExtractionResult?> GetOcrPreviewAsync(
+            Guid claimDocumentId)
+        {
+            var document =
+                await _claimDocumentRepository.GetByIdAsync(
+                    claimDocumentId);
+
+            if (document == null)
+            {
+                return null;
+            }
+
+            var bytes =
+                await _storageService.DownloadAsync(
+                    document.FilePath);
+
+            return await _ocrService.ExtractAsync(bytes);
         }
 
         // =========================================================

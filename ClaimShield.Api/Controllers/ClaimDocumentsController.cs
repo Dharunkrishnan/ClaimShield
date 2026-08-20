@@ -258,6 +258,60 @@ namespace ClaimShield.Api.Controllers
         }
 
         // =========================================================
+        // OCR PREVIEW FOR A SINGLE DOCUMENT
+        // GET: api/ClaimDocuments/{id}/ocr-preview
+        // =========================================================
+        //
+        // Lets the customer see what the OCR engine read off a
+        // Number Plate / RC / DL photo right after uploading it,
+        // without waiting for the full Step 2 cross-check.
+        // =========================================================
+
+        [HttpGet("{id:guid}/ocr-preview")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetOcrPreview(Guid id)
+        {
+            var document =
+                await _claimDocumentService.GetByIdAsync(id);
+
+            if (document == null)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "Claim document not found."
+                });
+            }
+
+            if (!_currentUserService.UserId.HasValue ||
+                !await _claimDocumentService.CanUserAccessClaimAsync(
+                    document.ClaimId,
+                    _currentUserService.UserId.Value,
+                    CurrentRoleId))
+            {
+                return Forbidden(
+                    "You are not authorized to view this document.");
+            }
+
+            var result =
+                await _claimDocumentService.GetOcrPreviewAsync(id);
+
+            if (result == null)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "Claim document not found."
+                });
+            }
+
+            return Ok(result);
+        }
+
+        // =========================================================
         // CREATE CLAIM DOCUMENT (raw metadata - Admin backfill only)
         // POST: api/ClaimDocuments
         // =========================================================

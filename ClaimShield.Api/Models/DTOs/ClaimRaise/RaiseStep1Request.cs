@@ -55,5 +55,12 @@ namespace ClaimShield.Api.Models.DTOs.ClaimRaise
 
         public string Message { get; set; } =
             "Your claim is registered successfully. You're just two steps away from getting paid instantly.";
+
+        // Populated only when Instant Claim was NOT selected - the
+        // claim is auto-assigned to the least-loaded Surveyor at
+        // intake time so the customer sees who's handling it right
+        // away, instead of it sitting unassigned until an Admin
+        // manually assigns one.
+        public string? AssignedHandlerName { get; set; }
     }
 }

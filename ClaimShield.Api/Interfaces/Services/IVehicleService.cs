@@ -14,6 +14,13 @@ namespace ClaimShield.Api.Interfaces.Services
 
         Task<bool> UpdateVehicleAsync(UpdateVehicleRequest request);
 
+        // Customer-safe partial update - only ChassisNumber/EngineNumber,
+        // only overwrites a field when a non-empty value is supplied.
+        // Used by the Raise Claim wizard's OCR-capture popup.
+        Task<bool> ConfirmOcrDetailsAsync(
+            Guid vehicleId,
+            ConfirmVehicleOcrDetailsRequest request);
+
         Task<bool> DeleteVehicleAsync(Guid vehicleId);
     }
 }

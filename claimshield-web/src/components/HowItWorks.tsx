@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { Play } from 'lucide-react'
 import step1 from '../assets/illustrations/step1-report-claim.svg'
 import step2 from '../assets/illustrations/step2-verify-instantly.svg'
 import step3 from '../assets/illustrations/step3-get-paid.svg'
+import { Modal } from './Modal'
 
 const STEPS = [
   {
@@ -24,9 +27,28 @@ const STEPS = [
 ]
 
 export function HowItWorks() {
+  const [showVideo, setShowVideo] = useState(false)
+  const [videoError, setVideoError] = useState(false)
+
   return (
     <section className="card how-it-works">
-      <h2>How ClaimShield Works</h2>
+      <div className="how-it-works-header">
+        <h2>How ClaimShield Works</h2>
+
+        <button
+          type="button"
+          className="how-it-works-play-button"
+          onClick={() => {
+            setVideoError(false)
+            setShowVideo(true)
+          }}
+          aria-label="Watch how ClaimShield works"
+        >
+          <Play size={14} fill="currentColor" />
+          Watch video
+        </button>
+      </div>
+
       <div className="how-it-works-grid">
         {STEPS.map((step, index) => (
           <motion.div
@@ -42,6 +64,26 @@ export function HowItWorks() {
           </motion.div>
         ))}
       </div>
+
+      <Modal
+        open={showVideo}
+        onClose={() => setShowVideo(false)}
+        bare
+      >
+        {videoError ? (
+          <div className="how-it-works-video-error">
+            <p>The video couldn't be loaded.</p>
+          </div>
+        ) : (
+          <video
+            className="how-it-works-video"
+            controls
+            onError={() => setVideoError(true)}
+          >
+            <source src="/customer-journey.mp4" type="video/mp4" />
+          </video>
+        )}
+      </Modal>
     </section>
   )
 }

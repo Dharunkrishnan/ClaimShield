@@ -137,6 +137,34 @@ namespace ClaimShield.Api.Services
             return true;
         }
 
+        public async Task<bool> ConfirmOcrDetailsAsync(
+            Guid vehicleId,
+            ConfirmVehicleOcrDetailsRequest request)
+        {
+            var vehicle = await _vehicleRepository.GetByIdAsync(vehicleId);
+
+            if (vehicle == null)
+                return false;
+
+            // Only ever overwrites with a real value - a blank/null
+            // OCR result never blanks out existing data.
+            if (!string.IsNullOrWhiteSpace(request.ChassisNumber))
+            {
+                vehicle.ChassisNumber = request.ChassisNumber.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.EngineNumber))
+            {
+                vehicle.EngineNumber = request.EngineNumber.Trim();
+            }
+
+            vehicle.UpdatedDate = DateTime.UtcNow;
+
+            await _vehicleRepository.UpdateAsync(vehicle);
+
+            return true;
+        }
+
         public async Task<bool> DeleteVehicleAsync(Guid vehicleId)
         {
             var vehicle = await _vehicleRepository.GetByIdAsync(vehicleId);

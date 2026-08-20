@@ -9,7 +9,7 @@ import { MyClaimsPage } from './routes/MyClaimsPage'
 import { RaiseClaimPage } from './routes/RaiseClaimPage'
 import { MyClaimDetailPage } from './routes/MyClaimDetailPage'
 import { MyPolicyPage } from './routes/MyPolicyPage'
-import { MyVehiclePage } from './routes/MyVehiclePage'
+import { TrackClaimPage } from './routes/TrackClaimPage'
 import { CustomerDashboardPage } from './routes/CustomerDashboardPage'
 import { AdminOnlyLayout } from './routes/admin/AdminOnlyLayout'
 import { UsersPage } from './routes/admin/UsersPage'
@@ -71,8 +71,8 @@ function App() {
         />
 
         <Route
-          path="/my-vehicle"
-          element={<MyVehiclePage />}
+          path="/track-claim"
+          element={<TrackClaimPage />}
         />
 
         <Route

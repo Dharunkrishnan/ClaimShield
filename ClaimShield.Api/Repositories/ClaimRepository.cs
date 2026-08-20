@@ -17,6 +17,8 @@ namespace ClaimShield.Api.Repositories
         public async Task<IEnumerable<Claim>> GetAllAsync()
         {
             return await _context.Claims
+                .Include(c => c.Policy)
+                .Include(c => c.Vehicle)
                 .OrderByDescending(c => c.ReportedDate)
                 .ToListAsync();
         }
@@ -40,6 +42,8 @@ namespace ClaimShield.Api.Repositories
         public async Task<IEnumerable<Claim>> GetByCustomerAsync(Guid customerId)
         {
             return await _context.Claims
+                .Include(c => c.Policy)
+                .Include(c => c.Vehicle)
                 .Where(c => c.CustomerId == customerId)
                 .OrderByDescending(c => c.ReportedDate)
                 .ToListAsync();
@@ -48,6 +52,8 @@ namespace ClaimShield.Api.Repositories
         public async Task<IEnumerable<Claim>> GetByPolicyAsync(Guid policyId)
         {
             return await _context.Claims
+                .Include(c => c.Policy)
+                .Include(c => c.Vehicle)
                 .Where(c => c.PolicyId == policyId)
                 .OrderByDescending(c => c.ReportedDate)
                 .ToListAsync();
@@ -56,6 +62,8 @@ namespace ClaimShield.Api.Repositories
         public async Task<IEnumerable<Claim>> GetByVehicleAsync(Guid vehicleId)
         {
             return await _context.Claims
+                .Include(c => c.Policy)
+                .Include(c => c.Vehicle)
                 .Where(c => c.VehicleId == vehicleId)
                 .OrderByDescending(c => c.ReportedDate)
                 .ToListAsync();

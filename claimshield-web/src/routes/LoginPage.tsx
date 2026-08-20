@@ -1,17 +1,31 @@
-
 import { useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
+  Car,
   Eye,
   EyeOff,
-  Globe,
-  Headphones,
   LockKeyhole,
   Mail,
+  Search,
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
+
+const FAST_TRACK_TAGS = ["Minor dents", "Windshield & glass", "Scratches"];
+
+const TIMELINE_STEPS = [
+  { time: "00:00", title: "Photos", detail: "Four guided angles of the damage." },
+  { time: "00:06", title: "AI check", detail: "Damage detected and priced." },
+  { time: "00:14", title: "Approved", detail: "No surveyor visit needed." },
+  { time: "00:28", title: "Settled", detail: "Paid into your account." },
+];
+
+const TRUST_STATS = [
+  { value: "1.2M", label: "OD claims settled" },
+  { value: "28 min", label: "median TAT" },
+  { value: "98.4%", label: "approved first pass" },
+];
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -43,20 +57,17 @@ export function LoginPage() {
     setLoading(true);
 
     try {
-      const { error: loginError } =
-        await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
       if (loginError) {
         setError(loginError.message);
         return;
       }
 
-      // Login successful → go to dashboard
       navigate("/dashboard", { replace: true });
-
     } catch (err) {
       console.error("Login error:", err);
       setError("Unable to sign in. Please try again.");
@@ -69,1229 +80,623 @@ export function LoginPage() {
     <>
       <style>{`
         /* =========================================================
-           CLAIMSHIELD LOGIN
+           CLAIMSHIELD+ LOGIN — FAST TRACK ORANGE THEME
            ========================================================= */
 
-        * {
-          box-sizing: border-box;
+        * { box-sizing: border-box; }
+
+        html, body, #root { margin: 0; width: 100%; min-height: 100%; }
+
+        :root {
+          --cs-primary: #dd4a2f;
+          --cs-primary-dark: #b8371f;
+          --cs-primary-soft: rgba(221, 74, 47, 0.12);
+          --cs-ink: #1a1410;
+          --cs-muted: #6b7280;
+          --cs-border: #e7e2dc;
         }
 
-        html,
-        body,
-        #root {
-          margin: 0;
-          width: 100%;
-          min-height: 100%;
-        }
-
-        .claim-login-page {
+        .cs-login-page {
           width: 100%;
           height: 100vh;
           height: 100dvh;
-          min-height: 620px;
-
           display: flex;
-
           overflow: hidden;
-
-          background: #f5f7fb;
-
-          font-family:
-            Inter,
-            ui-sans-serif,
-            system-ui,
-            -apple-system,
-            BlinkMacSystemFont,
-            "Segoe UI",
-            sans-serif;
+          background: #ffffff;
+          font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+          color: var(--cs-ink);
         }
 
         /* =========================================================
-           LEFT IMAGE
+           LEFT — FAST TRACK HERO PANEL
            ========================================================= */
 
-        .claim-login-visual {
+        .cs-hero {
           position: relative;
-
-          width: 58%;
-          height: 100%;
-
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          overflow: hidden;
-
-          background: #031432;
-        }
-
-        /*
-         * IMPORTANT:
-         *
-         * contain = show the COMPLETE login image.
-         *
-         * Your previous code used "cover", which is why the
-         * left side of your artwork was getting cut off.
-         */
-
-        .claim-login-image {
-          display: block;
-
-          width: 100%;
-          height: 100%;
-
-          object-fit: contain;
-          object-position: center center;
-
-          user-select: none;
-          pointer-events: none;
-        }
-
-        .claim-login-image-overlay {
-          position: absolute;
-          inset: 0;
-
-          pointer-events: none;
-
-          background:
-            linear-gradient(
-              90deg,
-              rgba(1, 12, 35, 0.02),
-              rgba(1, 12, 35, 0.03)
-            );
-        }
-
-        /* =========================================================
-           IMAGE GLOW
-           ========================================================= */
-
-        .claim-glow-one {
-          position: absolute;
-
-          width: 220px;
-          height: 220px;
-
-          left: 45%;
-          top: 20%;
-
-          border-radius: 50%;
-
-          background: rgba(0, 153, 255, 0.10);
-
-          filter: blur(70px);
-
-          pointer-events: none;
-        }
-
-        .claim-glow-two {
-          position: absolute;
-
-          width: 180px;
-          height: 180px;
-
-          left: 65%;
-          bottom: 12%;
-
-          border-radius: 50%;
-
-          background: rgba(0, 100, 255, 0.08);
-
-          filter: blur(65px);
-
-          pointer-events: none;
-        }
-
-        /* =========================================================
-           RIGHT LOGIN AREA
-           ========================================================= */
-
-        .claim-login-form-area {
-          position: relative;
-
           width: 42%;
-          height: 100%;
-
+          min-width: 340px;
+          padding: 26px 34px;
+          background: linear-gradient(160deg, var(--cs-primary) 0%, var(--cs-primary-dark) 100%);
+          color: #ffffff;
           display: flex;
           flex-direction: column;
+          overflow: hidden;
+        }
 
+        .cs-hero-brand {
+          display: flex;
           align-items: center;
+          gap: 7px;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
 
-          overflow-y: auto;
+        .cs-hero-eyebrow {
+          margin-top: 10px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.75);
+        }
 
-          padding: 78px 34px 30px;
+        .cs-hero-headline {
+          margin: 8px 0 0;
+          font-size: clamp(32px, 3.6vw, 46px);
+          line-height: 0.95;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+        }
 
-          background:
-            radial-gradient(
-              circle at 15% 10%,
-              rgba(37, 99, 235, 0.06),
-              transparent 35%
-            ),
-            #031432;
+        .cs-hero-copy {
+          margin: 10px 0 0;
+          max-width: 34ch;
+          font-size: 12.5px;
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.88);
+        }
+
+        .cs-hero-rule {
+          margin: 16px 0;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Two-timelines comparison card */
+
+        .cs-timeline-card {
+          background: #ffffff;
+          color: var(--cs-ink);
+          border-radius: 12px;
+          padding: 14px 16px 12px;
+          box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+        }
+
+        .cs-timeline-eyebrow {
+          font-size: 9.5px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--cs-muted);
+          margin-bottom: 8px;
+        }
+
+        .cs-timeline-row {
+          display: grid;
+          grid-template-columns: 46px 1fr 50px;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 6px;
+        }
+
+        .cs-timeline-row:last-child { margin-bottom: 0; }
+
+        .cs-timeline-label {
+          font-size: 10.5px;
+          font-weight: 700;
+          color: var(--cs-muted);
+        }
+
+        .cs-timeline-track {
+          height: 6px;
+          border-radius: 6px;
+          background: #eee9e4;
+          overflow: hidden;
+        }
+
+        .cs-timeline-fill {
+          height: 100%;
+          border-radius: 6px;
+          background: #d8d4cf;
+        }
+
+        .cs-timeline-fill.is-fast {
+          background: var(--cs-primary);
+        }
+
+        .cs-timeline-value {
+          font-size: 10.5px;
+          font-weight: 800;
+          text-align: right;
+          color: var(--cs-ink);
+        }
+
+        /* Bottom step strip */
+
+        .cs-hero-steps {
+          margin-top: auto;
+          padding-top: 16px;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+        }
+
+        .cs-hero-step-time {
+          font-size: 11px;
+          font-weight: 800;
+          margin-bottom: 2px;
+        }
+
+        .cs-hero-step-title {
+          font-size: 11px;
+          font-weight: 700;
+          margin-bottom: 2px;
+        }
+
+        .cs-hero-step-detail {
+          font-size: 10px;
+          line-height: 1.3;
+          color: rgba(255, 255, 255, 0.72);
         }
 
         /* =========================================================
-           TOP ACTIONS
+           RIGHT — LOGIN PANEL
            ========================================================= */
 
-        .claim-top-actions {
-          position: absolute;
-
-          top: 22px;
-          right: 28px;
-
+        .cs-form-area {
+          flex: 1;
           display: flex;
-          align-items: center;
-
-          gap: 8px;
-
-          z-index: 20;
-        }
-
-        .claim-action-button {
-          height: 38px;
-
-          padding: 0 13px;
-
-          display: inline-flex;
           align-items: center;
           justify-content: center;
-
-          gap: 7px;
-
-          border: 1px solid #dce2ec;
-          border-radius: 10px;
-
-          background: rgba(255, 255, 255, 0.95);
-
-          color: #26324d;
-
-          font-size: 12px;
-          font-weight: 600;
-
-          cursor: pointer;
-
-          box-shadow:
-            0 4px 12px rgba(15, 23, 42, 0.05);
-
-          transition:
-            background 0.2s ease,
-            border-color 0.2s ease,
-            color 0.2s ease;
+          padding: 20px 28px;
+          overflow-y: auto;
         }
 
-        .claim-action-button:hover {
-          background: #ffffff;
-          border-color: #b9c6db;
-          color: #2563eb;
+        .cs-login-card {
+          width: 100%;
+          max-width: 320px;
         }
 
-        /* =========================================================
-           LOGIN CARD
-           ========================================================= */
-.claim-login-card {
-  width: 360px;
-  max-width: calc(100vw - 40px);
-
-  max-height: calc(100vh - 80px);
-
-  margin-right: 40px;
-  margin-bottom: 25px;
-
-  padding: 22px 24px 18px;
-
-  border-radius: 16px;
-
-  background: rgba(4, 24, 61, 0.45);
-
-  border: 1px solid rgba(255, 255, 255, 0.22);
-
-  box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.28);
-
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-
-  overflow-y: auto;
-}
-
-        /* =========================================================
-           LOGIN HEADER
-           ========================================================= */
-
-        .claim-login-heading {
-          text-align: center;
-          color: #ffffff;
-
-          margin-bottom: 27px;
-        }
-
-        .claim-login-heading h1 {
-          margin: 0;
-
-          color: #cdd0d9;
-
-          font-size: clamp(26px, 2vw, 32px);
-
-          line-height: 1.15;
-
+        .cs-eyebrow {
+          font-size: 10px;
           font-weight: 800;
-
-          letter-spacing: -0.8px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--cs-muted);
         }
 
-        .claim-login-heading p {
-          margin: 9px 0 0;
-
-          color: #68738a;
-
-          font-size: 13px;
-
-          line-height: 1.5;
+        .cs-login-card h1 {
+          margin: 5px 0 4px;
+          font-size: 22px;
+          font-weight: 800;
+          letter-spacing: -0.01em;
         }
 
-        .claim-login-heading strong {
-          color: #2563eb;
-        }
-
-        .claim-heading-line {
-          width: 48px;
-          height: 3px;
-
-          margin: 14px auto 0;
-
-          border-radius: 20px;
-
-          background: #2563eb;
-        }
-
-        /* =========================================================
-           FORM
-           ========================================================= */
-
-        .claim-form {
-          width: 100%;
-
-          display: flex;
-          flex-direction: column;
-
-          gap: 16px;
-        }
-
-        .claim-field {
-          width: 100%;
-        }
-
-        .claim-label {
-          display: block;
-
-          margin-bottom: 7px;
-
-          color: #cdd0d9;
-
+        .cs-login-sub {
+          margin: 0 0 14px;
           font-size: 12px;
+          line-height: 1.45;
+          color: var(--cs-muted);
+        }
 
+        .cs-form { display: flex; flex-direction: column; gap: 10px; }
+
+        .cs-label {
+          display: block;
+          margin-bottom: 4px;
+          font-size: 10px;
           font-weight: 700;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+          color: var(--cs-muted);
         }
 
-        .claim-input-wrapper {
-          position: relative;
+        .cs-input-wrapper { position: relative; width: 100%; }
 
-          width: 100%;
-        }
-
-        .claim-input-icon {
+        .cs-input-icon {
           position: absolute;
-
-          left: 14px;
+          left: 12px;
           top: 50%;
-
           transform: translateY(-50%);
-
-          color: #71809a;
-
+          color: #9a9389;
           pointer-events: none;
         }
 
-        .claim-input {
+        .cs-input {
           width: 100%;
-          height: 48px;
-
-          padding: 0 13px 0 43px;
-
-          border: 1px solid #d7deea;
-          border-radius: 11px;
-
-          background: #ffffff;
-
-          color: #cdd0d9;
-
+          height: 40px;
+          padding: 0 12px 0 38px;
+          border: 1px solid var(--cs-border);
+          border-radius: 9px;
+          background: #fafaf9;
+          color: var(--cs-ink);
           font-size: 13px;
-
           outline: none;
-
-          transition:
-            border-color 0.2s ease,
-            box-shadow 0.2s ease,
-            background 0.2s ease;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
         }
 
-        .claim-input::placeholder {
-          color: #9ba5b8;
+        .cs-input::placeholder { color: #a39c92; }
+        .cs-input:hover { border-color: #d8d0c6; }
+        .cs-input:focus {
+          border-color: var(--cs-primary);
+          background: #ffffff;
+          box-shadow: 0 0 0 3px var(--cs-primary-soft);
         }
+        .cs-input:disabled { background: #f1efec; cursor: not-allowed; }
 
-        .claim-input:hover {
-          border-color: #c1cada;
-        }
+        .cs-password-input { padding-right: 40px; }
 
-        .claim-input:focus {
-          border-color: #2563eb;
-
-          box-shadow:
-            0 0 0 3px rgba(37, 99, 235, 0.09);
-        }
-
-        .claim-input:disabled {
-          background: #f5f7fa;
-          cursor: not-allowed;
-        }
-
-        .claim-password-input {
-          padding-right: 45px;
-        }
-
-        .claim-password-button {
+        .cs-password-button {
           position: absolute;
-
-          right: 13px;
+          right: 11px;
           top: 50%;
-
           transform: translateY(-50%);
-
-          width: 28px;
-          height: 28px;
-
+          width: 22px;
+          height: 22px;
           display: flex;
           align-items: center;
           justify-content: center;
-
           padding: 0;
-
           border: 0;
-
           background: transparent;
-
-          color: #71809a;
-
+          color: #9a9389;
           cursor: pointer;
         }
 
-        .claim-password-button:hover {
-          color: #2563eb;
-        }
+        .cs-password-button:hover { color: var(--cs-primary); }
 
-        /* =========================================================
-           OPTIONS
-           ========================================================= */
-
-        .claim-options {
-          display: flex;
-
-          align-items: center;
-          justify-content: space-between;
-
-          gap: 10px;
-
-          margin-top: 1px;
-        }
-
-        .claim-remember {
+        .cs-remember {
           display: inline-flex;
-
           align-items: center;
-
-          gap: 7px;
-
-          color: #4a566f;
-
-          font-size: 12px;
-
+          gap: 6px;
+          font-size: 11px;
           font-weight: 600;
-
+          color: #4a453f;
           cursor: pointer;
         }
 
-        .claim-checkbox {
-          width: 16px;
-          height: 16px;
-
+        .cs-checkbox {
+          width: 14px;
+          height: 14px;
           margin: 0;
-
-          accent-color: #2563eb;
-
+          accent-color: var(--cs-primary);
           cursor: pointer;
         }
 
-        .claim-forgot {
-          padding: 0;
-
-          border: 0;
-
-          background: transparent;
-
-          color: #2563eb;
-
-          font-size: 12px;
-
-          font-weight: 700;
-
-          cursor: pointer;
-        }
-
-        .claim-forgot:hover {
-          text-decoration: underline;
-        }
-
-        /* =========================================================
-           ERROR
-           ========================================================= */
-
-        .claim-error {
-          padding: 10px 12px;
-
-          border: 1px solid #fecaca;
+        .cs-error {
+          padding: 8px 10px;
+          border: 1px solid #f3c6bb;
           border-radius: 9px;
-
-          background: #fff5f5;
-
-          color: #b42318;
-
-          font-size: 12px;
-
+          background: #fdf1ee;
+          color: var(--cs-primary-dark);
+          font-size: 11px;
           line-height: 1.4;
         }
 
-        /* =========================================================
-           SUBMIT BUTTON
-           ========================================================= */
-
-        .claim-submit {
-          position: relative;
-
+        .cs-submit {
           width: 100%;
-          height: 49px;
-
+          height: 42px;
           display: flex;
           align-items: center;
           justify-content: center;
-
-          padding: 0 18px;
-
+          gap: 7px;
           border: 0;
-          border-radius: 11px;
-
-          background:
-            linear-gradient(
-              135deg,
-              #1559e8 0%,
-              #1769f5 55%,
-              #287eff 100%
-            );
-
+          border-radius: 9px;
+          background: linear-gradient(135deg, var(--cs-primary) 0%, var(--cs-primary-dark) 100%);
           color: #ffffff;
-
-          font-size: 14px;
-
+          font-size: 13px;
           font-weight: 700;
-
           cursor: pointer;
-
-          box-shadow:
-            0 10px 24px rgba(37, 99, 235, 0.22);
-
-          overflow: hidden;
-
-          transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease,
-            filter 0.2s ease;
+          box-shadow: 0 10px 22px rgba(221, 74, 47, 0.28);
+          transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
         }
 
-        .claim-submit:hover:not(:disabled) {
+        .cs-submit:hover:not(:disabled) {
           transform: translateY(-1px);
-
-          box-shadow:
-            0 13px 28px rgba(37, 99, 235, 0.29);
-
-          filter: brightness(1.02);
+          box-shadow: 0 13px 26px rgba(221, 74, 47, 0.34);
         }
 
-        .claim-submit:active:not(:disabled) {
-          transform: translateY(0);
-        }
+        .cs-submit:disabled { opacity: 0.7; cursor: not-allowed; }
 
-        .claim-submit:disabled {
-          opacity: 0.7;
-
-          cursor: not-allowed;
-        }
-
-        .claim-submit-content {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          gap: 8px;
-        }
-
-        /* =========================================================
-           SPINNER
-           ========================================================= */
-
-        .claim-spinner {
-          width: 16px;
-          height: 16px;
-
-          border: 2px solid rgba(255, 255, 255, 0.35);
-
-          border-top-color: #ffffff;
-
-          border-radius: 50%;
-
-          animation: claim-spin 0.8s linear infinite;
-        }
-
-        @keyframes claim-spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        /* =========================================================
-           TRUST
-           ========================================================= */
-
-        .claim-trust {
+        .cs-track-button {
           width: 100%;
-
-          display: grid;
-
-          grid-template-columns: repeat(3, 1fr);
-
-          margin-top: 19px;
-          padding-top: 15px;
-
-          border-top: 1px solid #edf0f5;
-        }
-
-        .claim-trust-item {
+          height: 42px;
           display: flex;
-
-          flex-direction: column;
-
           align-items: center;
           justify-content: center;
-
-          gap: 4px;
-
-          color: #69748b;
-
-          font-size: 10px;
-
-          font-weight: 600;
-
-          text-align: center;
-        }
-
-        .claim-trust-item + .claim-trust-item {
-          border-left: 1px solid #edf0f5;
-        }
-
-        /* =========================================================
-           REGISTER
-           ========================================================= */
-
-        .claim-register {
-          margin-top: 17px;
-
-          text-align: center;
-
-          color: #68738a;
-
+          gap: 7px;
+          border: 1px solid var(--cs-border);
+          border-radius: 9px;
+          background: #ffffff;
+          color: var(--cs-ink);
           font-size: 12px;
-        }
-
-        .claim-register button {
-          padding: 0;
-
-          border: 0;
-
-          background: transparent;
-
-          color: #2563eb;
-
-          font-size: inherit;
-
           font-weight: 700;
-
           cursor: pointer;
+          transition: border-color 0.2s ease, background 0.2s ease;
         }
 
-        .claim-register button:hover {
-          text-decoration: underline;
+        .cs-track-button:hover { border-color: #d8d0c6; background: #fafaf9; }
+
+        .cs-spinner {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(255, 255, 255, 0.4);
+          border-top-color: #ffffff;
+          border-radius: 50%;
+          animation: cs-spin 0.8s linear infinite;
         }
 
-        /* =========================================================
-           SECURITY
-           ========================================================= */
+        @keyframes cs-spin { to { transform: rotate(360deg); } }
 
-        .claim-security {
+        .cs-fast-track {
+          margin-top: 14px;
+          padding-top: 12px;
+          border-top: 1px solid var(--cs-border);
+        }
+
+        .cs-tags {
+          margin-top: 8px;
           display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
 
-          align-items: center;
-          justify-content: center;
+        .cs-tag {
+          padding: 4px 9px;
+          border-radius: 999px;
+          background: var(--cs-primary-soft);
+          color: var(--cs-primary-dark);
+          font-size: 10px;
+          font-weight: 700;
+        }
 
-          gap: 5px;
+        .cs-stats {
+          margin-top: 12px;
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+        }
 
-          margin-top: 13px;
+        .cs-stat { text-align: left; }
+        .cs-stat + .cs-stat { border-left: 1px solid var(--cs-border); padding-left: 10px; }
 
-          color: #8993a6;
+        .cs-stat-value {
+          font-size: 15px;
+          font-weight: 800;
+          color: var(--cs-ink);
+        }
 
+        .cs-stat-label {
+          margin-top: 1px;
           font-size: 9px;
+          color: var(--cs-muted);
+        }
+
+        .cs-footer {
+          margin-top: 12px;
+          padding-top: 10px;
+          border-top: 1px solid var(--cs-border);
+          font-size: 9px;
+          color: #a39c92;
         }
 
         /* =========================================================
-           TABLET
+           RESPONSIVE
            ========================================================= */
 
-        @media (max-width: 1050px) {
-          .claim-login-visual {
-            width: 55%;
-          }
-
-          .claim-login-form-area {
-            width: 45%;
-
-            padding-left: 22px;
-            padding-right: 22px;
-          }
-
-          .claim-login-card {
-            padding: 30px 27px 24px;
-          }
-
-          .claim-top-actions {
-            right: 18px;
-          }
+        @media (max-width: 980px) {
+          .cs-hero-steps { grid-template-columns: repeat(2, 1fr); row-gap: 14px; }
         }
 
-        /* =========================================================
-           MOBILE
-           ========================================================= */
-
-        @media (max-width: 760px) {
-          .claim-login-page {
-            height: auto;
-            min-height: 100vh;
-            min-height: 100dvh;
-
-            flex-direction: column;
-
-            overflow-y: auto;
-          }
-
-          .claim-login-visual {
-            width: 100%;
-
-            height: 280px;
-            min-height: 280px;
-          }
-
-          .claim-login-form-area {
-            width: 100%;
-
-            height: auto;
-            min-height: calc(100vh - 280px);
-
-            padding: 70px 18px 25px;
-
-            overflow: visible;
-          }
-
-          .claim-login-card {
-            width: 100%;
-
-            margin: 0;
-
-            padding: 24px 16px 22px;
-
-            border-radius: 18px;
-          }
-
-          .claim-top-actions {
-            top: 18px;
-            right: 18px;
-          }
-        }
-
-        /* =========================================================
-           SMALL MOBILE
-           ========================================================= */
-
-        @media (max-width: 480px) {
-          .claim-login-visual {
-            height: 230px;
-            min-height: 230px;
-          }
-
-          .claim-login-form-area {
-            min-height: calc(100vh - 230px);
-
-            padding: 65px 12px 20px;
-          }
-
-          .claim-login-card {
-            padding: 25px 18px 20px;
-          }
-
-          .claim-login-heading h1 {
-            font-size: 25px;
-          }
-
-          .claim-action-button {
-            height: 34px;
-
-            padding: 0 9px;
-
-            font-size: 11px;
-          }
-
-          .claim-input {
-            height: 46px;
-          }
-
-          .claim-submit {
-            height: 47px;
-          }
-        }
-
-        /* =========================================================
-           VERY SMALL SCREEN
-           ========================================================= */
-
-        @media (max-width: 360px) {
-          .claim-action-button:first-child {
-            display: none;
-          }
-
-          .claim-top-actions {
-            right: 12px;
-          }
-
-          .claim-login-form-area {
-            padding-left: 9px;
-            padding-right: 9px;
-          }
+        @media (max-width: 860px) {
+          .cs-login-page { flex-direction: column; height: auto; min-height: 100vh; min-height: 100dvh; overflow-y: auto; }
+          .cs-hero { width: 100%; min-width: 0; padding: 28px 22px; }
+          .cs-hero-headline { font-size: clamp(36px, 10vw, 50px); }
+          .cs-form-area { padding: 28px 20px 36px; overflow-y: visible; }
         }
       `}</style>
 
-      {/* =========================================================
-          MAIN LOGIN PAGE
-          ========================================================= */}
-
-      <main className="claim-login-page">
-
-        {/* =======================================================
-            LEFT IMAGE
-            ======================================================= */}
-
-        <section className="claim-login-visual">
-
-          <img
-            src="/login-bg.png"
-            alt="ClaimShield+ motor claims"
-            className="claim-login-image"
-          />
-
-          <div
-            className="claim-login-image-overlay"
-            aria-hidden="true"
-          />
-
-          <motion.div
-            className="claim-glow-one"
-            animate={{
-              scale: [1, 1.18, 1],
-              opacity: [0.3, 0.55, 0.3],
-            }}
-            transition={{
-              duration: 5,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-
-          <motion.div
-            className="claim-glow-two"
-            animate={{
-              y: [-12, 12, -12],
-              opacity: [0.25, 0.5, 0.25],
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-
-        </section>
-
-        {/* =======================================================
-            RIGHT LOGIN AREA
-            ======================================================= */}
-
-        <section className="claim-login-form-area">
-
-          {/* TOP ACTIONS */}
-
-          <div className="claim-top-actions">
-
-            <button
-              type="button"
-              className="claim-action-button"
-            >
-              <Headphones size={15} />
-              Need Help?
-            </button>
-
-            <button
-              type="button"
-              className="claim-action-button"
-            >
-              <Globe size={15} />
-              English
-            </button>
-
+      <main className="cs-login-page">
+        {/* =====================================================
+            LEFT — FAST TRACK HERO
+            ===================================================== */}
+        <section className="cs-hero">
+          <div className="cs-hero-brand">
+            <Car size={16} />
+            Claims Shield+
           </div>
 
-          {/* =====================================================
-              LOGIN CARD
-              ===================================================== */}
+          <div className="cs-hero-eyebrow">Fast track OD claim settlement</div>
+
+          <motion.h1
+            className="cs-hero-headline"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            30
+            <br />
+            Minutes.
+          </motion.h1>
+
+          <p className="cs-hero-copy">
+            Not 5&ndash;7 days. Dents, windshield glass and scratches, settled while you wait.
+          </p>
+
+          <div className="cs-hero-rule" />
 
           <motion.div
-            className="claim-login-card"
-            initial={{
-              opacity: 0,
-              x: 25,
-              scale: 0.98,
-            }}
-            animate={{
-              opacity: 1,
-              x: 0,
-              scale: 1,
-            }}
-            transition={{
-              duration: 0.5,
-              ease: "easeOut",
-            }}
+            className="cs-timeline-card"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.4 }}
           >
+            <div className="cs-timeline-eyebrow">Same claim, two timelines</div>
 
-            {/* HEADER */}
-
-            <div className="claim-login-heading">
-
-              <motion.h1
-                initial={{
-                  opacity: 0,
-                  y: 8,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                transition={{
-                  delay: 0.12,
-                  duration: 0.35,
-                }}
-              >
-                Welcome Back!
-                
-              </motion.h1>
-
-              <motion.p
-                initial={{
-                  opacity: 0,
-                  y: 5,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                transition={{
-                  delay: 0.18,
-                  duration: 0.35,
-                }}
-              >
-                Sign in to continue to{" "}
-                <strong>ClaimShield+</strong>
-              </motion.p>
-
-              <div className="claim-heading-line" />
-
+            <div className="cs-timeline-row">
+              <span className="cs-timeline-label">Industry</span>
+              <div className="cs-timeline-track">
+                <div className="cs-timeline-fill" style={{ width: "100%" }} />
+              </div>
+              <span className="cs-timeline-value">5&ndash;7 days</span>
             </div>
 
-            {/* ===================================================
-                LOGIN FORM
-                =================================================== */}
+            <div className="cs-timeline-row">
+              <span className="cs-timeline-label">Shield+</span>
+              <div className="cs-timeline-track">
+                <div className="cs-timeline-fill is-fast" style={{ width: "8%" }} />
+              </div>
+              <span className="cs-timeline-value">30 min</span>
+            </div>
+          </motion.div>
 
-            <form
-              onSubmit={handleLogin}
-              className="claim-form"
-            >
+          <div className="cs-hero-steps">
+            {TIMELINE_STEPS.map((step) => (
+              <div key={step.title}>
+                <div className="cs-hero-step-time">{step.time}</div>
+                <div className="cs-hero-step-title">{step.title}</div>
+                <div className="cs-hero-step-detail">{step.detail}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-              {/* EMAIL */}
+        {/* =====================================================
+            RIGHT — LOGIN FORM
+            ===================================================== */}
+        <section className="cs-form-area">
+          <motion.div
+            className="cs-login-card"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
+            <div className="cs-eyebrow">Customer login</div>
+            <h1>Welcome back.</h1>
+            <p className="cs-login-sub">
+              Policyholders only. Third-party claimants use this form.
+            </p>
 
-              <motion.div
-                className="claim-field"
-                initial={{
-                  opacity: 0,
-                  y: 8,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                transition={{
-                  delay: 0.22,
-                }}
-              >
-
-                <label
-                  htmlFor="email"
-                  className="claim-label"
-                >
-                  Email Address
+            <form onSubmit={handleLogin} className="cs-form">
+              <div>
+                <label htmlFor="email" className="cs-label">
+                  Email address
                 </label>
-
-                <div className="claim-input-wrapper">
-
-                  <Mail
-                    size={18}
-                    className="claim-input-icon"
-                  />
-
+                <div className="cs-input-wrapper">
+                  <Mail size={17} className="cs-input-icon" />
                   <input
                     id="email"
                     name="email"
                     type="email"
                     autoComplete="email"
                     value={email}
-                    onChange={(event) =>
-                      setEmail(event.target.value)
-                    }
-                    placeholder="Enter your email address"
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
                     disabled={loading}
-                    className="claim-input"
+                    className="cs-input"
                   />
-
                 </div>
+              </div>
 
-              </motion.div>
-
-              {/* PASSWORD */}
-
-              <motion.div
-                className="claim-field"
-                initial={{
-                  opacity: 0,
-                  y: 8,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                transition={{
-                  delay: 0.28,
-                }}
-              >
-
-                <label
-                  htmlFor="password"
-                  className="claim-label"
-                >
+              <div>
+                <label htmlFor="password" className="cs-label">
                   Password
                 </label>
-
-                <div className="claim-input-wrapper">
-
-                  <LockKeyhole
-                    size={18}
-                    className="claim-input-icon"
-                  />
-
+                <div className="cs-input-wrapper">
+                  <LockKeyhole size={17} className="cs-input-icon" />
                   <input
                     id="password"
                     name="password"
-                    type={
-                      showPassword
-                        ? "text"
-                        : "password"
-                    }
+                    type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     value={password}
-                    onChange={(event) =>
-                      setPassword(event.target.value)
-                    }
-                    placeholder="Enter your password"
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Enter password"
                     disabled={loading}
-                    className="claim-input claim-password-input"
+                    className="cs-input cs-password-input"
                   />
-
                   <button
                     type="button"
-                    className="claim-password-button"
-                    onClick={() =>
-                      setShowPassword(
-                        (value) => !value
-                      )
-                    }
+                    className="cs-password-button"
+                    onClick={() => setShowPassword((value) => !value)}
                     disabled={loading}
-                    aria-label={
-                      showPassword
-                        ? "Hide password"
-                        : "Show password"
-                    }
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
-
                 </div>
+              </div>
 
-              </motion.div>
+              <label className="cs-remember">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(event) => setRememberMe(event.target.checked)}
+                  className="cs-checkbox"
+                />
+                Keep me signed in on this device
+              </label>
 
-              {/* OPTIONS */}
+              {error && <div className="cs-error">{error}</div>}
 
-              <motion.div
-                className="claim-options"
-                initial={{
-                  opacity: 0,
-                }}
-                animate={{
-                  opacity: 1,
-                }}
-                transition={{
-                  delay: 0.34,
-                }}
+              <button type="submit" disabled={loading} className="cs-submit">
+                {loading ? (
+                  <>
+                    <span className="cs-spinner" />
+                    Signing in&hellip;
+                  </>
+                ) : (
+                  <>
+                    Sign in
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="cs-track-button"
+                onClick={() => navigate("/track-claim")}
               >
-
-                <label className="claim-remember">
-
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(event) =>
-                      setRememberMe(
-                        event.target.checked
-                      )
-                    }
-                    className="claim-checkbox"
-                  />
-
-                  Remember Me
-
-                </label>
-
-                <button
-                  type="button"
-                  className="claim-forgot"
-                  
-                >
-                  Forgot Password?
-                </button>
-
-              </motion.div>
-
-              {/* ERROR */}
-
-              {error && (
-                <motion.div
-                  className="claim-error"
-                  initial={{
-                    opacity: 0,
-                    y: -5,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                >
-                  {error}
-                </motion.div>
-              )}
-
-              {/* LOGIN BUTTON */}
-
-              <motion.button
-                type="submit"
-                disabled={loading}
-                className="claim-submit"
-                initial={{
-                  opacity: 0,
-                  y: 8,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                }}
-                transition={{
-                  delay: 0.39,
-                }}
-                whileTap={
-                  !loading
-                    ? { scale: 0.985 }
-                    : undefined
-                }
-              >
-
-                <span className="claim-submit-content">
-
-                  {loading ? (
-                    <>
-                      <span className="claim-spinner" />
-                      Signing in...
-                    </>
-                  ) : (
-                    <>
-                      Continue
-                      <ArrowRight size={17} />
-                    </>
-                  )}
-
-                </span>
-
-              </motion.button>
-
+                <Search size={15} />
+                Track a claim without signing in
+              </button>
             </form>
 
+            <div className="cs-fast-track">
+              <div className="cs-eyebrow">Eligible on fast track</div>
+              <div className="cs-tags">
+                {FAST_TRACK_TAGS.map((tag) => (
+                  <span key={tag} className="cs-tag">
+                    {tag}
+                  </span>
+                ))}
+              </div>
 
+              <div className="cs-stats">
+                {TRUST_STATS.map((stat) => (
+                  <div key={stat.label} className="cs-stat">
+                    <div className="cs-stat-value">{stat.value}</div>
+                    <div className="cs-stat-label">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-            {/* ===================================================
-                REGISTER
-                =================================================== */}
-
-
-
-            {/* SECURITY */}
-
-
-
+            <div className="cs-footer">IRDAI Reg. 158 &middot; 256-bit encrypted</div>
           </motion.div>
-
         </section>
-
       </main>
     </>
   );

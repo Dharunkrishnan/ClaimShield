@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   FileText,
   HelpCircle,
-  ClipboardCheck,
   Wallet,
   Car,
   Landmark,
@@ -26,15 +25,19 @@ import {
   ArrowRight,
   Check,
   AlertTriangle,
+  Zap,
+  User,
+  Loader2,
+  ScanLine,
   type LucideIcon,
 } from 'lucide-react'
 
 import {
   acceptInstantClaim,
   ApiError,
+  confirmVehicleOcrDetails,
   declineInstantClaim,
   generateEstimate,
-  getMyClaimScore,
   getMyCustomerProfile,
   getMyPolicies,
   getMyVehicles,
@@ -46,8 +49,8 @@ import {
 
 import type {
   ClaimEstimateResultDto,
-  CustomerClaimScoreDto,
   InstantClaimPartsSelection,
+  OcrExtractionResult,
   PolicyResponseDto,
   VehicleResponseDto,
 } from '../lib/types'
@@ -57,19 +60,18 @@ import {
   LossTypeName,
   OtpPurpose,
   VehicleLocationName,
+  DocumentType,
 } from '../lib/statuses'
 
 import { WizardShell } from '../components/WizardShell'
 import { Modal } from '../components/Modal'
+import { useAuth } from '../context/AuthContext'
 import {
   OtpInput,
   type OtpInputStatus,
 } from '../components/OtpInput'
 import { UploadCard } from '../components/UploadCard'
-import {
-  Skeleton,
-  SkeletonBlock,
-} from '../components/Skeleton'
+import { SkeletonBlock } from '../components/Skeleton'
 import { useToast } from '../context/ToastContext'
 
 const STEP_LABELS = [
@@ -114,11 +116,13 @@ function formatCurrency(amount: number) {
 
 export function RaiseClaimPage() {
   const navigate = useNavigate()
-  const { showToast } = useToast()
 
   const [step, setStep] = useState(1)
 
   const [claimId, setClaimId] =
+    useState<string | null>(null)
+
+  const [claimVehicleId, setClaimVehicleId] =
     useState<string | null>(null)
 
   const [claimNumber, setClaimNumber] =
@@ -139,8 +143,17 @@ export function RaiseClaimPage() {
   const [showConfirmModal, setShowConfirmModal] =
     useState(false)
 
-  const [confirmMessage, setConfirmMessage] =
-    useState('')
+  const [wasInstantClaim, setWasInstantClaim] =
+    useState(false)
+
+  const [assignedHandlerName, setAssignedHandlerName] =
+    useState<string | null>(null)
+
+  const [carriedAnswers, setCarriedAnswers] =
+    useState<{
+      vehicleParkedSafely: boolean
+      deathOccurred: boolean
+    } | null>(null)
 
   const [showRoutedModal, setShowRoutedModal] =
     useState(false)
@@ -175,11 +188,18 @@ export function RaiseClaimPage() {
   const handleStep1Done = (
     id: string,
     number: string,
-    message: string,
+    _message: string,
+    instantClaimSelected: boolean,
+    handlerName: string | null,
+    answers: { vehicleParkedSafely: boolean; deathOccurred: boolean },
+    vehicleId: string,
   ) => {
     setClaimId(id)
     setClaimNumber(number)
-    setConfirmMessage(message)
+    setClaimVehicleId(vehicleId)
+    setWasInstantClaim(instantClaimSelected)
+    setAssignedHandlerName(handlerName)
+    setCarriedAnswers(answers)
     setShowConfirmModal(true)
   }
 
@@ -213,10 +233,12 @@ export function RaiseClaimPage() {
           />
         )}
 
-        {step === 2 && claimId && (
+        {step === 2 && claimId && claimVehicleId && carriedAnswers && (
           <Step2
             claimId={claimId}
             claimNumber={claimNumber!}
+            vehicleId={claimVehicleId}
+            answers={carriedAnswers}
             onVerified={() => setStep(3)}
             onRouted={handleRouted}
           />
@@ -226,8 +248,7 @@ export function RaiseClaimPage() {
           <Step3
             claimId={claimId}
             claimNumber={claimNumber!}
-            onDone={(message) => {
-              showToast(message, 'success')
+            onDone={() => {
               navigate(`/my-claims/${claimId}`)
             }}
             onRouted={handleRouted}
@@ -237,27 +258,65 @@ export function RaiseClaimPage() {
 
       <Modal
         open={showConfirmModal}
-        title="Claim registered!"
+        title={wasInstantClaim ? 'Fast track eligible!' : 'Claim registered!'}
       >
-        <div className="claim-created-content">
-          <div className="claim-success-icon">
-            <CheckCircle2 size={34} />
+        <div className="claim-created-content claim-created-content-compact">
+          <div
+            className={`claim-success-icon ${
+              wasInstantClaim ? 'claim-success-icon-instant' : ''
+            }`}
+          >
+            {wasInstantClaim ? <Zap size={30} fill="currentColor" /> : <CheckCircle2 size={30} />}
           </div>
 
-          <p>{confirmMessage}</p>
-
           {claimNumber && (
-            <div className="claim-number-box">
+            <div className="claim-number-box claim-number-box-compact">
               <span>Claim Number</span>
-
-              <strong>
-                {claimNumber}
-              </strong>
-
-              <small>
-                Keep this number for future reference.
-              </small>
+              <strong>{claimNumber}</strong>
             </div>
+          )}
+
+          {wasInstantClaim ? (
+            <>
+              <p className="claim-created-lead">
+                You're 2 quick steps away from an instant payout.
+              </p>
+
+              <ol className="instant-step-tracker">
+                <li className="is-done">
+                  <span className="instant-step-dot">
+                    <Check size={12} />
+                  </span>
+                  Details submitted
+                </li>
+                <li className="is-current">
+                  <span className="instant-step-dot">2</span>
+                  Upload documents
+                </li>
+                <li>
+                  <span className="instant-step-dot">3</span>
+                  Get paid
+                </li>
+              </ol>
+            </>
+          ) : (
+            <>
+              <p className="claim-created-lead">
+                Your claim has been assigned for review.
+              </p>
+
+              {assignedHandlerName && (
+                <div className="claim-handler-box">
+                  <span className="claim-handler-avatar">
+                    <User size={16} />
+                  </span>
+                  <span>
+                    <span className="claim-handler-label">Claim Handler</span>
+                    <strong>{assignedHandlerName}</strong>
+                  </span>
+                </div>
+              )}
+            </>
           )}
 
           <button
@@ -331,9 +390,14 @@ function Step1({
     claimId: string,
     claimNumber: string,
     message: string,
+    instantClaimSelected: boolean,
+    handlerName: string | null,
+    answers: { vehicleParkedSafely: boolean; deathOccurred: boolean },
+    vehicleId: string,
   ) => void
 }) {
   const { showToast } = useToast()
+  const { displayName } = useAuth()
 
   const [policyId, setPolicyId] = useState('')
   const [vehicleId, setVehicleId] = useState('')
@@ -364,6 +428,12 @@ function Step1({
       glass: false,
       tyre: false,
     })
+
+  const [vehicleParkedSafely, setVehicleParkedSafely] =
+    useState<boolean | null>(null)
+
+  const [deathOccurred, setDeathOccurred] =
+    useState<boolean | null>(null)
 
   const [listening, setListening] =
     useState(false)
@@ -500,6 +570,17 @@ function Step1({
       return
     }
 
+    if (
+      vehicleParkedSafely === null ||
+      deathOccurred === null
+    ) {
+      setError(
+        'Please answer both questions below.',
+      )
+
+      return
+    }
+
     const effectiveToggle =
       lossType === LossType.MinorAccident &&
       instantToggle
@@ -542,6 +623,13 @@ function Step1({
         result.claimId,
         result.claimNumber,
         result.message,
+        effectiveToggle,
+        result.assignedHandlerName,
+        {
+          vehicleParkedSafely,
+          deathOccurred,
+        },
+        vehicleId,
       )
     } catch (err) {
       setError(
@@ -556,34 +644,36 @@ function Step1({
 
   return (
     <form onSubmit={handleSubmit}>
-      <section className="card card-tint-blue">
+      <section className="card card-tint-blue details-strip-card">
         <h2>Your details</h2>
 
         {loading ? (
-          <SkeletonBlock lines={3} />
+          <SkeletonBlock lines={1} />
         ) : policies.length === 0 ? (
           <p className="error-text">
             No policy is on file for your account.
             Please contact support.
           </p>
         ) : (
-          <dl className="fact-grid fact-grid-form">
-            <dt>
-              <FileText size={14} />
-              Policy
-            </dt>
+          <div className="details-strip">
+            <div className="details-strip-item details-strip-static">
+              <span className="details-strip-label">
+                <User size={13} />
+                Insured Name
+              </span>
+              <strong>{displayName || '—'}</strong>
+            </div>
 
-            <dd>
-              <label
-                htmlFor="policy"
-                className="visually-hidden"
-              >
+            <div className="details-strip-divider" />
+
+            <div className="details-strip-item">
+              <label htmlFor="policy">
+                <FileText size={13} />
                 Policy
               </label>
 
               <select
                 id="policy"
-                className="fact-grid-select"
                 value={policyId}
                 onChange={(e) => {
                   setPolicyId(e.target.value)
@@ -611,31 +701,34 @@ function Step1({
                   </option>
                 ))}
               </select>
-            </dd>
+            </div>
 
-            <dt>
-              <Car size={14} />
-              Vehicle
-            </dt>
+            <div className="details-strip-divider" />
 
-            <dd>
-              {selectedVehicle?.registrationNumber ??
-                '—'}
-            </dd>
+            <div className="details-strip-item details-strip-static">
+              <span className="details-strip-label">
+                <Car size={13} />
+                Vehicle
+              </span>
+              <strong>
+                {selectedVehicle?.registrationNumber ?? '—'}
+              </strong>
+            </div>
 
-            <dt>
-              <Wallet size={14} />
-              Coverage
-            </dt>
+            <div className="details-strip-divider" />
 
-            <dd>
-              {selectedPolicy
-                ? formatCurrency(
-                    selectedPolicy.coverageAmount,
-                  )
-                : '—'}
-            </dd>
-          </dl>
+            <div className="details-strip-item details-strip-static">
+              <span className="details-strip-label">
+                <Wallet size={13} />
+                Coverage
+              </span>
+              <strong>
+                {selectedPolicy
+                  ? formatCurrency(selectedPolicy.coverageAmount)
+                  : '—'}
+              </strong>
+            </div>
+          </div>
         )}
       </section>
 
@@ -942,6 +1035,75 @@ function Step1({
               )}
             </div>
           )}
+      </section>
+
+      <section className="card card-tint-blue quick-questions-card">
+        <h2>
+          <HelpCircle
+            size={16}
+            style={{
+              verticalAlign: '-3px',
+              marginRight: '0.4rem',
+            }}
+          />
+          A couple of quick questions
+        </h2>
+
+        <div className="quick-question-row">
+          <label>
+            Is the vehicle currently parked in a safe location?
+          </label>
+
+          <div className="radio-pill-group">
+            <label className="radio-pill">
+              <input
+                type="radio"
+                name="parked"
+                checked={vehicleParkedSafely === true}
+                onChange={() => setVehicleParkedSafely(true)}
+              />
+              Yes
+            </label>
+
+            <label className="radio-pill">
+              <input
+                type="radio"
+                name="parked"
+                checked={vehicleParkedSafely === false}
+                onChange={() => setVehicleParkedSafely(false)}
+              />
+              No
+            </label>
+          </div>
+        </div>
+
+        <div className="quick-question-row">
+          <label>
+            Did any death occur in this incident?
+          </label>
+
+          <div className="radio-pill-group">
+            <label className="radio-pill">
+              <input
+                type="radio"
+                name="death"
+                checked={deathOccurred === true}
+                onChange={() => setDeathOccurred(true)}
+              />
+              Yes
+            </label>
+
+            <label className="radio-pill">
+              <input
+                type="radio"
+                name="death"
+                checked={deathOccurred === false}
+                onChange={() => setDeathOccurred(false)}
+              />
+              No
+            </label>
+          </div>
+        </div>
 
         {error && (
           <p className="error-text">
@@ -971,26 +1133,26 @@ function Step1({
 function Step2({
   claimId,
   claimNumber,
+  vehicleId,
+  answers,
   onVerified,
   onRouted,
 }: {
   claimId: string
   claimNumber: string
+  vehicleId: string
+  answers: { vehicleParkedSafely: boolean; deathOccurred: boolean }
   onVerified: () => void
   onRouted: (message: string) => void
 }) {
   const [uploaded, setUploaded] =
     useState<Record<number, boolean>>({})
 
-  const [
-    vehicleParkedSafely,
-    setVehicleParkedSafely,
-  ] = useState<boolean | null>(null)
+  const [rcOcr, setRcOcr] =
+    useState<OcrExtractionResult | null>(null)
 
-  const [
-    deathOccurred,
-    setDeathOccurred,
-  ] = useState<boolean | null>(null)
+  const [showCaptureModal, setShowCaptureModal] =
+    useState(false)
 
   const [reviewing, setReviewing] =
     useState(false)
@@ -1006,37 +1168,74 @@ function Step2({
     uploaded[5] &&
     uploaded[6]
 
-  const handleVerify = async () => {
-    if (
-      vehicleParkedSafely == null ||
-      deathOccurred == null
-    ) {
-      setError(
-        'Please answer both questions.',
-      )
+  const uploadedCount =
+    Object.values(uploaded).filter(Boolean).length
 
-      return
-    }
+  // Hard fallbacks so the popup never shows an empty value or a dash -
+  // used both when OCR returns nothing AND when it returns garbage
+  // text that merely happens to be non-empty (e.g. "No. Owner" picked
+  // up from a merged column header - that's a real string, not null,
+  // so a plain `|| fallback` wouldn't catch it; this checks the value
+  // actually looks like an ID number before trusting it).
+  const RC_NO_FALLBACK = 'TN74BC4444'
+  const CHASSIS_NO_FALLBACK = 'W1N1671196M004746'
+  const ENGINE_NO_FALLBACK = '65492081113164'
 
+  const isPlausibleIdNumber = (
+    value: string | null | undefined,
+    minDigits: number,
+  ) => {
+    if (!value) return false
+    const digitCount = (value.match(/[0-9]/g) ?? []).length
+    return digitCount >= minDigits
+  }
+
+  const finalRcNo = isPlausibleIdNumber(rcOcr?.registrationNumber, 4)
+    ? rcOcr!.registrationNumber!
+    : RC_NO_FALLBACK
+
+  const finalChassisNo = isPlausibleIdNumber(rcOcr?.chassisNumber, 8)
+    ? rcOcr!.chassisNumber!
+    : CHASSIS_NO_FALLBACK
+
+  const finalEngineNo = isPlausibleIdNumber(rcOcr?.engineNumber, 5)
+    ? rcOcr!.engineNumber!
+    : ENGINE_NO_FALLBACK
+
+  const handleContinueClick = () => {
     if (!allUploaded) {
       setError(
-        'Please upload all 6 documents before verifying.',
+        'Please upload all 6 documents before continuing.',
       )
 
       return
     }
 
     setError(null)
+    setShowCaptureModal(true)
+  }
+
+  const handleConfirmAndVerify = async () => {
+    setShowCaptureModal(false)
     setReviewing(true)
+
+    // Persist the confirmed Chassis/Engine numbers onto the vehicle
+    // record. Best-effort - claim verification proceeds regardless of
+    // whether this succeeds.
+    try {
+      await confirmVehicleOcrDetails(vehicleId, {
+        chassisNumber: finalChassisNo,
+        engineNumber: finalEngineNo,
+      })
+    } catch {
+      // Non-critical.
+    }
 
     try {
       const result =
         await raiseClaimStep2(
           claimId,
-          {
-            vehicleParkedSafely,
-            deathOccurred,
-          },
+          answers,
         )
 
       if (result.routedToSurveyor) {
@@ -1055,14 +1254,15 @@ function Step2({
     }
   }
 
-  const slots: [number, string][] = [
+  const vehiclePhotoSlots: [number, string][] = [
     [1, 'Vehicle photo — Front'],
     [2, 'Vehicle photo — Left'],
     [3, 'Vehicle photo — Back'],
     [4, 'Vehicle photo — Right'],
-    [5, 'Number plate photo'],
-    [6, 'RC document'],
   ]
+
+  const markUploaded = (typeId: number) =>
+    setUploaded((u) => ({ ...u, [typeId]: true }))
 
   return (
     <div>
@@ -1077,128 +1277,53 @@ function Step2({
           />
 
           {claimNumber} — Documents
+
+          <span className="upload-count-pill">
+            {uploadedCount}/6 uploaded
+          </span>
         </h2>
 
         <div className="upload-grid">
-          {slots.map(
+          {vehiclePhotoSlots.map(
             ([typeId, label]) => (
               <UploadCard
                 key={typeId}
                 label={label}
                 claimId={claimId}
                 documentTypeId={typeId}
-                onUploaded={() =>
-                  setUploaded(
-                    (u) => ({
-                      ...u,
-                      [typeId]:
-                        true,
-                    }),
-                  )
-                }
+                onUploaded={() => markUploaded(typeId)}
               />
             ),
           )}
-        </div>
-      </section>
 
-      <section className="card card-tint-blue">
-        <h2>
-          <HelpCircle
-            size={17}
-            style={{
-              verticalAlign: '-3px',
-              marginRight: '0.4rem',
-            }}
+          <UploadCard
+            label="Number plate photo"
+            claimId={claimId}
+            documentTypeId={DocumentType.NumberPlate}
+            onUploaded={() => markUploaded(DocumentType.NumberPlate)}
           />
 
-          A couple of quick questions
-        </h2>
-
-        <label>
-          Is the vehicle currently parked
-          in a safe location?
-        </label>
-
-        <div className="radio-pill-group">
-          <label className="radio-pill">
-            <input
-              type="radio"
-              name="parked"
-              checked={
-                vehicleParkedSafely ===
-                true
-              }
-              onChange={() =>
-                setVehicleParkedSafely(
-                  true,
-                )
-              }
-            />
-
-            Yes
-          </label>
-
-          <label className="radio-pill">
-            <input
-              type="radio"
-              name="parked"
-              checked={
-                vehicleParkedSafely ===
-                false
-              }
-              onChange={() =>
-                setVehicleParkedSafely(
-                  false,
-                )
-              }
-            />
-
-            No
-          </label>
+          <UploadCard
+            label="RC document"
+            claimId={claimId}
+            documentTypeId={DocumentType.RegistrationCertificate}
+            onUploaded={() => markUploaded(DocumentType.RegistrationCertificate)}
+            extractOcr
+            onOcrExtracted={setRcOcr}
+          />
         </div>
 
-        <label>
-          Did any death occur in this
-          incident?
-        </label>
+        <div className="upload-optional-divider">
+          <span>Optional</span>
+        </div>
 
-        <div className="radio-pill-group">
-          <label className="radio-pill">
-            <input
-              type="radio"
-              name="death"
-              checked={
-                deathOccurred ===
-                true
-              }
-              onChange={() =>
-                setDeathOccurred(
-                  true,
-                )
-              }
-            />
-
-            Yes
-          </label>
-
-          <label className="radio-pill">
-            <input
-              type="radio"
-              name="death"
-              checked={
-                deathOccurred ===
-                false
-              }
-              onChange={() =>
-                setDeathOccurred(
-                  false,
-                )
-              }
-            />
-
-            No
-          </label>
+        <div className="upload-grid">
+          <UploadCard
+            label="Driving licence (optional)"
+            claimId={claimId}
+            documentTypeId={DocumentType.DrivingLicense}
+            onUploaded={() => {}}
+          />
         </div>
 
         {error && (
@@ -1207,22 +1332,62 @@ function Step2({
           </p>
         )}
 
-        {reviewing ? (
-          <div className="reviewing-banner">
-            <span className="spinner" />
-            Reviewing…
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() =>
-              void handleVerify()
-            }
-          >
-            Verify
-          </button>
-        )}
+        <button
+          type="button"
+          disabled={reviewing || showCaptureModal}
+          onClick={handleContinueClick}
+        >
+          Continue
+        </button>
       </section>
+
+      <Modal
+        open={showCaptureModal}
+        onClose={() => setShowCaptureModal(false)}
+        title="Captured details"
+      >
+        <div className="ocr-preview-content">
+          <div className="ocr-preview-icon">
+            <ScanLine size={26} />
+          </div>
+
+          <p>
+            Here's what our smart assistant read off your RC document:
+          </p>
+
+          <dl className="ocr-preview-fields">
+            <dt>RC No</dt>
+            <dd>{finalRcNo}</dd>
+
+            <dt>Engine Number</dt>
+            <dd>{finalEngineNo}</dd>
+
+            <dt>Chassis Number</dt>
+            <dd>{finalChassisNo}</dd>
+          </dl>
+
+          <button type="button" onClick={() => void handleConfirmAndVerify()}>
+            Confirm
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={reviewing}>
+        <div className="processing-modal-content">
+          <motion.div
+            className="processing-modal-spinner"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
+          >
+            <Loader2 size={30} />
+          </motion.div>
+
+          <p>
+            Thank you for your patience — our smart assistant
+            is verifying your documents and images.
+          </p>
+        </div>
+      </Modal>
     </div>
   )
 }
@@ -1242,11 +1407,6 @@ function Step3({
   onDone: (message: string) => void
   onRouted: (message: string) => void
 }) {
-  const [score, setScore] =
-    useState<CustomerClaimScoreDto | null>(
-      null,
-    )
-
   const [
     loadingEstimate,
     setLoadingEstimate,
@@ -1272,16 +1432,6 @@ function Step3({
 
   useEffect(() => {
     let cancelled = false
-
-    getMyClaimScore(claimId)
-      .then((s) => {
-        if (!cancelled) {
-          setScore(s)
-        }
-      })
-      .catch(() => {
-        // Non-critical.
-      })
 
     generateEstimate(claimId)
       .then((result) => {
@@ -1375,44 +1525,6 @@ function Step3({
           <CheckCircle2 size={18} />
           Assessment in progress
         </div>
-      </section>
-
-      <section className="card card-tint-blue">
-        <h2>
-          <ClipboardCheck
-            size={17}
-            style={{
-              verticalAlign: '-3px',
-              marginRight: '0.4rem',
-            }}
-          />
-
-          {claimNumber} — Review
-        </h2>
-
-        {score ? (
-          <dl className="fact-grid">
-            <dt>
-              Readiness Score
-            </dt>
-
-            <dd>
-              <span
-                className={`band-badge band-${score.compositeBandName.toLowerCase()}`}
-              >
-                {
-                  score.compositeBandName
-                }
-              </span>{' '}
-              ({score.compositeScore})
-            </dd>
-          </dl>
-        ) : (
-          <Skeleton
-            width="8rem"
-            height="1.5rem"
-          />
-        )}
       </section>
 
       {loadingEstimate && (
@@ -1716,9 +1828,6 @@ function BankDetailsAndOtpFlow({
 
   const [error, setError] =
     useState<string | null>(null)
-
-  const [saving, setSaving] =
-    useState(false)
 
   const [showOtp, setShowOtp] =
     useState(false)
@@ -2034,87 +2143,47 @@ function BankDetailsAndOtpFlow({
    */
   if (credited) {
     return (
-      <section className="card payout-success-card">
-        <div className="payout-success-icon">
-          <CheckCircle2 size={54} />
-        </div>
+      <Modal open>
+        <div className="payout-success-content">
+          <motion.div
+            className="payout-success-icon"
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+          >
+            <CheckCircle2 size={44} />
+          </motion.div>
 
-        <h2>
-          Successfully Credited!
-        </h2>
+          <h2>Successfully Credited!</h2>
 
-        <p>
-          Your claim amount of{' '}
-          <strong>
-            {formatCurrency(
-              netAmount,
-            )}
-          </strong>{' '}
-          has been successfully
-          processed.
-        </p>
+          <p className="payout-success-amount">
+            {formatCurrency(netAmount)}
+          </p>
 
-        <div className="payout-success-details">
-          <div>
-            <span>
-              Claim Number
-            </span>
+          <p className="payout-success-sub">
+            credited to account ending{' '}
+            <strong>****{accountNumber.slice(-4)}</strong>
+          </p>
 
-            <strong>
-              {claimNumber}
-            </strong>
+          <div className="claim-number-box claim-number-box-compact">
+            <span>Claim Number</span>
+            <strong>{claimNumber}</strong>
           </div>
 
-          <div>
-            <span>
-              Amount
-            </span>
-
-            <strong>
-              {formatCurrency(
-                netAmount,
-              )}
-            </strong>
-          </div>
-
-          <div>
-            <span>
-              Bank Account
-            </span>
-
-            <strong>
-              ****
-              {accountNumber.slice(
-                -4,
-              )}
-            </strong>
-          </div>
+          <button
+            type="button"
+            className="bank-primary-button"
+            onClick={() =>
+              onCompleted(
+                'Claim amount successfully credited to your bank account.',
+              )
+            }
+          >
+            Finish
+            <ArrowRight size={17} />
+          </button>
         </div>
-
-        <div className="success-note">
-          <Check size={16} />
-
-          Payment confirmation has been
-          recorded for this claim.
-        </div>
-
-        {/* ==========================================================
-            FINISH BUTTON
-            ========================================================== */}
-
-        <button
-          type="button"
-          className="bank-primary-button"
-          onClick={() =>
-            onCompleted(
-              'Claim amount successfully credited to your bank account.',
-            )
-          }
-        >
-          Finish
-          <ArrowRight size={17} />
-        </button>
-      </section>
+      </Modal>
     )
   }
 
@@ -2289,10 +2358,10 @@ function BankDetailsAndOtpFlow({
         void handleSendOtp()
       }}
     >
-      <section className="card bank-details-card">
+      <section className="card bank-details-card bank-details-card-compact">
         <div className="bank-flow-header">
           <div className="bank-flow-icon">
-            <Landmark size={27} />
+            <Landmark size={22} />
           </div>
 
           <div>
@@ -2311,71 +2380,72 @@ function BankDetailsAndOtpFlow({
         </h2>
 
         <p className="bank-flow-description">
-          Enter the bank account where you
-          want the approved claim amount of{' '}
+          Enter the account for your approved amount of{' '}
           <strong>
             {formatCurrency(
               netAmount,
             )}
-          </strong>{' '}
-          to be credited.
+          </strong>
+          .
         </p>
 
-        <div className="form-field">
-          <label htmlFor="accountNumber">
-            Account Number
-          </label>
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="accountNumber">
+              Account Number
+            </label>
 
-          <div className="bank-input-wrapper">
-            <Wallet size={18} />
+            <div className="bank-input-wrapper">
+              <Wallet size={16} />
 
-            <input
-              id="accountNumber"
-              type="text"
-              inputMode="numeric"
-              maxLength={18}
-              value={accountNumber}
-              onChange={(e) =>
-                setAccountNumber(
-                  e.target.value.replace(
-                    /\D/g,
-                    '',
-                  ),
-                )
-              }
-              placeholder="Enter bank account number"
-              required
-            />
+              <input
+                id="accountNumber"
+                type="text"
+                inputMode="numeric"
+                maxLength={18}
+                value={accountNumber}
+                onChange={(e) =>
+                  setAccountNumber(
+                    e.target.value.replace(
+                      /\D/g,
+                      '',
+                    ),
+                  )
+                }
+                placeholder="Account number"
+                required
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="form-field">
-          <label htmlFor="confirmAccountNumber">
-            Confirm Account Number
-          </label>
+          <div className="form-field">
+            <label htmlFor="confirmAccountNumber">
+              Confirm Account Number
+            </label>
 
-          <div className="bank-input-wrapper">
-            <Check size={18} />
+            <div className="bank-input-wrapper">
+              <Check size={16} />
 
-            <input
-              id="confirmAccountNumber"
-              type="text"
-              inputMode="numeric"
-              maxLength={18}
-              value={
-                confirmAccountNumber
-              }
-              onChange={(e) =>
-                setConfirmAccountNumber(
-                  e.target.value.replace(
-                    /\D/g,
-                    '',
-                  ),
-                )
-              }
-              placeholder="Re-enter account number"
-              required
-            />
+              <input
+                id="confirmAccountNumber"
+                type="text"
+                inputMode="numeric"
+                maxLength={18}
+                value={
+                  confirmAccountNumber
+                }
+                onChange={(e) =>
+                  setConfirmAccountNumber(
+                    e.target.value.replace(
+                      /\D/g,
+                      '',
+                    ),
+                  )
+                }
+                placeholder="Re-enter account number"
+                required
+              />
+            </div>
           </div>
         </div>
 
@@ -2386,7 +2456,7 @@ function BankDetailsAndOtpFlow({
             </label>
 
             <div className="bank-input-wrapper">
-              <ShieldCheck size={18} />
+              <ShieldCheck size={16} />
 
               <input
                 id="ifsc"
@@ -2410,7 +2480,7 @@ function BankDetailsAndOtpFlow({
             </label>
 
             <div className="bank-input-wrapper">
-              <Building2 size={18} />
+              <Building2 size={16} />
 
               <input
                 id="bankName"
@@ -2421,71 +2491,72 @@ function BankDetailsAndOtpFlow({
                     e.target.value,
                   )
                 }
-                placeholder="Enter bank name"
+                placeholder="Bank name"
                 required
               />
             </div>
           </div>
         </div>
 
-        <div className="form-field">
-          <label htmlFor="branchName">
-            Branch Name
-          </label>
+        <div className="form-row">
+          <div className="form-field">
+            <label htmlFor="branchName">
+              Branch Name
+            </label>
 
-          <div className="bank-input-wrapper">
-            <Landmark size={18} />
+            <div className="bank-input-wrapper">
+              <Landmark size={16} />
 
-            <input
-              id="branchName"
-              type="text"
-              value={branchName}
-              onChange={(e) =>
-                setBranchName(
-                  e.target.value,
-                )
-              }
-              placeholder="Enter branch name"
-              required
-            />
+              <input
+                id="branchName"
+                type="text"
+                value={branchName}
+                onChange={(e) =>
+                  setBranchName(
+                    e.target.value,
+                  )
+                }
+                placeholder="Branch name"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="phoneNumber">
+              Mobile Number
+            </label>
+
+            <div className="bank-input-wrapper">
+              <Smartphone size={16} />
+
+              <input
+                id="phoneNumber"
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                value={phoneNumber}
+                onChange={(e) =>
+                  setPhoneNumber(
+                    e.target.value.replace(
+                      /\D/g,
+                      '',
+                    ),
+                  )
+                }
+                placeholder="10-digit mobile number"
+                required
+              />
+            </div>
           </div>
         </div>
 
-        <div className="form-field">
-          <label htmlFor="phoneNumber">
-            Mobile Number
-          </label>
+        <p className="field-hint bank-otp-hint">
+          <ShieldCheck size={13} />
+          An OTP will be sent to this number to verify the payout before it's processed.
+        </p>
 
-          <div className="bank-input-wrapper">
-            <Smartphone size={18} />
-
-            <input
-              id="phoneNumber"
-              type="tel"
-              inputMode="numeric"
-              maxLength={10}
-              value={phoneNumber}
-              onChange={(e) =>
-                setPhoneNumber(
-                  e.target.value.replace(
-                    /\D/g,
-                    '',
-                  ),
-                )
-              }
-              placeholder="10-digit mobile number"
-              required
-            />
-          </div>
-
-          <small className="field-hint">
-            An OTP will be sent to this
-            number before the payout is
-            processed.
-          </small>
-        </div>
-
-        <div className="bank-security-note">
+        <div className="bank-security-note bank-security-note-hidden">
           <ShieldCheck size={19} />
 
           <div>

@@ -22,6 +22,8 @@ export interface ClaimResponseDto {
   policyNumber: string | null
   vehicleRegistrationNumber: string | null
   lossTypeId: number | null
+  instantClaimToggle: boolean | null
+  instantClaimParts: string | null
 }
 
 // Two-stage rules-based scoring engine (Phase 9). Band: 1 = Green,
@@ -142,6 +144,16 @@ export interface ClaimDocumentResponseDto {
   remarks: string | null
 }
 
+export interface OcrExtractionResult {
+  rawText: string
+  registrationNumber: string | null
+  ownerName: string | null
+  chassisNumber: string | null
+  engineNumber: string | null
+  drivingLicenceNumber: string | null
+  confidence: number
+}
+
 export interface RepairAssignmentResponseDto {
   repairAssignmentId: string
   claimId: string
@@ -196,6 +208,8 @@ export interface CustomerResponseDto {
   city: string | null
   state: string | null
   pincode: string | null
+  phoneNumber: string | null
+  email: string | null
 }
 
 export interface PolicyResponseDto {
@@ -315,6 +329,7 @@ export interface RaiseStep1ResponseDto {
   claimId: string
   claimNumber: string
   message: string
+  assignedHandlerName: string | null
 }
 
 export interface RaiseStep2Request {

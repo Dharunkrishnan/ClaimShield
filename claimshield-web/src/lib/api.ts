@@ -16,6 +16,7 @@ import type {
   InstantClaimPartsPricingResponseDto,
   InstantClaimRateCardResponseDto,
   InternalClaimScoringDto,
+  OcrExtractionResult,
   OtpSendResultDto,
   OtpVerifyResultDto,
   PaymentResponseDto,
@@ -216,8 +217,23 @@ export const getMyCustomerProfile = () =>
 export const getMyPolicies = (customerId: string) =>
   request<PolicyResponseDto[]>(`/api/Policies/customer/${customerId}`)
 
+export const getPolicyById = (policyId: string) =>
+  request<PolicyResponseDto>(`/api/Policies/${policyId}`)
+
 export const getMyVehicles = (customerId: string) =>
   request<VehicleResponseDto[]>(`/api/Vehicles/customer/${customerId}`)
+
+export const getVehicleById = (vehicleId: string) =>
+  request<VehicleResponseDto>(`/api/Vehicles/${vehicleId}`)
+
+export const confirmVehicleOcrDetails = (
+  vehicleId: string,
+  data: { chassisNumber?: string | null; engineNumber?: string | null },
+) =>
+  request<{ message: string }>(`/api/Vehicles/${vehicleId}/confirm-ocr-details`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
 
 // =================================================================
 // Scoring (Phase 9 two-stage rules-based engine)
@@ -361,6 +377,11 @@ export const getClaimDocuments = (claimId: string) =>
 export const getDocumentDownloadUrl = (claimDocumentId: string) =>
   request<{ url: string; expiresInSeconds: number }>(
     `/api/ClaimDocuments/${claimDocumentId}/download-url`,
+  )
+
+export const getDocumentOcrPreview = (claimDocumentId: string) =>
+  request<OcrExtractionResult>(
+    `/api/ClaimDocuments/${claimDocumentId}/ocr-preview`,
   )
 
 export const uploadClaimDocument = (

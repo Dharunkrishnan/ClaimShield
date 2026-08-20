@@ -43,5 +43,12 @@ namespace ClaimShield.Api.Models.DTOs.Claims
         public string? VehicleRegistrationNumber { get; set; }
 
         public int? LossTypeId { get; set; }
+
+        // Populated only by GetClaimByIdAsync, same as LossTypeId above -
+        // powers the "these are covered under Instant Claim" panel on
+        // the customer's claim summary page.
+        public bool? InstantClaimToggle { get; set; }
+
+        public string? InstantClaimParts { get; set; }
     }
 }

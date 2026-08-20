@@ -148,6 +148,7 @@ export const DocumentType = {
   RepairEstimateDocument: 9,
   WorkshopQuotation: 10,
   SurveyReportDocument: 11,
+  DrivingLicense: 12,
 } as const
 
 export const OtpPurpose = {

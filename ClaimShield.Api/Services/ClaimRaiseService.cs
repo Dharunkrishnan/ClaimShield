@@ -182,6 +182,13 @@ namespace ClaimShield.Api.Services
 
             _context.ClaimIntakes.Add(intake);
 
+            string? assignedHandlerName = null;
+
+            if (!effectiveToggle)
+            {
+                assignedHandlerName = await AutoAssignSurveyorAsync(claim.ClaimId);
+            }
+
             await _context.SaveChangesAsync();
 
             return (
@@ -190,8 +197,83 @@ namespace ClaimShield.Api.Services
                 new RaiseStep1ResponseDto
                 {
                     ClaimId = claim.ClaimId,
-                    ClaimNumber = claim.ClaimNumber
+                    ClaimNumber = claim.ClaimNumber,
+                    AssignedHandlerName = assignedHandlerName
                 });
+        }
+
+        // =========================================================
+        // AUTO-ASSIGN SURVEYOR (non-Instant-Claim path only)
+        // =========================================================
+        //
+        // Picks whichever active Surveyor currently has the fewest
+        // open assignments, so claims aren't all dumped on the same
+        // person. Returns null (and leaves the claim unassigned) if
+        // no Surveyor accounts exist yet - an Admin can still assign
+        // one manually from the All Claims screen.
+        // =========================================================
+
+        private async Task<string?> AutoAssignSurveyorAsync(Guid claimId)
+        {
+            var openAssignmentStatuses = new[]
+            {
+                AssignmentStatusConstants.Assigned,
+                AssignmentStatusConstants.Accepted,
+                AssignmentStatusConstants.InProgress
+            };
+
+            var candidate = await _context.Users
+                .Where(u => u.RoleId == RoleConstants.SurveyorId && u.IsActive)
+                .Select(u => new
+                {
+                    u.UserId,
+                    u.FirstName,
+                    u.LastName,
+                    OpenCount = _context.SurveyAssignments
+                        .Count(a =>
+                            a.SurveyorId == u.UserId &&
+                            openAssignmentStatuses.Contains(a.AssignmentStatusId))
+                })
+                .OrderBy(u => u.OpenCount)
+                .FirstOrDefaultAsync();
+
+            if (candidate == null)
+            {
+                return null;
+            }
+
+            _context.SurveyAssignments.Add(new SurveyAssignment
+            {
+                SurveyAssignmentId = Guid.NewGuid(),
+                ClaimId = claimId,
+                SurveyorId = candidate.UserId,
+
+                // System auto-assignment has no human "assigned by"
+                // actor - recorded as self-assigned by the Surveyor
+                // rather than an arbitrary or fabricated admin id.
+                AssignedBy = candidate.UserId,
+
+                AssignedDate = DateTime.UtcNow,
+                AssignmentStatusId = AssignmentStatusConstants.Assigned,
+                InspectionMode = InspectionModeConstants.Physical,
+                Remarks = "Auto-assigned at claim intake (Instant Claim not selected).",
+                CreatedDate = DateTime.UtcNow
+            });
+
+            var claimEntity = await _context.Claims
+                .FirstOrDefaultAsync(c => c.ClaimId == claimId);
+
+            if (claimEntity != null &&
+                (claimEntity.StatusId == null ||
+                 claimEntity.StatusId.Value < ClaimStatusConstants.SurveyAssigned))
+            {
+                claimEntity.StatusId = ClaimStatusConstants.SurveyAssigned;
+                claimEntity.UpdatedDate = DateTime.UtcNow;
+            }
+
+            return string.IsNullOrWhiteSpace(candidate.LastName)
+                ? candidate.FirstName
+                : $"{candidate.FirstName} {candidate.LastName}";
         }
 
         // =========================================================

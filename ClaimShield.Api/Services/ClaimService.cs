@@ -46,13 +46,13 @@ namespace ClaimShield.Api.Services
             var dto = MapToDto(claim);
 
             dto.CustomerName = GetUserDisplayName(claim.Customer?.User);
-            dto.PolicyNumber = claim.Policy?.PolicyNumber;
-            dto.VehicleRegistrationNumber = claim.Vehicle?.RegistrationNumber;
 
             var intake = await _context.ClaimIntakes
                 .FirstOrDefaultAsync(x => x.ClaimId == claimId);
 
             dto.LossTypeId = intake?.LossType;
+            dto.InstantClaimToggle = intake?.InstantClaimToggle;
+            dto.InstantClaimParts = intake?.InstantClaimParts;
 
             return dto;
         }
@@ -183,6 +183,36 @@ namespace ClaimShield.Api.Services
             return "CLM" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
         }
 
+        // =========================================================
+        // UTC TIMESTAMP FIX
+        // =========================================================
+        //
+        // The Claims table's date columns are Postgres "timestamp
+        // without time zone" (no explicit column type was configured,
+        // so EF Core used its default). Every date is written with
+        // DateTime.UtcNow, so the VALUE is correct UTC - but reading
+        // it back gives DateTime.Kind = Unspecified, which System.Text.Json
+        // then serializes WITHOUT a trailing "Z" (e.g.
+        // "2026-08-19T14:30:00" instead of "...Z"). The browser's
+        // `new Date(...)` treats a timezone-less string as already
+        // being LOCAL time, not UTC - so instead of converting UTC to
+        // IST (+5:30), it displays the raw UTC numbers as if they were
+        // already IST, showing a claim as raised ~5.5 hours earlier
+        // (sometimes on the wrong calendar day) than it actually was.
+        //
+        // This explicitly stamps Kind=Utc before the value leaves the
+        // API, so the JSON gets its "Z" back and the frontend converts
+        // correctly. The proper long-term fix is migrating these
+        // columns to "timestamptz" - this is the safe fix that doesn't
+        // require a schema migration.
+        // =========================================================
+
+        private static DateTime AsUtc(DateTime value) =>
+            DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+        private static DateTime? AsUtc(DateTime? value) =>
+            value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
+
         private static ClaimResponseDto MapToDto(Claim claim)
         {
             return new ClaimResponseDto
@@ -192,16 +222,18 @@ namespace ClaimShield.Api.Services
                 CustomerId = claim.CustomerId,
                 VehicleId = claim.VehicleId,
                 ClaimNumber = claim.ClaimNumber,
-                IncidentDate = claim.IncidentDate,
-                ReportedDate = claim.ReportedDate,
+                IncidentDate = AsUtc(claim.IncidentDate),
+                ReportedDate = AsUtc(claim.ReportedDate),
                 IncidentLocation = claim.IncidentLocation,
                 IncidentDescription = claim.IncidentDescription,
                 EstimatedLossAmount = claim.EstimatedLossAmount,
                 ApprovedAmount = claim.ApprovedAmount,
                 IsFraudSuspected = claim.IsFraudSuspected,
                 StatusId = claim.StatusId,
-                CreatedDate = claim.CreatedDate,
-                UpdatedDate = claim.UpdatedDate
+                CreatedDate = AsUtc(claim.CreatedDate),
+                UpdatedDate = AsUtc(claim.UpdatedDate),
+                PolicyNumber = claim.Policy?.PolicyNumber,
+                VehicleRegistrationNumber = claim.Vehicle?.RegistrationNumber
             };
         }
     }

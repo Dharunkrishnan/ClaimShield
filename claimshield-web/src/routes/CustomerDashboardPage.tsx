@@ -5,28 +5,46 @@ import {
   getMyClaims,
   getMyCustomerProfile,
   getMyPolicies,
-  getMyVehicles,
 } from '../lib/api'
-import type { ClaimResponseDto, PolicyResponseDto, VehicleResponseDto } from '../lib/types'
+import type { ClaimResponseDto, PolicyResponseDto } from '../lib/types'
 import { ClaimStatus, PolicyTypeName } from '../lib/statuses'
 import { SkeletonBlock } from '../components/Skeleton'
-import { ClaimStatusBadge, getClaimStatusTone } from '../components/StatusBadge'
+import { ClaimStatusBadge } from '../components/StatusBadge'
 import { HowItWorks } from '../components/HowItWorks'
 import { InstantClaimBanner } from '../components/InstantClaimBanner'
-import { FileText, Car, ClipboardList, Hash, Wallet, CalendarClock, FilePlus2 } from 'lucide-react'
+import { FileText, ClipboardList, CheckCircle2, Hash, Wallet, CalendarClock, FilePlus2, Eye, Clock } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 function formatCurrency(amount: number | null) {
   return amount != null ? `₹ ${amount.toLocaleString('en-IN')}` : '—'
 }
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-IN')
+  return new Date(value).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+// incidentDate/policy dates are date-only values (from a date picker,
+// no real time was ever collected) - formatting them with a time
+// component produces a misleading artifact like "5:30 AM" that was
+// never actually chosen by anyone.
+function formatDateOnly(value: string) {
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 export function CustomerDashboardPage() {
+  const { session, displayName } = useAuth()
   const [claims, setClaims] = useState<ClaimResponseDto[] | null>(null)
   const [policies, setPolicies] = useState<PolicyResponseDto[] | null>(null)
-  const [vehicles, setVehicles] = useState<VehicleResponseDto[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,15 +52,13 @@ export function CustomerDashboardPage() {
 
     getMyCustomerProfile()
       .then(async (customer) => {
-        const [claimData, policyData, vehicleData] = await Promise.all([
+        const [claimData, policyData] = await Promise.all([
           getMyClaims(customer.customerId),
           getMyPolicies(customer.customerId),
-          getMyVehicles(customer.customerId),
         ])
         if (!cancelled) {
           setClaims(claimData)
           setPolicies(policyData)
-          setVehicles(vehicleData)
         }
       })
       .catch((err: unknown) => {
@@ -56,14 +72,30 @@ export function CustomerDashboardPage() {
     }
   }, [])
 
-  const loading = !claims || !policies || !vehicles
+  const loading = !claims || !policies
 
   const openClaims = claims?.filter((c) => c.statusId !== ClaimStatus.Closed) ?? []
+  const closedClaims = claims?.filter((c) => c.statusId === ClaimStatus.Closed) ?? []
   const activePolicy = policies?.find((p) => new Date(p.endDate) >= new Date())
+
+  const firstName = displayName?.trim().split(' ')[0] || 'there'
+  const lastLoginAt = session?.user.last_sign_in_at
 
   return (
     <div>
-      <h1>Dashboard</h1>
+      <div className="dashboard-topbar">
+        <div>
+          <span className="dashboard-topbar-eyebrow">Dashboard</span>
+          <h1 className="dashboard-topbar-title">Welcome back, {firstName}</h1>
+        </div>
+
+        {lastLoginAt && (
+          <div className="dashboard-topbar-login">
+            <Clock size={14} />
+            Last login: {formatDate(lastLoginAt)}
+          </div>
+        )}
+      </div>
 
       {error && <p className="error-text">{error}</p>}
 
@@ -85,19 +117,19 @@ export function CustomerDashboardPage() {
                 {policies!.filter((p) => new Date(p.endDate) >= new Date()).length}
               </p>
             </div>
-            <div className="stat-card stat-card-teal">
-              <span className="stat-card-icon stat-card-icon-teal">
-                <Car size={18} />
-              </span>
-              <p className="stat-card-label">Vehicles</p>
-              <p className="stat-card-value">{vehicles!.length}</p>
-            </div>
             <div className="stat-card stat-card-amber">
               <span className="stat-card-icon stat-card-icon-amber">
                 <ClipboardList size={18} />
               </span>
               <p className="stat-card-label">Open claims</p>
               <p className="stat-card-value">{openClaims.length}</p>
+            </div>
+            <div className="stat-card stat-card-teal">
+              <span className="stat-card-icon stat-card-icon-teal">
+                <CheckCircle2 size={18} />
+              </span>
+              <p className="stat-card-label">Closed claims</p>
+              <p className="stat-card-value">{closedClaims.length}</p>
             </div>
           </div>
 
@@ -150,7 +182,7 @@ export function CustomerDashboardPage() {
                       Valid until
                     </dt>
                     <dd>
-                      {formatDate(activePolicy.endDate)}
+                      {formatDateOnly(activePolicy.endDate)}
                       <div className="policy-validity-bar">
                         <div
                           className="policy-validity-bar-fill"
@@ -171,25 +203,39 @@ export function CustomerDashboardPage() {
             <h2>Recent claims</h2>
             {claims!.length === 0 && <p>You haven't raised any claims yet.</p>}
             {claims!.length > 0 && (
-              <ul className="claim-row-list">
-                {claims!.slice(0, 5).map((claim) => {
-                  const tone = getClaimStatusTone(claim.statusId)
-                  const claimDate = claim.reportedDate ?? claim.createdDate ?? claim.incidentDate
-
-                  return (
-                    <li key={claim.claimId} className={`claim-row claim-row-${tone}`}>
-                      <FileText size={16} className="claim-row-icon" />
-                      <span className="claim-row-body">
+              <table className="queue-table">
+                <thead>
+                  <tr>
+                    <th><Hash size={14} /> Claim No</th>
+                    <th>Policy No</th>
+                    <th>Vehicle No</th>
+                    <th>Loss Date</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {claims!.slice(0, 5).map((claim) => (
+                    <tr key={claim.claimId}>
+                      <td>
                         <Link to={`/my-claims/${claim.claimId}`}>{claim.claimNumber}</Link>
-                        {claimDate && (
-                          <span className="claim-row-date">Reported {formatDate(claimDate)}</span>
-                        )}
-                      </span>
-                      <ClaimStatusBadge statusId={claim.statusId} />
-                    </li>
-                  )
-                })}
-              </ul>
+                      </td>
+                      <td>{claim.policyNumber ?? '—'}</td>
+                      <td>{claim.vehicleRegistrationNumber ?? '—'}</td>
+                      <td>{formatDateOnly(claim.incidentDate)}</td>
+                      <td>
+                        <ClaimStatusBadge statusId={claim.statusId} />
+                      </td>
+                      <td>
+                        <Link to={`/my-claims/${claim.claimId}`} className="button-link">
+                          <Eye size={14} />
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
             <p>
               <Link to="/my-claims/new" className="button-link">

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { ApiError, getMyClaims, getMyCustomerProfile, sendAiChatMessage } from '../lib/api'
 import type { ClaimResponseDto } from '../lib/types'
+import { useAuth } from '../context/AuthContext'
 
 interface ChatMessage {
   id: string
@@ -51,7 +52,9 @@ const SPEECH_INPUT_SUPPORTED = typeof window !== 'undefined' && !!getSpeechRecog
 const SPEECH_OUTPUT_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window
 
 export function ChatAssistant() {
+  const { displayName } = useAuth()
   const [open, setOpen] = useState(false)
+  const [showGreeting, setShowGreeting] = useState(false)
   const [claims, setClaims] = useState<ClaimResponseDto[]>([])
   const [claimId, setClaimId] = useState('')
   const [claimsLoaded, setClaimsLoaded] = useState(false)
@@ -64,6 +67,24 @@ export function ChatAssistant() {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const loadedClaimsRef = useRef(false)
+
+  const firstName = displayName?.trim().split(' ')[0] || 'there'
+
+  // Highlight the assistant with a one-time welcome bubble shortly after
+  // sign-in, then settle back to its normal, unobtrusive icon state.
+  useEffect(() => {
+    const showTimer = setTimeout(() => setShowGreeting(true), 700)
+    const hideTimer = setTimeout(() => setShowGreeting(false), 7500)
+    return () => {
+      clearTimeout(showTimer)
+      clearTimeout(hideTimer)
+    }
+  }, [])
+
+  const handleBubbleClick = () => {
+    setShowGreeting(false)
+    setOpen((o) => !o)
+  }
 
   useEffect(() => {
     if (!open || loadedClaimsRef.current) return
@@ -163,10 +184,46 @@ export function ChatAssistant() {
 
   return (
     <>
+      <AnimatePresence>
+        {showGreeting && !open && (
+          <>
+            <motion.span
+              className="chat-bubble-pulse-ring"
+              initial={{ opacity: 0.55, scale: 1 }}
+              animate={{ opacity: [0.55, 0, 0], scale: [1, 1.7, 1.7] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
+            />
+            <motion.div
+              className="chat-greeting-bubble"
+              initial={{ opacity: 0, y: 10, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.94 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+            >
+              <button
+                type="button"
+                className="chat-greeting-close"
+                onClick={() => setShowGreeting(false)}
+                aria-label="Dismiss"
+              >
+                <X size={12} />
+              </button>
+              <span className="chat-greeting-icon">
+                <Sparkles size={14} />
+              </span>
+              <p>
+                Welcome back, {firstName}! I'm here for any assistance — just tap to ask.
+              </p>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <motion.button
         type="button"
         className="chat-bubble"
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleBubbleClick}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.94 }}
         aria-label={open ? 'Close assistant' : 'Open assistant'}
