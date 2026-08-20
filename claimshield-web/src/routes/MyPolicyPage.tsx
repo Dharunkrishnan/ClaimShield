@@ -516,7 +516,7 @@ export function MyPolicyPage() {
                                 {policyClaims.map((claim) => (
                                   <tr key={claim.claimId}>
                                     <td>
-                                      <Link to={`/my-claims/${claim.claimId}`}>{claim.claimNumber}</Link>
+                                      {claim.claimNumber}
                                     </td>
                                     <td>{formatDate(claim.incidentDate)}</td>
                                     <td>

@@ -1051,7 +1051,7 @@ function Step1({
 
         <div className="quick-question-row">
           <label>
-            Is the vehicle currently parked in a safe location?
+            Was your vehicle parked when the incident occurred?
           </label>
 
           <div className="radio-pill-group">
@@ -1079,7 +1079,7 @@ function Step1({
 
         <div className="quick-question-row">
           <label>
-            Did any death occur in this incident?
+            Was anyone injured as a result of the incident?
           </label>
 
           <div className="radio-pill-group">

@@ -218,7 +218,7 @@ export function CustomerDashboardPage() {
                   {claims!.slice(0, 5).map((claim) => (
                     <tr key={claim.claimId}>
                       <td>
-                        <Link to={`/my-claims/${claim.claimId}`}>{claim.claimNumber}</Link>
+                        {claim.claimNumber}
                       </td>
                       <td>{claim.policyNumber ?? '—'}</td>
                       <td>{claim.vehicleRegistrationNumber ?? '—'}</td>
