@@ -106,6 +106,8 @@ namespace ClaimShield.Api.Constants
         public const int SurveyReportDocument = 11;
 
         public const int DrivingLicense = 12;
+
+        public const int FirDocument = 13;
     }
 
     public static class VehicleLocationConstants
@@ -132,6 +134,8 @@ namespace ClaimShield.Api.Constants
         public const int MajorAccident = 5;
 
         public const int Fire = 6;
+
+        public const int TotalLoss = 7;
     }
 
     public static class RcMatchStatusConstants

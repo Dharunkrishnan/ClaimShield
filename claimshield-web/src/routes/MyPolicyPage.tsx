@@ -24,7 +24,6 @@ import {
   CalendarDays,
   Layers,
   Wallet,
-  Gauge,
   Percent,
   Car,
   ChevronDown,
@@ -53,6 +52,16 @@ function formatDate(value: string) {
   })
 }
 
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function getPolicyStatus(policy: PolicyResponseDto): { label: string; tone: string } {
   const now = new Date()
   const end = new Date(policy.endDate)
@@ -73,7 +82,7 @@ function parseAddOns(addOns: string | null): string[] {
 
 type SectionKey = 'vehicle' | 'coverage' | 'addons' | 'holder' | 'claims'
 
-const DEFAULT_OPEN_SECTIONS: SectionKey[] = ['vehicle']
+const DEFAULT_OPEN_SECTIONS: SectionKey[] = ['holder']
 
 interface AccordionSectionProps {
   id: SectionKey
@@ -141,6 +150,7 @@ export function MyPolicyPage() {
 
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null)
   const [openSections, setOpenSections] = useState<SectionKey[]>(DEFAULT_OPEN_SECTIONS)
+  const [claimsVisibleCount, setClaimsVisibleCount] = useState(4)
 
   useEffect(() => {
     let cancelled = false
@@ -196,6 +206,7 @@ export function MyPolicyPage() {
 
   const handleSelectPolicy = (policyId: string) => {
     setOpenSections(DEFAULT_OPEN_SECTIONS)
+    setClaimsVisibleCount(4)
     setSelectedPolicyId((current) => (current === policyId ? null : policyId))
   }
 
@@ -277,13 +288,13 @@ export function MyPolicyPage() {
                 Fast track
               </span>
 
-              <div className="policy-promo-headline">
-                30<span>min</span>
+              <div className="policy-promo-headline policy-promo-headline-compact">
+                Under 30<span>min</span>
               </div>
 
               <p className="policy-promo-text">
-                Minor dents, windshield glass and scratches settled while you wait —
-                not the usual 5–7 days.
+                Why Wait 5-7 Days? Get Dents, Scratches &amp; Windshield Damage
+                Claims Settled in Minutes.
               </p>
 
               <div className="policy-promo-bar">
@@ -378,6 +389,63 @@ export function MyPolicyPage() {
                       {/* Accordion sections */}
                       <div className="accordion-group">
                         <AccordionSection
+                          id="holder"
+                          icon={<User size={16} />}
+                          title="Policy holder"
+                          subtitle={customerName}
+                          isOpen={openSections.includes('holder')}
+                          onToggle={toggleSection}
+                        >
+                          <dl className="fact-grid fact-grid-rich">
+                            <dt><span className="fact-icon fact-icon-blue"><User size={14} /></span>Customer name</dt>
+                            <dd>{customerName}</dd>
+
+                            <dt><span className="fact-icon fact-icon-teal"><Phone size={14} /></span>Contact number</dt>
+                            {/* TODO: temporary hardcoded fallback - remove once
+                                GET /api/Customers/me reliably returns phoneNumber
+                                from the DB (see chat: stale-build investigation) */}
+                            <dd>{customer?.phoneNumber || '+91 98765 43210'}</dd>
+
+                            <dt><span className="fact-icon fact-icon-amber"><Mail size={14} /></span>Email address</dt>
+                            <dd>{customer?.email ?? session?.user.email ?? '—'}</dd>
+
+                            {customerAddress && (
+                              <>
+                                <dt><span className="fact-icon fact-icon-blue"><MapPin size={14} /></span>Address</dt>
+                                <dd>{customerAddress}</dd>
+                              </>
+                            )}
+                          </dl>
+                        </AccordionSection>
+
+                        <AccordionSection
+                          id="coverage"
+                          icon={<Wallet size={16} />}
+                          title="Coverage"
+                          subtitle={formatCurrency(selectedPolicy.coverageAmount)}
+                          isOpen={openSections.includes('coverage')}
+                          onToggle={toggleSection}
+                        >
+                          <dl className="fact-grid fact-grid-rich">
+                            <dt><span className="fact-icon fact-icon-blue"><Layers size={14} /></span>Coverage type</dt>
+                            <dd>
+                              {selectedPolicy.policyTypeId
+                                ? PolicyTypeName[selectedPolicy.policyTypeId] ?? 'Unknown'
+                                : '—'}
+                            </dd>
+
+                            <dt><span className="fact-icon fact-icon-teal"><Wallet size={14} /></span>Sum insured</dt>
+                            <dd>{formatCurrency(selectedPolicy.coverageAmount)}</dd>
+
+                            <dt><span className="fact-icon fact-icon-blue"><Wallet size={14} /></span>Premium</dt>
+                            <dd>{formatCurrency(selectedPolicy.premiumAmount)}</dd>
+
+                            <dt><span className="fact-icon fact-icon-teal"><Percent size={14} /></span>Deductible</dt>
+                            <dd>{formatCurrency(selectedPolicy.excess)}</dd>
+                          </dl>
+                        </AccordionSection>
+
+                        <AccordionSection
                           id="vehicle"
                           icon={<Car size={16} />}
                           title="Vehicle details"
@@ -409,36 +477,6 @@ export function MyPolicyPage() {
                         </AccordionSection>
 
                         <AccordionSection
-                          id="coverage"
-                          icon={<Wallet size={16} />}
-                          title="Coverage & premium"
-                          subtitle={formatCurrency(selectedPolicy.coverageAmount)}
-                          isOpen={openSections.includes('coverage')}
-                          onToggle={toggleSection}
-                        >
-                          <dl className="fact-grid fact-grid-rich">
-                            <dt><span className="fact-icon fact-icon-blue"><Layers size={14} /></span>Coverage type</dt>
-                            <dd>
-                              {selectedPolicy.policyTypeId
-                                ? PolicyTypeName[selectedPolicy.policyTypeId] ?? 'Unknown'
-                                : '—'}
-                            </dd>
-
-                            <dt><span className="fact-icon fact-icon-teal"><Wallet size={14} /></span>Sum insured / coverage amount</dt>
-                            <dd>{formatCurrency(selectedPolicy.coverageAmount)}</dd>
-
-                            <dt><span className="fact-icon fact-icon-amber"><Gauge size={14} /></span>IDV (Insured Declared Value)</dt>
-                            <dd>{formatCurrency(selectedPolicy.idv)}</dd>
-
-                            <dt><span className="fact-icon fact-icon-blue"><Wallet size={14} /></span>Premium amount</dt>
-                            <dd>{formatCurrency(selectedPolicy.premiumAmount)}</dd>
-
-                            <dt><span className="fact-icon fact-icon-teal"><Percent size={14} /></span>Deductible / excess amount</dt>
-                            <dd>{formatCurrency(selectedPolicy.excess)}</dd>
-                          </dl>
-                        </AccordionSection>
-
-                        <AccordionSection
                           id="addons"
                           icon={<Sparkles size={16} />}
                           title="Add-ons"
@@ -449,8 +487,7 @@ export function MyPolicyPage() {
                           {parseAddOns(selectedPolicy.addOns).length > 0 ? (
                             <div className="addon-tags">
                               {parseAddOns(selectedPolicy.addOns).map((addon) => (
-                                <span key={addon} className="badge badge-icon badge-blue">
-                                  <Sparkles size={13} />
+                                <span key={addon} className="badge badge-blue">
                                   {addon}
                                 </span>
                               ))}
@@ -458,36 +495,6 @@ export function MyPolicyPage() {
                           ) : (
                             <p>No add-ons purchased on this policy.</p>
                           )}
-                        </AccordionSection>
-
-                        <AccordionSection
-                          id="holder"
-                          icon={<User size={16} />}
-                          title="Policy holder"
-                          subtitle={customerName}
-                          isOpen={openSections.includes('holder')}
-                          onToggle={toggleSection}
-                        >
-                          <dl className="fact-grid fact-grid-rich">
-                            <dt><span className="fact-icon fact-icon-blue"><User size={14} /></span>Customer name</dt>
-                            <dd>{customerName}</dd>
-
-                            <dt><span className="fact-icon fact-icon-teal"><Phone size={14} /></span>Contact number</dt>
-                            {/* TODO: temporary hardcoded fallback - remove once
-                                GET /api/Customers/me reliably returns phoneNumber
-                                from the DB (see chat: stale-build investigation) */}
-                            <dd>{customer?.phoneNumber || '+91 98765 43210'}</dd>
-
-                            <dt><span className="fact-icon fact-icon-amber"><Mail size={14} /></span>Email address</dt>
-                            <dd>{customer?.email ?? session?.user.email ?? '—'}</dd>
-
-                            {customerAddress && (
-                              <>
-                                <dt><span className="fact-icon fact-icon-blue"><MapPin size={14} /></span>Address</dt>
-                                <dd>{customerAddress}</dd>
-                              </>
-                            )}
-                          </dl>
                         </AccordionSection>
 
                         <AccordionSection
@@ -503,35 +510,47 @@ export function MyPolicyPage() {
                           )}
 
                           {policyClaims.length > 0 && (
-                            <table className="queue-table">
-                              <thead>
-                                <tr>
-                                  <th><Hash size={14} /> Claim No</th>
-                                  <th>Loss Date</th>
-                                  <th>Status</th>
-                                  <th></th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {policyClaims.map((claim) => (
-                                  <tr key={claim.claimId}>
-                                    <td>
-                                      {claim.claimNumber}
-                                    </td>
-                                    <td>{formatDate(claim.incidentDate)}</td>
-                                    <td>
-                                      <ClaimStatusBadge statusId={claim.statusId} />
-                                    </td>
-                                    <td>
-                                      <Link to={`/my-claims/${claim.claimId}`} className="button-link">
-                                        <Eye size={14} />
-                                        View
-                                      </Link>
-                                    </td>
+                            <>
+                              <table className="queue-table">
+                                <thead>
+                                  <tr>
+                                    <th><Hash size={14} /> Claim No</th>
+                                    <th>Loss Date</th>
+                                    <th>Status</th>
+                                    <th></th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                </thead>
+                                <tbody>
+                                  {policyClaims.slice(0, claimsVisibleCount).map((claim) => (
+                                    <tr key={claim.claimId}>
+                                      <td>
+                                        {claim.claimNumber}
+                                      </td>
+                                      <td>{formatDateTime(claim.incidentDate)}</td>
+                                      <td>
+                                        <ClaimStatusBadge statusId={claim.statusId} />
+                                      </td>
+                                      <td>
+                                        <Link to={`/my-claims/${claim.claimId}`} className="button-link">
+                                          <Eye size={14} />
+                                          View
+                                        </Link>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+
+                              {claimsVisibleCount < policyClaims.length && (
+                                <button
+                                  type="button"
+                                  className="track-claim-view-more"
+                                  onClick={() => setClaimsVisibleCount((c) => c + 4)}
+                                >
+                                  View more ({policyClaims.length - claimsVisibleCount} more)
+                                </button>
+                              )}
+                            </>
                           )}
                         </AccordionSection>
                       </div>

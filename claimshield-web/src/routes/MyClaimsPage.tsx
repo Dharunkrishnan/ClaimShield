@@ -6,10 +6,12 @@ import { ClaimStatusBadge } from '../components/StatusBadge'
 import { Hash, Search, Eye, X } from 'lucide-react'
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-IN', {
+  return new Date(value).toLocaleString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -17,6 +19,7 @@ export function MyClaimsPage() {
   const [claims, setClaims] = useState<ClaimResponseDto[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [visibleCount, setVisibleCount] = useState(4)
 
   useEffect(() => {
     let cancelled = false
@@ -81,7 +84,10 @@ export function MyClaimsPage() {
             <input
               type="text"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value)
+                setVisibleCount(4)
+              }}
               placeholder="Search by claim no, policy no, vehicle no, or date"
               className="table-search-input"
             />
@@ -89,7 +95,10 @@ export function MyClaimsPage() {
               <button
                 type="button"
                 className="table-search-clear"
-                onClick={() => setSearchTerm('')}
+                onClick={() => {
+                  setSearchTerm('')
+                  setVisibleCount(4)
+                }}
                 aria-label="Clear search"
               >
                 <X size={15} />
@@ -114,7 +123,7 @@ export function MyClaimsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredClaims.map((claim) => (
+                {filteredClaims.slice(0, visibleCount).map((claim) => (
                   <tr key={claim.claimId}>
                     <td>
                       {claim.claimNumber}
@@ -135,6 +144,16 @@ export function MyClaimsPage() {
                 ))}
               </tbody>
             </table>
+          )}
+
+          {visibleCount < filteredClaims.length && (
+            <button
+              type="button"
+              className="track-claim-view-more"
+              onClick={() => setVisibleCount((c) => c + 4)}
+            >
+              View more ({filteredClaims.length - visibleCount} more)
+            </button>
           )}
         </>
       )}

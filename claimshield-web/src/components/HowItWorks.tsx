@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Play } from 'lucide-react'
 import step1 from '../assets/illustrations/step1-report-claim.svg'
@@ -29,24 +29,39 @@ const STEPS = [
 export function HowItWorks() {
   const [showVideo, setShowVideo] = useState(false)
   const [videoError, setVideoError] = useState(false)
+  const [showHint, setShowHint] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowHint(false), 8000)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <section className="card how-it-works">
       <div className="how-it-works-header">
-        <h2>How ClaimShield Works</h2>
+        <h2>Every Minute Matters. See How We Move You Forward.</h2>
 
-        <button
-          type="button"
-          className="how-it-works-play-button"
-          onClick={() => {
-            setVideoError(false)
-            setShowVideo(true)
-          }}
-          aria-label="Watch how ClaimShield works"
-        >
-          <Play size={14} fill="currentColor" />
-          Watch video
-        </button>
+        <div className="how-it-works-play-wrap">
+          {showHint && (
+            <span className="how-it-works-play-hint">
+              👀 Watch how it works
+            </span>
+          )}
+
+          <button
+            type="button"
+            className={`how-it-works-play-button${showHint ? ' is-blinking' : ''}`}
+            onClick={() => {
+              setVideoError(false)
+              setShowVideo(true)
+              setShowHint(false)
+            }}
+            aria-label="Watch how ClaimShield works"
+          >
+            <Play size={14} fill="currentColor" />
+            Watch video
+          </button>
+        </div>
       </div>
 
       <div className="how-it-works-grid">

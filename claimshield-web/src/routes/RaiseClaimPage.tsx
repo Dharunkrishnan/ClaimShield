@@ -12,6 +12,7 @@ import {
   AlertOctagon,
   Siren,
   Flame,
+  OctagonX,
   Mic,
   CheckCircle2,
   FileText,
@@ -108,6 +109,20 @@ const LOSS_TYPE_ICONS: Record<
     Icon: Flame,
     tone: 'amber',
   },
+  [LossType.TotalLoss]: {
+    Icon: OctagonX,
+    tone: 'red',
+  },
+}
+
+// Local (not UTC) YYYY-MM-DD - toISOString().slice(0,10) would give
+// the wrong calendar day for several hours around midnight in IST
+// (UTC+5:30), since it reports the UTC date, not the local one.
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 function formatCurrency(amount: number) {
@@ -124,6 +139,9 @@ export function RaiseClaimPage() {
 
   const [claimVehicleId, setClaimVehicleId] =
     useState<string | null>(null)
+
+  const [claimLossType, setClaimLossType] =
+    useState<number | null>(null)
 
   const [claimNumber, setClaimNumber] =
     useState<string | null>(null)
@@ -193,10 +211,12 @@ export function RaiseClaimPage() {
     handlerName: string | null,
     answers: { vehicleParkedSafely: boolean; deathOccurred: boolean },
     vehicleId: string,
+    lossType: number,
   ) => {
     setClaimId(id)
     setClaimNumber(number)
     setClaimVehicleId(vehicleId)
+    setClaimLossType(lossType)
     setWasInstantClaim(instantClaimSelected)
     setAssignedHandlerName(handlerName)
     setCarriedAnswers(answers)
@@ -233,11 +253,12 @@ export function RaiseClaimPage() {
           />
         )}
 
-        {step === 2 && claimId && claimVehicleId && carriedAnswers && (
+        {step === 2 && claimId && claimVehicleId && claimLossType && carriedAnswers && (
           <Step2
             claimId={claimId}
             claimNumber={claimNumber!}
             vehicleId={claimVehicleId}
+            lossType={claimLossType}
             answers={carriedAnswers}
             onVerified={() => setStep(3)}
             onRouted={handleRouted}
@@ -373,6 +394,41 @@ export function RaiseClaimPage() {
   )
 }
 
+const RAISE_CLAIM_DRAFT_KEY = 'claimshield.raiseClaimDraft'
+
+interface RaiseClaimDraft {
+  policyId: string
+  vehicleId: string
+  vehicleLocationAtLoss: number
+  lossType: number
+  dateOfLoss: string
+  timeOfLoss: string
+  locationOfLoss: string
+  description: string
+  instantToggle: boolean
+  parts: InstantClaimPartsSelection
+  vehicleParkedSafely: boolean | null
+  deathOccurred: boolean | null
+  savedAt: string
+}
+
+function loadRaiseClaimDraft(): RaiseClaimDraft | null {
+  try {
+    const raw = localStorage.getItem(RAISE_CLAIM_DRAFT_KEY)
+    return raw ? (JSON.parse(raw) as RaiseClaimDraft) : null
+  } catch {
+    return null
+  }
+}
+
+function clearRaiseClaimDraft() {
+  try {
+    localStorage.removeItem(RAISE_CLAIM_DRAFT_KEY)
+  } catch {
+    // Non-critical.
+  }
+}
+
 // =====================================================================
 // STEP 1 - Basic Information
 // =====================================================================
@@ -394,6 +450,7 @@ function Step1({
     handlerName: string | null,
     answers: { vehicleParkedSafely: boolean; deathOccurred: boolean },
     vehicleId: string,
+    lossType: number,
   ) => void
 }) {
   const { showToast } = useToast()
@@ -410,7 +467,13 @@ function Step1({
   const [lossType, setLossType] = useState(0)
 
   const [dateOfLoss, setDateOfLoss] =
-    useState('')
+    useState(() => formatLocalDate(new Date()))
+
+  const [timeOfLoss, setTimeOfLoss] =
+    useState(() => {
+      const now = new Date()
+      return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    })
 
   const [locationOfLoss, setLocationOfLoss] =
     useState('')
@@ -447,6 +510,35 @@ function Step1({
   const [error, setError] =
     useState<string | null>(null)
 
+  const [draftBanner, setDraftBanner] =
+    useState<string | null>(null)
+
+  // Restore a saved draft on first mount, before the "auto-select
+  // first policy" effect below (which no-ops once policyId is
+  // already set, so this takes priority).
+  useEffect(() => {
+    const draft = loadRaiseClaimDraft()
+    if (!draft) return
+
+    setPolicyId(draft.policyId)
+    setVehicleId(draft.vehicleId)
+    setVehicleLocationAtLoss(draft.vehicleLocationAtLoss)
+    setLossType(draft.lossType)
+    setDateOfLoss(draft.dateOfLoss)
+    setTimeOfLoss(draft.timeOfLoss)
+    setLocationOfLoss(draft.locationOfLoss)
+    setDescription(draft.description)
+    setInstantToggle(draft.instantToggle)
+    setParts(draft.parts)
+    setVehicleParkedSafely(draft.vehicleParkedSafely)
+    setDeathOccurred(draft.deathOccurred)
+
+    setDraftBanner(
+      `Draft restored from ${new Date(draft.savedAt).toLocaleString('en-IN')}.`,
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     if (
       !loading &&
@@ -472,9 +564,7 @@ function Step1({
       (v) => v.vehicleId === vehicleId,
     )
 
-  const today = new Date()
-    .toISOString()
-    .slice(0, 10)
+  const today = formatLocalDate(new Date())
 
   const minDate =
     selectedPolicy?.startDate.slice(0, 10)
@@ -542,6 +632,31 @@ function Step1({
     recognition.start()
   }
 
+  const handleSaveDraft = () => {
+    const draft: RaiseClaimDraft = {
+      policyId,
+      vehicleId,
+      vehicleLocationAtLoss,
+      lossType,
+      dateOfLoss,
+      timeOfLoss,
+      locationOfLoss,
+      description,
+      instantToggle,
+      parts,
+      vehicleParkedSafely,
+      deathOccurred,
+      savedAt: new Date().toISOString(),
+    }
+
+    try {
+      localStorage.setItem(RAISE_CLAIM_DRAFT_KEY, JSON.stringify(draft))
+      showToast('Draft saved — resume this claim anytime before submitting.', 'success')
+    } catch {
+      showToast('Failed to save draft on this device.', 'error')
+    }
+  }
+
   const handleSubmit = async (
     e: FormEvent,
   ) => {
@@ -560,6 +675,7 @@ function Step1({
       !vehicleLocationAtLoss ||
       !lossType ||
       !dateOfLoss ||
+      !timeOfLoss ||
       !locationOfLoss ||
       description.length < 10
     ) {
@@ -606,7 +722,7 @@ function Step1({
           vehicleLocationAtLoss,
           lossType,
           dateOfLoss: new Date(
-            dateOfLoss,
+            `${dateOfLoss}T${timeOfLoss}:00`,
           ).toISOString(),
           locationOfLoss,
           description,
@@ -619,6 +735,8 @@ function Step1({
           customerEstimatedAmount: null,
         })
 
+      clearRaiseClaimDraft()
+
       onDone(
         result.claimId,
         result.claimNumber,
@@ -630,6 +748,7 @@ function Step1({
           deathOccurred,
         },
         vehicleId,
+        lossType,
       )
     } catch (err) {
       setError(
@@ -644,6 +763,21 @@ function Step1({
 
   return (
     <form onSubmit={handleSubmit}>
+      {draftBanner && (
+        <div className="draft-restored-banner">
+          <span>{draftBanner}</span>
+          <button
+            type="button"
+            onClick={() => {
+              clearRaiseClaimDraft()
+              setDraftBanner(null)
+            }}
+          >
+            Discard draft
+          </button>
+        </div>
+      )}
+
       <section className="card card-tint-blue details-strip-card">
         <h2>Your details</h2>
 
@@ -737,7 +871,7 @@ function Step1({
 
         <div className="form-field">
           <label htmlFor="vehicleLocation">
-            Vehicle location right now
+            Vehicle location right now <span className="required-asterisk">*</span>
           </label>
 
           <select
@@ -768,7 +902,7 @@ function Step1({
         </div>
 
         <div className="form-field">
-          <label>Type of Loss</label>
+          <label>Type of Loss <span className="required-asterisk">*</span></label>
 
           <div className="loss-type-cards">
             {Object.entries(
@@ -835,7 +969,7 @@ function Step1({
         <div className="form-row">
           <div className="form-field">
             <label htmlFor="dateOfLoss">
-              Date of Loss
+              Date of Loss <span className="required-asterisk">*</span>
             </label>
 
             <input
@@ -854,15 +988,16 @@ function Step1({
           </div>
 
           <div className="form-field">
-            <label htmlFor="locationOfLoss">
-              Location of Loss
+            <label htmlFor="timeOfLoss">
+              Loss Time <span className="required-asterisk">*</span>
             </label>
 
             <input
-              id="locationOfLoss"
-              value={locationOfLoss}
+              id="timeOfLoss"
+              type="time"
+              value={timeOfLoss}
               onChange={(e) =>
-                setLocationOfLoss(
+                setTimeOfLoss(
                   e.target.value,
                 )
               }
@@ -872,8 +1007,25 @@ function Step1({
         </div>
 
         <div className="form-field">
+          <label htmlFor="locationOfLoss">
+            Location of Loss <span className="required-asterisk">*</span>
+          </label>
+
+          <input
+            id="locationOfLoss"
+            value={locationOfLoss}
+            onChange={(e) =>
+              setLocationOfLoss(
+                e.target.value,
+              )
+            }
+            required
+          />
+        </div>
+
+        <div className="form-field">
           <label htmlFor="description">
-            Description
+            Description <span className="required-asterisk">*</span>
           </label>
 
           <div
@@ -1051,7 +1203,7 @@ function Step1({
 
         <div className="quick-question-row">
           <label>
-            Was your vehicle parked when the incident occurred?
+            Is the vehicle parked? <span className="required-asterisk">*</span>
           </label>
 
           <div className="radio-pill-group">
@@ -1079,7 +1231,7 @@ function Step1({
 
         <div className="quick-question-row">
           <label>
-            Was anyone injured as a result of the incident?
+            Any injuries occurred? <span className="required-asterisk">*</span>
           </label>
 
           <div className="radio-pill-group">
@@ -1111,16 +1263,27 @@ function Step1({
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={
-            submitting || loading
-          }
-        >
-          {submitting
-            ? 'Submitting…'
-            : 'Next'}
-        </button>
+        <div className="raise-claim-step1-actions">
+          <button
+            type="button"
+            className="raise-claim-draft-button"
+            onClick={handleSaveDraft}
+            disabled={submitting || loading}
+          >
+            Save draft
+          </button>
+
+          <button
+            type="submit"
+            disabled={
+              submitting || loading
+            }
+          >
+            {submitting
+              ? 'Submitting…'
+              : 'Next'}
+          </button>
+        </div>
       </section>
     </form>
   )
@@ -1134,6 +1297,7 @@ function Step2({
   claimId,
   claimNumber,
   vehicleId,
+  lossType,
   answers,
   onVerified,
   onRouted,
@@ -1141,6 +1305,7 @@ function Step2({
   claimId: string
   claimNumber: string
   vehicleId: string
+  lossType: number
   answers: { vehicleParkedSafely: boolean; deathOccurred: boolean }
   onVerified: () => void
   onRouted: (message: string) => void
@@ -1160,16 +1325,20 @@ function Step2({
   const [error, setError] =
     useState<string | null>(null)
 
-  const allUploaded =
-    uploaded[1] &&
-    uploaded[2] &&
-    uploaded[3] &&
-    uploaded[4] &&
-    uploaded[5] &&
-    uploaded[6]
+  // FIR is only required for loss types other than a minor accident
+  // (theft, major accident, fire, natural calamities, etc.) - a
+  // minor accident claim has nothing to file a police report about.
+  const requiresFir = lossType !== LossType.MinorAccident
 
-  const uploadedCount =
-    Object.values(uploaded).filter(Boolean).length
+  const requiredTypeIds = requiresFir
+    ? [1, 2, 3, 4, 5, 6, DocumentType.FirDocument]
+    : [1, 2, 3, 4, 5, 6]
+
+  const allUploaded = requiredTypeIds.every((typeId) => uploaded[typeId])
+
+  const requiredCount = requiredTypeIds.length
+
+  const uploadedCount = requiredTypeIds.filter((typeId) => uploaded[typeId]).length
 
   // Hard fallbacks so the popup never shows an empty value or a dash -
   // used both when OCR returns nothing AND when it returns garbage
@@ -1205,7 +1374,7 @@ function Step2({
   const handleContinueClick = () => {
     if (!allUploaded) {
       setError(
-        'Please upload all 6 documents before continuing.',
+        `Please upload all ${requiredCount} required documents before continuing.`,
       )
 
       return
@@ -1279,7 +1448,7 @@ function Step2({
           {claimNumber} — Documents
 
           <span className="upload-count-pill">
-            {uploadedCount}/6 uploaded
+            {uploadedCount}/{requiredCount} uploaded
           </span>
         </h2>
 
@@ -1311,13 +1480,16 @@ function Step2({
             extractOcr
             onOcrExtracted={setRcOcr}
           />
-        </div>
 
-        <div className="upload-optional-divider">
-          <span>Optional</span>
-        </div>
+          {requiresFir && (
+            <UploadCard
+              label="FIR document"
+              claimId={claimId}
+              documentTypeId={DocumentType.FirDocument}
+              onUploaded={() => markUploaded(DocumentType.FirDocument)}
+            />
+          )}
 
-        <div className="upload-grid">
           <UploadCard
             label="Driving licence (optional)"
             claimId={claimId}
@@ -1617,7 +1789,7 @@ function Step3({
                 <p>
                   By accepting this amount,
                   the approved amount will be
-                  distributed to your bank
+                  disbursed into your bank
                   account. If you do not
                   accept the assessment, your
                   claim will be immediately
@@ -2230,7 +2402,7 @@ function BankDetailsAndOtpFlow({
 
             <div>
               <strong>
-                Demo OTP
+                OTP
               </strong>
 
               <span>

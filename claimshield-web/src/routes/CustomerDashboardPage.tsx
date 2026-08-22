@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ApiError,
@@ -12,14 +12,25 @@ import { SkeletonBlock } from '../components/Skeleton'
 import { ClaimStatusBadge } from '../components/StatusBadge'
 import { HowItWorks } from '../components/HowItWorks'
 import { InstantClaimBanner } from '../components/InstantClaimBanner'
-import { FileText, ClipboardList, CheckCircle2, Hash, Wallet, CalendarClock, FilePlus2, Eye, Clock } from 'lucide-react'
+import { FileText, ClipboardList, CheckCircle2, Hash, Wallet, CalendarClock, FilePlus2, Eye, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 function formatCurrency(amount: number | null) {
   return amount != null ? `₹ ${amount.toLocaleString('en-IN')}` : '—'
 }
 
-function formatDate(value: string) {
+// incidentDate now genuinely carries a customer-provided time (Raise
+// Claim captures Date of Loss + Loss Time separately and combines
+// them) - policy dates remain date-only picks with no real time.
+function formatDateOnly(value: string) {
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function formatDateTime(value: string) {
   return new Date(value).toLocaleString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -29,48 +40,35 @@ function formatDate(value: string) {
   })
 }
 
-// incidentDate/policy dates are date-only values (from a date picker,
-// no real time was ever collected) - formatting them with a time
-// component produces a misleading artifact like "5:30 AM" that was
-// never actually chosen by anyone.
-function formatDateOnly(value: string) {
-  return new Date(value).toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
 export function CustomerDashboardPage() {
-  const { session, displayName } = useAuth()
+  const { displayName } = useAuth()
   const [claims, setClaims] = useState<ClaimResponseDto[] | null>(null)
   const [policies, setPolicies] = useState<PolicyResponseDto[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
+  const loadDashboard = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) setRefreshing(true)
+    setError(null)
 
-    getMyCustomerProfile()
-      .then(async (customer) => {
-        const [claimData, policyData] = await Promise.all([
-          getMyClaims(customer.customerId),
-          getMyPolicies(customer.customerId),
-        ])
-        if (!cancelled) {
-          setClaims(claimData)
-          setPolicies(policyData)
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof ApiError ? err.message : 'Failed to load your dashboard.')
-        }
-      })
-
-    return () => {
-      cancelled = true
+    try {
+      const customer = await getMyCustomerProfile()
+      const [claimData, policyData] = await Promise.all([
+        getMyClaims(customer.customerId),
+        getMyPolicies(customer.customerId),
+      ])
+      setClaims(claimData)
+      setPolicies(policyData)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Failed to load your dashboard.')
+    } finally {
+      if (isManualRefresh) setRefreshing(false)
     }
   }, [])
+
+  useEffect(() => {
+    void loadDashboard(false)
+  }, [loadDashboard])
 
   const loading = !claims || !policies
 
@@ -79,7 +77,6 @@ export function CustomerDashboardPage() {
   const activePolicy = policies?.find((p) => new Date(p.endDate) >= new Date())
 
   const firstName = displayName?.trim().split(' ')[0] || 'there'
-  const lastLoginAt = session?.user.last_sign_in_at
 
   return (
     <div>
@@ -89,12 +86,19 @@ export function CustomerDashboardPage() {
           <h1 className="dashboard-topbar-title">Welcome back, {firstName}</h1>
         </div>
 
-        {lastLoginAt && (
-          <div className="dashboard-topbar-login">
-            <Clock size={14} />
-            Last login: {formatDate(lastLoginAt)}
-          </div>
-        )}
+        <div className="dashboard-topbar-actions">
+          <button
+            type="button"
+            className="dashboard-refresh-button"
+            onClick={() => void loadDashboard(true)}
+            disabled={refreshing}
+            aria-label="Refresh dashboard"
+            title="Refresh"
+          >
+            <RefreshCw size={14} className={refreshing ? 'is-spinning' : ''} />
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
       </div>
 
       {error && <p className="error-text">{error}</p>}
@@ -222,7 +226,7 @@ export function CustomerDashboardPage() {
                       </td>
                       <td>{claim.policyNumber ?? '—'}</td>
                       <td>{claim.vehicleRegistrationNumber ?? '—'}</td>
-                      <td>{formatDateOnly(claim.incidentDate)}</td>
+                      <td>{formatDateTime(claim.incidentDate)}</td>
                       <td>
                         <ClaimStatusBadge statusId={claim.statusId} />
                       </td>

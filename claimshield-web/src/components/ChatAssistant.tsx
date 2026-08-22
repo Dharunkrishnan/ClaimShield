@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ComponentType } from 'react'
+import { useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  MessageCircle,
   X,
   Send,
   Mic,
@@ -19,6 +19,7 @@ import {
 import { ApiError, getMyClaims, getMyCustomerProfile, sendAiChatMessage } from '../lib/api'
 import type { ClaimResponseDto } from '../lib/types'
 import { useAuth } from '../context/AuthContext'
+import { MovoAvatar } from './MovoAvatar'
 
 interface ChatMessage {
   id: string
@@ -53,6 +54,7 @@ const SPEECH_OUTPUT_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesi
 
 export function ChatAssistant() {
   const { displayName } = useAuth()
+  const location = useLocation()
   const [open, setOpen] = useState(false)
   const [showGreeting, setShowGreeting] = useState(false)
   const [claims, setClaims] = useState<ClaimResponseDto[]>([])
@@ -67,6 +69,7 @@ export function ChatAssistant() {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const loadedClaimsRef = useRef(false)
+  const prevPathRef = useRef(location.pathname)
 
   const firstName = displayName?.trim().split(' ')[0] || 'there'
 
@@ -114,6 +117,31 @@ export function ChatAssistant() {
     utterance.lang = 'en-IN'
     window.speechSynthesis.speak(utterance)
   }
+
+  // Auto-open Movo with a spoken welcome whenever the customer
+  // navigates TO the Track Claim page (not on every re-render while
+  // already there - prevPathRef guards against that).
+  useEffect(() => {
+    const cameFromElsewhere = prevPathRef.current !== location.pathname
+    prevPathRef.current = location.pathname
+
+    if (location.pathname !== '/track-claim' || !cameFromElsewhere) return
+
+    const greeting = `Hi ${firstName}, I'm Movo, your smart assistant here to help you.`
+
+    setShowGreeting(false)
+    setOpen(true)
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `track-greet-${Date.now()}`,
+        role: 'assistant',
+        text: greeting,
+      },
+    ])
+    speak(greeting)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, firstName])
 
   const send = async (text: string) => {
     const trimmed = text.trim()
@@ -213,7 +241,7 @@ export function ChatAssistant() {
                 <Sparkles size={14} />
               </span>
               <p>
-                Welcome back, {firstName}! I'm here for any assistance — just tap to ask.
+                Welcome back, {firstName}! I'm Movo — here for any assistance, just tap to ask.
               </p>
             </motion.div>
           </>
@@ -228,7 +256,7 @@ export function ChatAssistant() {
         whileTap={{ scale: 0.94 }}
         aria-label={open ? 'Close assistant' : 'Open assistant'}
       >
-        {open ? <X size={22} /> : <MessageCircle size={22} />}
+        {open ? <X size={22} /> : <MovoAvatar size={30} />}
       </motion.button>
 
       <AnimatePresence>
@@ -242,11 +270,11 @@ export function ChatAssistant() {
           >
             <div className="chat-panel-header">
               <span className="chat-panel-header-icon">
-                <Bot size={20} />
+                <MovoAvatar size={26} />
                 <span className="chat-header-status-dot" />
               </span>
               <div className="chat-panel-header-text">
-                <strong>ClaimShield Assistant</strong>
+                <strong>Movo</strong>
                 <span className="chat-panel-subtitle">
                   <Sparkles size={11} />
                   Rule-based lookup - answers from your real claim data

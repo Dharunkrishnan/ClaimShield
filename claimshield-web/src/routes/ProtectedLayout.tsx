@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ShieldCheck,
   LayoutDashboard,
   FileText,
   FilePlus2,
@@ -21,6 +20,8 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { RoleId } from '../lib/roles'
 import { ChatAssistant } from '../components/ChatAssistant'
+import { GlobalTopBar } from '../components/GlobalTopBar'
+import { ClaimShieldLogo } from '../components/ClaimShieldLogo'
 
 const SUPPORTED_ROLE_IDS: number[] = [
   RoleId.Customer,
@@ -118,10 +119,7 @@ export function ProtectedLayout() {
                 damping: 12,
               }}
             >
-              <ShieldCheck
-                size={22}
-                strokeWidth={2.2}
-              />
+              <ClaimShieldLogo size={28} />
             </motion.span>
 
             <span className="brand-label">ClaimShield</span>
@@ -295,6 +293,8 @@ export function ProtectedLayout() {
       </aside>
 
       <div className="app-content">
+        <GlobalTopBar roleId={roleId} />
+
         <main className="app-main">
           <AnimatePresence mode="wait">
             <motion.div

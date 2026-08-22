@@ -113,6 +113,37 @@ namespace ClaimShield.Api.Services
                 return (false, "Date of Loss cannot be before the policy start date.", null);
             }
 
+            // Avoid duplicate submissions - a claim already open for
+            // this exact vehicle and loss date almost certainly means
+            // the customer already raised this claim (accidental
+            // double-submit, or a resubmission attempt), not a
+            // genuinely separate incident on the same day.
+            // Now that Raise Claim captures a real Loss Time (not
+            // just a date), duplicate detection can be precise: a
+            // tight window around the exact reported instant, rather
+            // than the whole calendar day - the day-level check used
+            // to be a reasonable proxy when only a date existed, but
+            // it would now incorrectly block two genuinely different
+            // incidents on the same day.
+            var windowStart = request.DateOfLoss.AddMinutes(-5);
+            var windowEnd = request.DateOfLoss.AddMinutes(5);
+
+            var duplicateExists = await _context.Claims.AnyAsync(c =>
+                c.PolicyId == request.PolicyId &&
+                c.VehicleId == request.VehicleId &&
+                c.IncidentDate >= windowStart &&
+                c.IncidentDate <= windowEnd &&
+                c.StatusId != ClaimStatusConstants.Rejected &&
+                c.StatusId != ClaimStatusConstants.Closed);
+
+            if (duplicateExists)
+            {
+                return (
+                    false,
+                    "A claim already exists for this vehicle around this loss date and time. Check My Claims before raising another.",
+                    null);
+            }
+
             // Never trust the client for eligibility-relevant fields:
             // the Instant Claim toggle only means anything for Minor
             // Accident. A forged true for any other Loss Type is
@@ -184,9 +215,26 @@ namespace ClaimShield.Api.Services
 
             string? assignedHandlerName = null;
 
-            if (!effectiveToggle)
+            if (effectiveToggle)
             {
-                assignedHandlerName = await AutoAssignSurveyorAsync(claim.ClaimId);
+                // Instant Claim still gets a Surveyor assigned in the DB -
+                // just a Virtual one, since the fast-track review happens
+                // remotely off the uploaded documents rather than a
+                // physical site visit. This is what lets a Virtual
+                // Surveyor queue pick these claims up.
+                assignedHandlerName = await AutoAssignSurveyorAsync(
+                    claim.ClaimId,
+                    InspectionModeConstants.Virtual,
+                    "Auto-assigned as Virtual Surveyor for Instant Claim fast-track.",
+                    bumpClaimStatus: false);
+            }
+            else
+            {
+                assignedHandlerName = await AutoAssignSurveyorAsync(
+                    claim.ClaimId,
+                    InspectionModeConstants.Physical,
+                    "Auto-assigned at claim intake (Instant Claim not selected).",
+                    bumpClaimStatus: true);
             }
 
             await _context.SaveChangesAsync();
@@ -203,7 +251,7 @@ namespace ClaimShield.Api.Services
         }
 
         // =========================================================
-        // AUTO-ASSIGN SURVEYOR (non-Instant-Claim path only)
+        // AUTO-ASSIGN SURVEYOR (both Instant and standard paths)
         // =========================================================
         //
         // Picks whichever active Surveyor currently has the fewest
@@ -211,9 +259,20 @@ namespace ClaimShield.Api.Services
         // person. Returns null (and leaves the claim unassigned) if
         // no Surveyor accounts exist yet - an Admin can still assign
         // one manually from the All Claims screen.
+        //
+        // inspectionMode distinguishes a Virtual review (Instant Claim
+        // - no site visit, reviewed off uploaded documents) from a
+        // Physical one (standard claim). bumpClaimStatus is false for
+        // Instant Claim since that path has its own status progression
+        // through the estimate/accept flow - forcing SurveyAssigned
+        // here would fight with that.
         // =========================================================
 
-        private async Task<string?> AutoAssignSurveyorAsync(Guid claimId)
+        private async Task<string?> AutoAssignSurveyorAsync(
+            Guid claimId,
+            int inspectionMode,
+            string remarks,
+            bool bumpClaimStatus)
         {
             var openAssignmentStatuses = new[]
             {
@@ -255,20 +314,23 @@ namespace ClaimShield.Api.Services
 
                 AssignedDate = DateTime.UtcNow,
                 AssignmentStatusId = AssignmentStatusConstants.Assigned,
-                InspectionMode = InspectionModeConstants.Physical,
-                Remarks = "Auto-assigned at claim intake (Instant Claim not selected).",
+                InspectionMode = inspectionMode,
+                Remarks = remarks,
                 CreatedDate = DateTime.UtcNow
             });
 
-            var claimEntity = await _context.Claims
-                .FirstOrDefaultAsync(c => c.ClaimId == claimId);
-
-            if (claimEntity != null &&
-                (claimEntity.StatusId == null ||
-                 claimEntity.StatusId.Value < ClaimStatusConstants.SurveyAssigned))
+            if (bumpClaimStatus)
             {
-                claimEntity.StatusId = ClaimStatusConstants.SurveyAssigned;
-                claimEntity.UpdatedDate = DateTime.UtcNow;
+                var claimEntity = await _context.Claims
+                    .FirstOrDefaultAsync(c => c.ClaimId == claimId);
+
+                if (claimEntity != null &&
+                    (claimEntity.StatusId == null ||
+                     claimEntity.StatusId.Value < ClaimStatusConstants.SurveyAssigned))
+                {
+                    claimEntity.StatusId = ClaimStatusConstants.SurveyAssigned;
+                    claimEntity.UpdatedDate = DateTime.UtcNow;
+                }
             }
 
             return string.IsNullOrWhiteSpace(candidate.LastName)

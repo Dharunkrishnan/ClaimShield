@@ -102,15 +102,17 @@ export const LossType = {
   FullLossTheft: 4,
   MajorAccident: 5,
   Fire: 6,
+  TotalLoss: 7,
 } as const
 
 export const LossTypeName: Record<number, string> = {
   [LossType.MinorAccident]: 'Minor Accident',
-  [LossType.PartsTheft]: 'Parts Theft',
+  [LossType.PartsTheft]: 'Partial Theft',
   [LossType.NaturalCalamities]: 'Natural Calamities',
-  [LossType.FullLossTheft]: 'Full Loss / Theft',
+  [LossType.FullLossTheft]: 'Theft',
   [LossType.MajorAccident]: 'Major Accident',
   [LossType.Fire]: 'Fire',
+  [LossType.TotalLoss]: 'Total Loss',
 }
 
 export const RcMatchStatus = {
@@ -149,6 +151,7 @@ export const DocumentType = {
   WorkshopQuotation: 10,
   SurveyReportDocument: 11,
   DrivingLicense: 12,
+  FirDocument: 13,
 } as const
 
 export const OtpPurpose = {
