@@ -257,6 +257,7 @@ namespace ClaimShield.Api.Controllers
                 await _claimDecisionService.RecordApproverDecisionAsync(
                     claimId,
                     _currentUserService.UserId.Value,
+                    IsAdmin ? RoleConstants.AdminId : RoleConstants.ApproverId,
                     request);
 
             if (!result.Success)
@@ -277,6 +278,194 @@ namespace ClaimShield.Api.Controllers
                 ClaimStatusId = result.UpdatedClaimStatusId,
 
                 Decision = result.Decision
+            });
+        }
+
+        // =========================================================
+        // Checkpoint 5 (Module 5) - On Hold / Resume, Return for
+        // Rework, Request Additional Information. Surveyor (Claims
+        // Handler) or Admin, except Return for Rework which an
+        // Approver can also use while reviewing an escalation.
+        // =========================================================
+
+        private int CurrentRoleId =>
+            IsAdmin
+                ? RoleConstants.AdminId
+                : IsSurveyor
+                    ? RoleConstants.SurveyorId
+                    : IsApprover
+                        ? RoleConstants.ApproverId
+                        : 0;
+
+        private static IActionResult Failed(string? message) =>
+            new BadRequestObjectResult(new { Success = false, Message = message });
+
+        // POST: api/ClaimDecisions/{claimId}/hold
+        [HttpPost("{claimId:guid}/hold")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> Hold(
+            Guid claimId,
+            [FromBody] Models.DTOs.ClaimDecisions.HoldClaimRequest request)
+        {
+            if (!IsSurveyor && !IsAdmin)
+            {
+                return Forbidden("Only a Claims Handler or Admin can put a claim on hold.");
+            }
+
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Forbidden("Unable to determine the logged-in user.");
+            }
+
+            var result =
+                await _claimDecisionService.PutOnHoldAsync(
+                    claimId, _currentUserService.UserId.Value, CurrentRoleId, request);
+
+            if (!result.Success) return Failed(result.ErrorMessage);
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Claim placed on hold.",
+                ClaimStatusId = result.UpdatedClaimStatusId
+            });
+        }
+
+        // POST: api/ClaimDecisions/{claimId}/resume
+        [HttpPost("{claimId:guid}/resume")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> Resume(
+            Guid claimId)
+        {
+            if (!IsSurveyor && !IsAdmin)
+            {
+                return Forbidden("Only a Claims Handler or Admin can resume a claim.");
+            }
+
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Forbidden("Unable to determine the logged-in user.");
+            }
+
+            var result =
+                await _claimDecisionService.ResumeAsync(
+                    claimId, _currentUserService.UserId.Value, CurrentRoleId);
+
+            if (!result.Success) return Failed(result.ErrorMessage);
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Claim resumed.",
+                ClaimStatusId = result.UpdatedClaimStatusId
+            });
+        }
+
+        // POST: api/ClaimDecisions/{claimId}/return-for-rework
+        [HttpPost("{claimId:guid}/return-for-rework")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> ReturnForRework(
+            Guid claimId,
+            [FromBody] Models.DTOs.ClaimDecisions.ReturnForReworkRequest request)
+        {
+            if (!IsSurveyor && !IsApprover && !IsAdmin)
+            {
+                return Forbidden("Only a Claims Handler, Approver, or Admin can return a claim for rework.");
+            }
+
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Forbidden("Unable to determine the logged-in user.");
+            }
+
+            var result =
+                await _claimDecisionService.ReturnForReworkAsync(
+                    claimId, _currentUserService.UserId.Value, CurrentRoleId, request);
+
+            if (!result.Success) return Failed(result.ErrorMessage);
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Claim returned for rework.",
+                ClaimStatusId = result.UpdatedClaimStatusId
+            });
+        }
+
+        // POST: api/ClaimDecisions/{claimId}/request-info
+        [HttpPost("{claimId:guid}/request-info")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> RequestInfo(
+            Guid claimId,
+            [FromBody] Models.DTOs.ClaimDecisions.RequestAdditionalInfoRequest request)
+        {
+            if (!IsSurveyor && !IsAdmin)
+            {
+                return Forbidden("Only a Claims Handler or Admin can request additional information.");
+            }
+
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Forbidden("Unable to determine the logged-in user.");
+            }
+
+            var result =
+                await _claimDecisionService.RequestAdditionalInfoAsync(
+                    claimId, _currentUserService.UserId.Value, CurrentRoleId, request);
+
+            if (!result.Success) return Failed(result.ErrorMessage);
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Additional information requested."
+            });
+        }
+
+        // POST: api/ClaimDecisions/{claimId}/clear-info-request
+        [HttpPost("{claimId:guid}/clear-info-request")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> ClearInfoRequest(
+            Guid claimId)
+        {
+            if (!IsSurveyor && !IsAdmin)
+            {
+                return Forbidden("Only a Claims Handler or Admin can clear an information request.");
+            }
+
+            if (!_currentUserService.UserId.HasValue)
+            {
+                return Forbidden("Unable to determine the logged-in user.");
+            }
+
+            var result =
+                await _claimDecisionService.ClearInfoRequestAsync(
+                    claimId, _currentUserService.UserId.Value, CurrentRoleId);
+
+            if (!result.Success) return Failed(result.ErrorMessage);
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Information request cleared."
             });
         }
     }

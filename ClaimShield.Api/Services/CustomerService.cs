@@ -1,18 +1,23 @@
+using ClaimShield.Api.Data.Context;
 using ClaimShield.Api.Interfaces.Repositories;
 using ClaimShield.Api.Interfaces.Services;
 using ClaimShield.Api.Models.DTOs.Customers;
 using ClaimShield.Api.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace ClaimShield.Api.Services
 {
     public class CustomerService : ICustomerService
     {
         private readonly ICustomerRepository _customerRepository;
+        private readonly ClaimShieldDbContext _context;
 
         public CustomerService(
-            ICustomerRepository customerRepository)
+            ICustomerRepository customerRepository,
+            ClaimShieldDbContext context)
         {
             _customerRepository = customerRepository;
+            _context = context;
         }
 
         // =========================================================
@@ -25,7 +30,10 @@ namespace ClaimShield.Api.Services
             var customers =
                 await _customerRepository.GetAllAsync();
 
-            return customers.Select(c => new CustomerResponseDto
+            var customerList = customers.ToList();
+            var names = await GetDisplayNamesAsync(customerList.Select(c => c.UserId));
+
+            return customerList.Select(c => new CustomerResponseDto
             {
                 CustomerId =
                     c.CustomerId,
@@ -61,7 +69,10 @@ namespace ClaimShield.Api.Services
                     c.State,
 
                 Pincode =
-                    c.Pincode
+                    c.Pincode,
+
+                CustomerName =
+                    names.GetValueOrDefault(c.UserId)
             });
         }
 
@@ -82,7 +93,7 @@ namespace ClaimShield.Api.Services
                 return null;
             }
 
-            return MapToResponseDto(customer);
+            return await MapToResponseDtoAsync(customer);
         }
 
         // =========================================================
@@ -102,7 +113,7 @@ namespace ClaimShield.Api.Services
                 return null;
             }
 
-            return MapToResponseDto(customer);
+            return await MapToResponseDtoAsync(customer);
         }
 
         // =========================================================
@@ -174,7 +185,7 @@ namespace ClaimShield.Api.Services
                     "Customer was created but could not be retrieved.");
             }
 
-            return MapToResponseDto(
+            return await MapToResponseDtoAsync(
                 createdCustomer);
         }
 
@@ -261,13 +272,16 @@ namespace ClaimShield.Api.Services
         }
 
         // =========================================================
-        // MAP CUSTOMER TO DTO
+        // MAP CUSTOMER TO DTO (single) - resolves the name too, so
+        // the shape is identical whether one customer or all of them
+        // are requested.
         // =========================================================
 
-        private static CustomerResponseDto
-            MapToResponseDto(
-                Customer customer)
+        private async Task<CustomerResponseDto> MapToResponseDtoAsync(
+            Customer customer)
         {
+            var names = await GetDisplayNamesAsync(new[] { customer.UserId });
+
             return new CustomerResponseDto
             {
                 CustomerId =
@@ -304,8 +318,35 @@ namespace ClaimShield.Api.Services
                     customer.State,
 
                 Pincode =
-                    customer.Pincode
+                    customer.Pincode,
+
+                CustomerName =
+                    names.GetValueOrDefault(customer.UserId)
             };
+        }
+
+        // Checkpoint 9 - batched name resolution (one query for however
+        // many customers are being mapped, never one query per row),
+        // same FirstName+LastName convention used elsewhere in this
+        // codebase (e.g. ClaimsHandlerDashboardService,
+        // ClaimDecisionService's GetUserDisplayName).
+        private async Task<Dictionary<Guid, string>> GetDisplayNamesAsync(
+            IEnumerable<Guid> userIds)
+        {
+            var ids = userIds.Distinct().ToList();
+
+            var users =
+                await _context.Users
+                    .Where(u => ids.Contains(u.UserId))
+                    .ToListAsync();
+
+            return users.ToDictionary(
+                u => u.UserId,
+                u =>
+                {
+                    var full = $"{u.FirstName} {u.LastName}".Trim();
+                    return string.IsNullOrEmpty(full) ? "Unknown" : full;
+                });
         }
     }
 }

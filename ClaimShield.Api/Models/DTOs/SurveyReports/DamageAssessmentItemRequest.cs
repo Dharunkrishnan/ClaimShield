@@ -18,5 +18,9 @@ namespace ClaimShield.Api.Models.DTOs.SurveyReports
 
         [MaxLength(500)]
         public string? Remarks { get; set; }
+
+        public decimal? LabourAmount { get; set; }
+
+        public decimal? PartsAmount { get; set; }
     }
 }

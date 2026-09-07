@@ -7,6 +7,7 @@ using ClaimShield.Api.Interfaces.Services;
 using ClaimShield.Api.Models.DTOs.Claims;
 using ClaimShield.Api.Models.DTOs.ClaimRaise;
 using ClaimShield.Api.Models.DTOs.InstantClaim;
+using ClaimShield.Api.Models.DTOs.SurveyAssignments;
 using ClaimShield.Api.Models.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,7 @@ namespace ClaimShield.Api.Services
         private readonly IPolicyRepository _policyRepository;
         private readonly IVehicleRepository _vehicleRepository;
         private readonly IAuditLogService _auditLogService;
+        private readonly ISurveyAssignmentService _surveyAssignmentService;
 
         public ClaimRaiseService(
             ClaimShieldDbContext context,
@@ -52,7 +54,8 @@ namespace ClaimShield.Api.Services
             ICustomerRepository customerRepository,
             IPolicyRepository policyRepository,
             IVehicleRepository vehicleRepository,
-            IAuditLogService auditLogService)
+            IAuditLogService auditLogService,
+            ISurveyAssignmentService surveyAssignmentService)
         {
             _context = context;
             _claimService = claimService;
@@ -67,6 +70,7 @@ namespace ClaimShield.Api.Services
             _policyRepository = policyRepository;
             _vehicleRepository = vehicleRepository;
             _auditLogService = auditLogService;
+            _surveyAssignmentService = surveyAssignmentService;
         }
 
         // =========================================================
@@ -192,6 +196,189 @@ namespace ClaimShield.Api.Services
                     ClaimId = claim.ClaimId,
                     ClaimNumber = claim.ClaimNumber
                 });
+        }
+
+        // =========================================================
+        // STAFF-ASSISTED REGISTRATION (Checkpoint 5 / Module 3)
+        //
+        // Same shape as Step1Async - creates the Claim (via the
+        // unmodified IClaimService.CreateClaimAsync, so Stage 1 FNOL
+        // scoring fires exactly the same way) plus a ClaimIntake row
+        // for LossType/VehicleLocationAtLoss, so LossTypeId shows up on
+        // ClaimResponseDto identically to a customer-raised claim - no
+        // separate storage path invented. Additionally computes the
+        // deterministic Initial Reserve and stores the optional
+        // pre-assigned Repairer.
+        // =========================================================
+
+        public async Task<(bool, string?, RaiseStep1ResponseDto?)> StaffRegisterAsync(
+            Guid staffUserId,
+            StaffRegisterClaimRequest request)
+        {
+            var customer = await _customerRepository.GetByIdAsync(request.CustomerId);
+
+            if (customer == null)
+            {
+                return (false, "Customer not found.", null);
+            }
+
+            var policy = await _policyRepository.GetByIdAsync(request.PolicyId);
+
+            if (policy == null || policy.CustomerId != customer.CustomerId)
+            {
+                return (false, "The selected policy does not belong to this customer.", null);
+            }
+
+            var vehicle = await _vehicleRepository.GetByIdAsync(request.VehicleId);
+
+            if (vehicle == null || vehicle.CustomerId != customer.CustomerId)
+            {
+                return (false, "The selected vehicle does not belong to this customer.", null);
+            }
+
+            var today = DateTime.UtcNow.Date;
+
+            if (request.DateOfLoss.Date > today)
+            {
+                return (false, "Date of Loss cannot be in the future.", null);
+            }
+
+            if (request.DateOfLoss.Date < policy.StartDate.Date)
+            {
+                return (false, "Date of Loss cannot be before the policy start date.", null);
+            }
+
+            if (request.RepairerId.HasValue)
+            {
+                var repairerUser =
+                    await _context.Users
+                        .FirstOrDefaultAsync(x => x.UserId == request.RepairerId.Value);
+
+                if (repairerUser == null || repairerUser.RoleId != RoleConstants.RepairerId)
+                {
+                    return (false, "The selected repairer is not valid.", null);
+                }
+            }
+
+            var createRequest = new CreateClaimRequest
+            {
+                PolicyId = request.PolicyId,
+                CustomerId = customer.CustomerId,
+                VehicleId = request.VehicleId,
+                IncidentDate = request.DateOfLoss,
+                ReportedDate = request.DateOfIntimation ?? DateTime.UtcNow,
+                IncidentLocation = request.LocationOfLoss,
+                IncidentDescription = request.Description,
+                EstimatedLossAmount = request.EstimatedLossAmount,
+                IsFraudSuspected = false,
+                StatusId = ClaimStatusConstants.Submitted
+            };
+
+            var claimDto = await _claimService.CreateClaimAsync(createRequest);
+
+            var claim =
+                await _context.Claims
+                    .FirstAsync(x => x.ClaimId == claimDto.ClaimId);
+
+            claim.PreferredRepairerId = request.RepairerId;
+            claim.RegisteredByUserId = staffUserId;
+            claim.DriverName = request.DriverName;
+            claim.DriverDob = request.DriverDob;
+            claim.WorkshopRecommendation = request.WorkshopRecommendation;
+            claim.PreferredRepairerTypeId = request.PreferredRepairerTypeId;
+
+            // Deterministic Initial Reserve - a percentage of the
+            // policy's IDV keyed by loss type severity
+            // (InitialReservePercentConstants). Never recomputed after
+            // this - distinct from Claim.ReserveAmount, set later at
+            // decision time.
+            if (policy.IDV.HasValue)
+            {
+                var percent = GetInitialReservePercent(request.LossType);
+                claim.InitialReserveAmount = Math.Round(policy.IDV.Value * percent, 2);
+            }
+
+            var intake = new ClaimIntake
+            {
+                ClaimId = claim.ClaimId,
+                VehicleLocationAtLoss = request.VehicleLocationAtLoss,
+                LossType = request.LossType,
+                InstantClaimToggle = false,
+                InstantClaimParts = "{}",
+                CustomerEstimatedAmount = request.EstimatedLossAmount,
+                // These three were previously never set on the staff
+                // registration path at all - collected on the form,
+                // sent to the API, and then silently discarded, since
+                // nothing here ever assigned them to the intake row.
+                VehicleParkedSafely = request.VehicleParkedSafely,
+                ThirdPartyDamage = request.ThirdPartyDamage,
+                PoliceReported = request.PoliceReported,
+                ContactMobileNumber = request.ContactMobileNumber,
+                CreatedDate = DateTime.UtcNow
+            };
+
+            _context.ClaimIntakes.Add(intake);
+
+            await _context.SaveChangesAsync();
+
+            // Checkpoint 5 follow-up fix - StaffRegisterAsync created the
+            // Claim/ClaimIntake but never a SurveyAssignment, so a claim
+            // registered this way had nobody who could open or complete
+            // the Inspection stage - the claim lifecycle stepper was
+            // permanently stuck at Inspection with no real way forward.
+            // When the registering staff user is themselves a Surveyor
+            // (Claims Handler), auto-assign them to their own claim so
+            // it's immediately actionable. Admin-registered claims are
+            // left for the existing manual Admin > Claims assignment
+            // flow, since an Admin is not a valid SurveyorId.
+            var registeringUser =
+                await _context.Users
+                    .FirstOrDefaultAsync(x => x.UserId == staffUserId);
+
+            if (registeringUser?.RoleId == RoleConstants.SurveyorId)
+            {
+                await _surveyAssignmentService.CreateAsync(new CreateSurveyAssignmentRequest
+                {
+                    ClaimId = claim.ClaimId,
+                    SurveyorId = staffUserId,
+                    AssignedBy = staffUserId,
+                    AssignmentStatusId = AssignmentStatusConstants.Assigned,
+                    InspectionMode = InspectionModeConstants.Physical,
+                    Remarks = "Auto-assigned to the registering Claims Handler at intake.",
+                });
+            }
+
+            await _auditLogService.LogAsync(
+                staffUserId,
+                "Claim.StaffRegistered",
+                "Claim",
+                claim.ClaimId,
+                null,
+                new { claim.InitialReserveAmount, claim.PreferredRepairerId });
+
+            return (
+                true,
+                null,
+                new RaiseStep1ResponseDto
+                {
+                    ClaimId = claim.ClaimId,
+                    ClaimNumber = claim.ClaimNumber,
+                    Message = "Claim registered successfully."
+                });
+        }
+
+        private static decimal GetInitialReservePercent(int lossType)
+        {
+            return lossType switch
+            {
+                LossTypeConstants.MinorAccident => InitialReservePercentConstants.MinorAccident,
+                LossTypeConstants.PartsTheft => InitialReservePercentConstants.PartsTheft,
+                LossTypeConstants.NaturalCalamities => InitialReservePercentConstants.NaturalCalamities,
+                LossTypeConstants.FullLossTheft => InitialReservePercentConstants.FullLossTheft,
+                LossTypeConstants.MajorAccident => InitialReservePercentConstants.MajorAccident,
+                LossTypeConstants.Fire => InitialReservePercentConstants.Fire,
+                _ => InitialReservePercentConstants.Default
+            };
         }
 
         // =========================================================

@@ -233,7 +233,7 @@ namespace ClaimShield.Api.Controllers
         // =========================================================
 
         [HttpPost]
-        [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -277,7 +277,7 @@ namespace ClaimShield.Api.Controllers
         // =========================================================
 
         [HttpPost("{paymentId:guid}/process")]
-        [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -316,7 +316,7 @@ namespace ClaimShield.Api.Controllers
         // =========================================================
 
         [HttpPost("{paymentId:guid}/complete")]
-        [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -324,7 +324,7 @@ namespace ClaimShield.Api.Controllers
         public async Task<IActionResult> Complete(
             Guid paymentId)
         {
-            var result =
+            var (result, errorMessage) =
                 await _paymentService.CompleteAsync(
                     paymentId);
 
@@ -333,9 +333,7 @@ namespace ClaimShield.Api.Controllers
                 return BadRequest(new
                 {
                     Success = false,
-                    Message =
-                        "Payment could not be completed. " +
-                        "It may not exist or may not be in Processing status."
+                    Message = errorMessage ?? "Payment could not be completed."
                 });
             }
 
@@ -358,7 +356,7 @@ namespace ClaimShield.Api.Controllers
         // =========================================================
 
         [HttpPost("{paymentId:guid}/fail")]
-        [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -398,7 +396,7 @@ namespace ClaimShield.Api.Controllers
         // =========================================================
 
         [HttpPost("{paymentId:guid}/cancel")]
-        [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -438,7 +436,7 @@ namespace ClaimShield.Api.Controllers
         // =========================================================
 
         [HttpDelete("{paymentId:guid}")]
-        [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

@@ -12,6 +12,15 @@ function formatDate(value: string) {
   return new Date(value).toLocaleDateString('en-IN')
 }
 
+// Policy.EndDate is stored as the exclusive cutoff (coverage renews
+// starting that day), so the last real day of cover - and what a
+// person expects to read as "expires on" - is the day before it.
+function formatPolicyEndDate(value: string) {
+  const d = new Date(value)
+  d.setDate(d.getDate() - 1)
+  return d.toLocaleDateString('en-IN')
+}
+
 export function MyPolicyPage() {
   const [policies, setPolicies] = useState<PolicyResponseDto[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -80,7 +89,7 @@ export function MyPolicyPage() {
 
               <dt>Policy period</dt>
               <dd>
-                {formatDate(policy.startDate)} – {formatDate(policy.endDate)}
+                {formatDate(policy.startDate)} – {formatPolicyEndDate(policy.endDate)}
               </dd>
 
               <dt>Add-ons</dt>

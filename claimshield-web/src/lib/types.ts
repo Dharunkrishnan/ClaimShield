@@ -14,6 +14,18 @@ export interface ClaimResponseDto {
   estimatedLossAmount: number | null
   approvedAmount: number | null
   isFraudSuspected: boolean | null
+  closureRemarks: string | null
+  closureReasonId: number | null
+  // Checkpoint 5 (Module 5) additions.
+  priorStatusId: number | null
+  holdReason: string | null
+  onHoldDate: string | null
+  infoRequestReason: string | null
+  infoRequestedDate: string | null
+  infoRequestedFromRoleId: number | null
+  preferredRepairerId: string | null
+  preferredRepairerName: string | null
+  initialReserveAmount: number | null
   statusId: number | null
   createdDate: string | null
   updatedDate: string | null
@@ -22,6 +34,29 @@ export interface ClaimResponseDto {
   policyNumber: string | null
   vehicleRegistrationNumber: string | null
   lossTypeId: number | null
+  // Added for Claim 360.
+  driverName: string | null
+  driverDob: string | null
+  workshopRecommendation: string | null
+  preferredRepairerTypeId: number | null
+  repairAuthorizationStatusId: number | null
+  repairAuthorizationDate: string | null
+  repairAuthClosureReasonId: number | null
+  repairAuthDenialReasonId: number | null
+  repairAuthClosureRemarks: string | null
+  surveyDate: string | null
+  liabilityTaxAmount: number | null
+  liabilityTotalLabour: number | null
+  liabilityTotalParts: number | null
+  liabilityDepWaiver: number | null
+  liabilityDepreciationAmount: number | null
+  liabilityCompulsoryExcess: number | null
+  liabilityImposedExcess: number | null
+  liabilitySalvageDeductions: number | null
+  liabilityOtherDeduction: number | null
+  liabilityTowingAmount: number | null
+  liabilitySubmitted: boolean
+  liabilitySubmittedDate: string | null
 }
 
 // Two-stage rules-based scoring engine (Phase 9). Band: 1 = Green,
@@ -111,8 +146,10 @@ export interface ClaimQueueItemResponseDto {
   claimNumber: string
   statusId: number
   estimatedLossAmount: number | null
-  queueReason: 'AwaitingSurveyorDecision' | 'AwaitingApproverDecision'
+  queueReason: 'AwaitingSurvey' | 'AwaitingSurveyorDecision' | 'AwaitingApproverDecision'
   pendingDecisionId: string | null
+  relevantDate: string | null
+  customerName: string | null
 }
 
 export interface ReassessmentCommentResponseDto {
@@ -171,6 +208,44 @@ export interface RepairEstimateResponseDto {
   createdDate: string | null
 }
 
+export interface TatCategoryResultDto {
+  category: string
+  slaDays: number
+  averageTatDays: number | null
+  withinTatCount: number
+  outsideTatCount: number
+  totalCount: number
+}
+
+export interface TatPerformanceResponseDto {
+  periodStart: string
+  periodEnd: string
+  categories: TatCategoryResultDto[]
+}
+
+export interface InvoiceResponseDto {
+  claimInvoiceId: string
+  claimId: string
+  invoiceDate: string
+  invoiceNumber: string
+  invoiceAmount: number
+  invoiceFavour: number
+  invoiceFavourName: string
+  createdDate: string
+  updatedDate: string | null
+}
+
+export interface OcrExtractionResultDto {
+  rawText: string
+  registrationNumber: string | null
+  ownerName: string | null
+  chassisNumber: string | null
+  licenseNumber: string | null
+  dateOfBirth: string | null
+  validUntil: string | null
+  confidence: number
+}
+
 export interface PaymentResponseDto {
   paymentId: string
   claimId: string
@@ -180,6 +255,17 @@ export interface PaymentResponseDto {
   transactionReference: string | null
   paymentDate: string | null
   remarks: string | null
+  paymentMethodId: number | null
+  paymentMethod: string | null
+  payeeType: number | null
+  payeeTypeName: string | null
+  payeeCode: string | null
+  beneficiaryName: string | null
+  bankAccountNumber: string | null
+  ifscCode: string | null
+  bankName: string | null
+  branchName: string | null
+  mobileNumber: string | null
   createdDate: string | null
 }
 
@@ -196,6 +282,7 @@ export interface CustomerResponseDto {
   city: string | null
   state: string | null
   pincode: string | null
+  customerName?: string | null
 }
 
 export interface PolicyResponseDto {
@@ -322,6 +409,135 @@ export interface RaiseStep2Request {
   deathOccurred: boolean
 }
 
+// Checkpoint 5 (Module 3) - staff-assisted claim registration/intake.
+export interface UpdatePolicyRequest {
+  policyId: string
+  customerId: string
+  vehicleId: string
+  policyNumber: string
+  coverageAmount: number
+  premiumAmount: number
+  startDate: string
+  endDate: string
+  policyTypeId: number | null
+  policyStatusId: number | null
+}
+
+export interface UpdateVehicleRequest {
+  vehicleId: string
+  customerId: string
+  registrationNumber: string
+  chassisNumber: string
+  engineNumber: string
+  variant: string | null
+  manufacturingYear: number
+  vehicleColor: string | null
+  rcNumber: string | null
+  isActive: boolean
+  makeId: number | null
+  modelId: number | null
+  fuelTypeId: number | null
+}
+
+export interface UpdateCustomerRequest {
+  customerId: string
+  userId: string
+  customerCode: string
+  dateOfBirth: string | null
+  gender: string | null
+  aadhaarNumber: string | null
+  drivingLicenseNumber: string | null
+  addressLine1: string | null
+  addressLine2: string | null
+  city: string | null
+  state: string | null
+  pincode: string | null
+}
+
+export interface LiabilityDamageItemResponseDto {
+  damageAssessmentItemId: string
+  componentName: string
+  damageCategoryId: number | null
+  repairRequired: boolean
+  replacementRequired: boolean
+  labourAmount: number | null
+  partsAmount: number | null
+  depreciationAmount: number | null
+  rrAmount: number | null
+  tdAmount: number | null
+  paintingAmount: number | null
+  othersAmount: number | null
+}
+
+export interface LiabilityDamageItemAdjustmentInput {
+  damageAssessmentItemId: string
+  depreciationAmount: number | null
+  rrAmount: number | null
+  tdAmount: number | null
+  paintingAmount: number | null
+  othersAmount: number | null
+}
+
+export interface UpdateLiabilityDamageItemsRequest {
+  claimId: string
+  items: LiabilityDamageItemAdjustmentInput[]
+}
+
+export interface UpdateLiabilityFiguresRequest {
+  claimId: string
+  liabilityTaxAmount: number | null
+  liabilityTotalLabour: number | null
+  liabilityTotalParts: number | null
+  liabilityDepWaiver: number | null
+  liabilityDepreciationAmount: number | null
+  liabilityCompulsoryExcess: number | null
+  liabilityImposedExcess: number | null
+  liabilitySalvageDeductions: number | null
+  liabilityOtherDeduction: number | null
+  liabilityTowingAmount: number | null
+}
+
+export interface UpdateApprovedAmountRequest {
+  claimId: string
+  approvedAmount: number
+}
+
+export interface UpdateRepairAuthorizationRequest {
+  claimId: string
+  repairAuthorizationStatusId: number
+  repairAuthorizationDate: string | null
+}
+
+export interface UpdateClaimDetailsRequest {
+  claimId: string
+  incidentDate: string
+  incidentLocation: string | null
+  incidentDescription: string | null
+  estimatedLossAmount: number | null
+}
+
+export interface StaffRegisterClaimRequest {
+  customerId: string
+  policyId: string
+  vehicleId: string
+  vehicleLocationAtLoss: number
+  lossType: number
+  dateOfLoss: string
+  locationOfLoss: string
+  description: string
+  estimatedLossAmount: number | null
+  repairerId: string | null
+  workshopRecommendation?: string | null
+  preferredRepairerTypeId?: number | null
+  driverName?: string | null
+  driverDob?: string | null
+  vehicleParkedSafely: boolean
+  thirdPartyDamage: boolean
+  policeReported: boolean
+  dateOfIntimation?: string | null
+  contactMobileNumber?: string | null
+}
+
 export interface RaiseStep2ResponseDto {
   matchStatus: number
   routedToSurveyor: boolean
@@ -421,12 +637,22 @@ export const Decision = {
   Approve: 1,
   Review: 2,
   Deny: 3,
+  // Checkpoint 5 (Module 5) additions - shown in decision-history
+  // timelines; not selectable in the Approve/Review/Deny decision form.
+  Hold: 4,
+  Resume: 5,
+  ReturnForRework: 6,
+  RequestInfo: 7,
 } as const
 
 export const DecisionName: Record<number, string> = {
   [Decision.Approve]: 'Approve',
   [Decision.Review]: 'Review',
   [Decision.Deny]: 'Deny',
+  [Decision.Hold]: 'Hold',
+  [Decision.Resume]: 'Resume',
+  [Decision.ReturnForRework]: 'Return for Rework',
+  [Decision.RequestInfo]: 'Request Additional Information',
 }
 
 // =====================================================================
@@ -440,6 +666,8 @@ export interface DamageAssessmentItemRequest {
   repairRequired: boolean
   replacementRequired: boolean
   remarks: string | null
+  labourAmount: number | null
+  partsAmount: number | null
 }
 
 export interface DamageAssessmentItemResponseDto {
@@ -450,6 +678,8 @@ export interface DamageAssessmentItemResponseDto {
   repairRequired: boolean
   replacementRequired: boolean
   remarks: string | null
+  labourAmount: number | null
+  partsAmount: number | null
 }
 
 export interface SaveSurveyAssessmentRequest {
@@ -465,6 +695,8 @@ export interface SaveSurveyAssessmentRequest {
   vehicleConditionId: number | null
   odometerReading: number | null
   preExistingDamageNotes: string | null
+  surveyorFlaggedSuspicious: boolean | null
+  preExistingDamageSuspected: boolean | null
   damageTypeId: number
   damageDescription: string | null
   repairabilityStatusId: number | null
@@ -473,6 +705,7 @@ export interface SaveSurveyAssessmentRequest {
   damageAssessmentItems: DamageAssessmentItemRequest[]
 
   estimatedRepairerName: string | null
+  repairerTypeId: number | null
   labourCost: number | null
   partsCost: number | null
   towingCharges: number | null
@@ -508,6 +741,8 @@ export interface SurveyAssessmentResponseDto {
   vehicleConditionId: number | null
   odometerReading: number | null
   preExistingDamageNotes: string | null
+  surveyorFlaggedSuspicious: boolean | null
+  preExistingDamageSuspected: boolean | null
   damageTypeId: number
   damageDescription: string | null
   repairabilityStatusId: number | null
@@ -516,6 +751,7 @@ export interface SurveyAssessmentResponseDto {
   damageAssessmentItems: DamageAssessmentItemResponseDto[]
 
   estimatedRepairerName: string | null
+  repairerTypeId: number | null
   labourCost: number | null
   partsCost: number | null
   towingCharges: number | null
@@ -563,4 +799,53 @@ export interface AuditLogResponseDto {
   entityType: string
   entityId: string
   timestamp: string
+}
+
+// =====================================================================
+// Phase 15 - Claims Handler dashboard
+// =====================================================================
+
+export interface ClaimsHandlerDashboardSummaryDto {
+  totalMyClaims: number
+  awaitingSurveyCount: number
+  awaitingDecisionCount: number
+  inRepairCount: number
+  awaitingSettlementCount: number
+  closedThisMonthCount: number
+  slaBreachedCount: number
+  slaNearBreachCount: number
+  averageOpenClaimAgeDays: number | null
+  // Checkpoint 5 (Module 5) additions.
+  onHoldCount: number
+  infoRequestedCount: number
+}
+
+// =====================================================================
+// Phase 16 - Decision & Review, Claims Processing & Settlement
+// =====================================================================
+
+export interface DecisionSupportSummaryDto {
+  claimId: string
+  summary: string
+  keyPoints: string[]
+  riskBandName: string | null
+  netAssessmentAmount: number | null
+  repairEstimateAmount: number | null
+  hasVarianceFlag: boolean
+  isRuleBased: boolean
+}
+
+export interface ClaimSettlementResponseDto {
+  claimId: string
+  assessedAmount: number | null
+  repairApprovedAmount: number | null
+  baseAmount: number
+  zeroDepreciationWaiverAmount: number
+  grossSettlementAmount: number
+  policyExcessDeducted: number
+  policyIdvCap: number | null
+  idvCapApplied: boolean
+  netSettlementAmount: number
+  notes: string | null
+  computedAt: string
 }

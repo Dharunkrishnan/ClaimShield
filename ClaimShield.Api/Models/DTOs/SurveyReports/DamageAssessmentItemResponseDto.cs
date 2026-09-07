@@ -15,5 +15,9 @@ namespace ClaimShield.Api.Models.DTOs.SurveyReports
         public bool ReplacementRequired { get; set; }
 
         public string? Remarks { get; set; }
+
+        public decimal? LabourAmount { get; set; }
+
+        public decimal? PartsAmount { get; set; }
     }
 }

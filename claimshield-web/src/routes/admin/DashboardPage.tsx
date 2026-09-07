@@ -6,24 +6,24 @@ import { DonutChart } from '../../components/DonutChart'
 import { Sparkline } from '../../components/Sparkline'
 
 const BAND_COLORS: Record<string, string> = {
-  Green: '#1a7a37',
-  Amber: '#7a5c00',
-  Red: '#9c1f1f',
+  Green: '#16834B',
+  Amber: '#D99000',
+  Red: '#D64545',
   Unknown: '#8a8a8a',
 }
 
 const PAYMENT_STATUS_COLORS: Record<string, string> = {
   Pending: '#8a8a8a',
-  Processing: '#1f5fbf',
-  Paid: '#1a7a37',
-  Failed: '#9c1f1f',
-  Cancelled: '#7a5c00',
+  Processing: '#2563C7',
+  Paid: '#16834B',
+  Failed: '#D64545',
+  Cancelled: '#D99000',
 }
 
 const APPROVAL_COLORS: Record<string, string> = {
   Pending: '#8a8a8a',
-  Approved: '#1a7a37',
-  Rejected: '#9c1f1f',
+  Approved: '#16834B',
+  Rejected: '#D64545',
 }
 
 function formatCurrency(amount: number) {

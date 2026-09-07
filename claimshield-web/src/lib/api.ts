@@ -8,9 +8,12 @@ import type {
   ClaimDocumentResponseDto,
   ClaimQueueItemResponseDto,
   ClaimResponseDto,
+  ClaimSettlementResponseDto,
+  ClaimsHandlerDashboardSummaryDto,
   CustomerClaimScoreDto,
   CustomerResponseDto,
   DashboardSummaryDto,
+  DecisionSupportSummaryDto,
   EstimateOrNotEligibleResponse,
   InstantClaimEligibilityResponseDto,
   InstantClaimPartsPricingResponseDto,
@@ -19,6 +22,9 @@ import type {
   OtpSendResultDto,
   OtpVerifyResultDto,
   PaymentResponseDto,
+  OcrExtractionResultDto,
+  InvoiceResponseDto,
+  TatPerformanceResponseDto,
   PolicyResponseDto,
   RaiseStep1Request,
   RaiseStep1ResponseDto,
@@ -31,13 +37,28 @@ import type {
   SaveSurveyAssessmentRequest,
   ScoringRuleResponseDto,
   ScoringThresholdResponseDto,
+  StaffRegisterClaimRequest,
+  UpdateClaimDetailsRequest,
+  UpdateRepairAuthorizationRequest,
+  UpdateApprovedAmountRequest,
+  LiabilityDamageItemResponseDto,
+  UpdateLiabilityDamageItemsRequest,
+  UpdateLiabilityFiguresRequest,
+  UpdatePolicyRequest,
+  UpdateVehicleRequest,
+  UpdateCustomerRequest,
   SurveyAssessmentResponseDto,
   SurveyAssignmentResponseDto,
   UserResponseDto,
   VehicleResponseDto,
 } from './types'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+// Trailing slash stripped so `${apiBaseUrl}${path}` never produces a
+// double slash regardless of how VITE_API_BASE_URL happens to be set
+// (e.g. a dev tunnel URL saved with a trailing slash) - a double
+// slash right after the host doesn't match any ASP.NET Core route,
+// silently producing 404s on every request.
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string).replace(/\/+$/, '')
 
 export class ApiError extends Error {
   status: number
@@ -200,11 +221,83 @@ export const createClaim = (input: {
     },
   })
 
-export const closeClaim = (claimId: string, remarks: string) =>
+export const closeClaim = (claimId: string, closureReasonId: number, remarks: string) =>
   request<{ success: boolean; message: string }>(`/api/Claims/${claimId}/close`, {
     method: 'POST',
-    body: { remarks },
+    body: { closureReasonId, remarks },
   })
+
+// Closes or denies a claim directly from the Repair Authorization
+// stage, bypassing Liability entirely - distinct from closeClaim
+// above, which only works once a claim is already Settled/Rejected.
+export const closeOrDenyFromRepairAuthorization = (
+  claimId: string,
+  action: 'Closure' | 'Denial',
+  reasonId: number,
+  remarks: string,
+) =>
+  request<{ success: boolean; message: string }>(
+    `/api/Claims/${claimId}/repair-authorization/close-or-deny`,
+    {
+      method: 'POST',
+      body: {
+        action,
+        closureReasonId: action === 'Closure' ? reasonId : null,
+        denialReasonId: action === 'Denial' ? reasonId : null,
+        remarks,
+      },
+    },
+  )
+
+// Claim 360 - narrower than a full claim update (see
+// UpdateClaimDetailsRequest on the backend for why): only touches
+// incident-detail fields, never status/approved amount/policy/
+// customer/vehicle linkage, so it's safe for Surveyor/Approver too.
+export const updateClaimDetails = (request_: UpdateClaimDetailsRequest) =>
+  request<{ success: boolean; message: string }>(
+    `/api/Claims/${request_.claimId}/details`,
+    { method: 'PATCH', body: request_ },
+  )
+
+// Repair Authorization stage - see UpdateRepairAuthorizationRequest.
+export const updateRepairAuthorization = (request_: UpdateRepairAuthorizationRequest) =>
+  request<{ success: boolean; message: string }>(
+    `/api/Claims/${request_.claimId}/repair-authorization`,
+    { method: 'PATCH', body: request_ },
+  )
+
+// Liability stage - see UpdateApprovedAmountRequest.
+export const updateApprovedAmount = (request_: UpdateApprovedAmountRequest) =>
+  request<{ success: boolean; message: string }>(
+    `/api/Claims/${request_.claimId}/approved-amount`,
+    { method: 'PATCH', body: request_ },
+  )
+
+// Liability stage - see UpdateLiabilityFiguresRequest.
+export const updateLiabilityFigures = (request_: UpdateLiabilityFiguresRequest) =>
+  request<{ success: boolean; message: string }>(
+    `/api/Claims/${request_.claimId}/liability-figures`,
+    { method: 'PATCH', body: request_ },
+  )
+
+// Liability stage - the "I'm done, unlock Approval" action.
+export const submitLiability = (claimId: string) =>
+  request<{ success: boolean; message: string }>(
+    `/api/Claims/${claimId}/submit-liability`,
+    { method: 'POST' },
+  )
+
+// Liability stage - per-component damage table.
+export const getLiabilityDamageItems = (claimId: string) =>
+  request<LiabilityDamageItemResponseDto[]>(
+    `/api/Claims/${claimId}/liability-damage-items`,
+  )
+
+export const updateLiabilityDamageItems = (request_: UpdateLiabilityDamageItemsRequest) =>
+  request<{ success: boolean; message: string }>(
+    `/api/Claims/${request_.claimId}/liability-damage-items`,
+    { method: 'PATCH', body: request_ },
+  )
 
 // =================================================================
 // Customers / Policies / Vehicles
@@ -218,6 +311,34 @@ export const getMyPolicies = (customerId: string) =>
 
 export const getMyVehicles = (customerId: string) =>
   request<VehicleResponseDto[]>(`/api/Vehicles/customer/${customerId}`)
+
+// Claim 360 - these PUT endpoints already existed (Admin-only, used by
+// admin CRUD pages elsewhere) and were widened to Surveyor/Approver
+// specifically so Claim 360 can genuinely persist edits, not just
+// display data. Unlike Claim.StatusId/ApprovedAmount, these Policy/
+// Vehicle/Customer fields aren't gated by any workflow engine, so
+// there's no bypass risk in opening them up the same way.
+export const updatePolicy = (request_: UpdatePolicyRequest) =>
+  request<{ message: string }>('/api/Policies', { method: 'PUT', body: request_ })
+
+export const updateVehicle = (request_: UpdateVehicleRequest) =>
+  request<{ message: string }>('/api/Vehicles', { method: 'PUT', body: request_ })
+
+export const updateCustomer = (request_: UpdateCustomerRequest) =>
+  request<{ message: string }>('/api/Customers', { method: 'PUT', body: request_ })
+
+// Checkpoint 5 (Module 3) - staff-assisted claim registration lookups.
+export const getAllCustomers = () =>
+  request<CustomerResponseDto[]>('/api/Customers')
+
+// Checkpoint 9 - lets the Register Claim form auto-fill customer/policy/
+// vehicle from a single Policy Number lookup instead of separate
+// dropdowns.
+export const getAllPoliciesForLookup = () =>
+  request<PolicyResponseDto[]>('/api/Policies')
+
+export const getRepairers = () =>
+  request<UserResponseDto[]>('/api/ClaimRegistration/repairers')
 
 // =================================================================
 // Scoring (Phase 9 two-stage rules-based engine)
@@ -337,6 +458,45 @@ export const submitApproverDecision = (
   )
 
 // =================================================================
+// Checkpoint 5 (Module 5) - On Hold / Resume, Return for Rework,
+// Request Additional Information
+// =================================================================
+
+export const holdClaim = (claimId: string, reason: string) =>
+  request<{ success: boolean; message: string; claimStatusId: number }>(
+    `/api/ClaimDecisions/${claimId}/hold`,
+    { method: 'POST', body: { reason } },
+  )
+
+export const resumeClaim = (claimId: string) =>
+  request<{ success: boolean; message: string; claimStatusId: number }>(
+    `/api/ClaimDecisions/${claimId}/resume`,
+    { method: 'POST' },
+  )
+
+export const returnForRework = (claimId: string, remarks: string) =>
+  request<{ success: boolean; message: string; claimStatusId: number }>(
+    `/api/ClaimDecisions/${claimId}/return-for-rework`,
+    { method: 'POST', body: { remarks } },
+  )
+
+export const requestAdditionalInfo = (
+  claimId: string,
+  reason: string,
+  fromRoleId: number,
+) =>
+  request<{ success: boolean; message: string }>(
+    `/api/ClaimDecisions/${claimId}/request-info`,
+    { method: 'POST', body: { reason, fromRoleId } },
+  )
+
+export const clearInfoRequest = (claimId: string) =>
+  request<{ success: boolean; message: string }>(
+    `/api/ClaimDecisions/${claimId}/clear-info-request`,
+    { method: 'POST' },
+  )
+
+// =================================================================
 // Reassessment comments
 // =================================================================
 
@@ -376,6 +536,54 @@ export const uploadClaimDocument = (
   return requestForm<ClaimDocumentResponseDto>('/api/ClaimDocuments/upload', formData)
 }
 
+// Lightweight OCR extraction for the staff Register Claim flow - runs
+// on a document that isn't attached to any claim yet (the claim
+// doesn't exist until the form is submitted), so this just returns
+// whatever the document contains rather than persisting anything.
+export const extractDocumentOcr = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return requestForm<OcrExtractionResultDto>('/api/Ocr/extract', formData)
+}
+
+// Liability stage - Invoice Particulars
+export const getClaimInvoices = (claimId: string) =>
+  request<InvoiceResponseDto[]>(`/api/ClaimInvoices/claim/${claimId}`)
+
+export const createClaimInvoice = (
+  claimId: string,
+  input: {
+    invoiceDate: string
+    invoiceNumber: string
+    invoiceAmount: number
+    invoiceFavour: number
+  },
+) =>
+  request<InvoiceResponseDto>(`/api/ClaimInvoices/claim/${claimId}`, {
+    method: 'POST',
+    body: input,
+  })
+
+export const updateClaimInvoice = (
+  claimInvoiceId: string,
+  input: {
+    invoiceDate: string
+    invoiceNumber: string
+    invoiceAmount: number
+    invoiceFavour: number
+  },
+) =>
+  request<InvoiceResponseDto>(`/api/ClaimInvoices/${claimInvoiceId}`, {
+    method: 'PUT',
+    body: input,
+  })
+
+export const deleteClaimInvoice = (claimInvoiceId: string) =>
+  request<{ success: boolean }>(`/api/ClaimInvoices/${claimInvoiceId}`, {
+    method: 'DELETE',
+  })
+
 // Used by UploadCard (Phase 12) for a live per-file progress bar.
 export const uploadClaimDocumentWithProgress = (
   claimId: string,
@@ -402,6 +610,11 @@ export const uploadClaimDocumentWithProgress = (
 export const getMyRepairAssignments = (repairerId: string) =>
   request<RepairAssignmentResponseDto[]>(
     `/api/RepairAssignments/repairer/${repairerId}`,
+  )
+
+export const getRepairAssignmentsByClaim = (claimId: string) =>
+  request<RepairAssignmentResponseDto[]>(
+    `/api/RepairAssignments/claim/${claimId}`,
   )
 
 export const getRepairAssignment = (repairAssignmentId: string) =>
@@ -487,19 +700,37 @@ export const getPayment = (paymentId: string) =>
 export const getPaymentsByClaim = (claimId: string) =>
   request<PaymentResponseDto[]>(`/api/Payments/claim/${claimId}`)
 
-export const createPayment = (
-  claimId: string,
-  amount: number,
-  transactionReference: string,
-  remarks: string,
-) =>
+export const createPayment = (input: {
+  claimId: string
+  amount: number
+  transactionReference: string
+  remarks: string
+  paymentMethodId: number
+  payeeType: number
+  payeeCode: string
+  beneficiaryName: string
+  bankAccountNumber: string
+  ifscCode: string
+  bankName: string
+  branchName: string
+  mobileNumber: string
+}) =>
   request<PaymentResponseDto>('/api/Payments', {
     method: 'POST',
     body: {
-      claimId,
-      amount,
-      transactionReference: transactionReference || null,
-      remarks: remarks || null,
+      claimId: input.claimId,
+      amount: input.amount,
+      transactionReference: input.transactionReference || null,
+      remarks: input.remarks || null,
+      paymentMethodId: input.paymentMethodId,
+      payeeType: input.payeeType,
+      payeeCode: input.payeeCode,
+      beneficiaryName: input.beneficiaryName,
+      bankAccountNumber: input.bankAccountNumber || null,
+      ifscCode: input.ifscCode || null,
+      bankName: input.bankName || null,
+      branchName: input.branchName || null,
+      mobileNumber: input.mobileNumber || null,
     },
   })
 
@@ -659,6 +890,14 @@ export const raiseClaimStep2 = (claimId: string, request_: RaiseStep2Request) =>
     body: request_,
   })
 
+// Checkpoint 5 (Module 3) - staff-assisted registration (Claims
+// Handler/Admin), distinct from the customer's own wizard above.
+export const registerClaimByStaff = (request_: StaffRegisterClaimRequest) =>
+  request<RaiseStep1ResponseDto>('/api/ClaimRegistration', {
+    method: 'POST',
+    body: request_,
+  })
+
 export const generateEstimate = (claimId: string) =>
   request<EstimateOrNotEligibleResponse>(`/api/Claims/${claimId}/raise/estimate`, {
     method: 'POST',
@@ -792,3 +1031,123 @@ export const completeSurveyAssessment = (surveyReportId: string) =>
 
 export const getAuditLogsForClaim = (claimId: string) =>
   request<AuditLogResponseDto[]>(`/api/AuditLogs/entity/Claim/${claimId}`)
+
+// =================================================================
+// Phase 15 - Claims Handler dashboard
+// =================================================================
+
+export const getClaimsHandlerDashboardSummary = () =>
+  request<ClaimsHandlerDashboardSummaryDto>('/api/ClaimsHandlerDashboard/summary')
+
+export const getTatPerformance = (year?: number, month?: number) => {
+  const params = new URLSearchParams()
+  if (year != null) params.set('year', String(year))
+  if (month != null) params.set('month', String(month))
+  const query = params.toString()
+
+  return request<TatPerformanceResponseDto>(
+    `/api/ClaimsHandlerDashboard/tat-performance${query ? `?${query}` : ''}`,
+  )
+}
+
+// =================================================================
+// Phase 16 - Decision & Review, Claims Processing & Settlement
+// =================================================================
+
+export const getDecisionSupportSummary = (claimId: string) =>
+  request<DecisionSupportSummaryDto>(`/api/DecisionSupport/claim/${claimId}/summary`)
+
+export const getClaimSettlement = (claimId: string) =>
+  request<ClaimSettlementResponseDto | null>(`/api/ClaimSettlements/claim/${claimId}`)
+
+export const computeClaimSettlement = (claimId: string) =>
+  request<ClaimSettlementResponseDto>(`/api/ClaimSettlements/claim/${claimId}/compute`, {
+    method: 'POST',
+  })
+
+// =================================================================
+// Checkpoint 3 - Claim Closure & Reporting
+// =================================================================
+
+// CSV is a file download, not JSON - fetched directly (with the same
+// auth header the `request` helper attaches) rather than through it.
+export interface ClaimsHandlerClaimListItem {
+  claimId: string
+  claimNumber: string
+  customerName: string | null
+  statusId: number
+  estimatedLossAmount: number | null
+  relevantDate: string | null
+  policyNumber: string | null
+  vehicleNumber: string | null
+  category: string
+}
+
+export const getClaimsHandlerAllClaims = () =>
+  request<ClaimsHandlerClaimListItem[]>('/api/ClaimsHandlerDashboard/my-claims')
+
+export async function fetchClaimsReportRows(
+  status: string,
+): Promise<{ headers: string[]; rows: string[][] }> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  const headers: Record<string, string> = {}
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`
+  }
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/ClaimReports/claims/csv?status=${encodeURIComponent(status)}`,
+    { headers },
+  )
+
+  if (!response.ok) {
+    throw new ApiError(response.status, `Report preview failed with status ${response.status}`)
+  }
+
+  const text = await response.text()
+  const lines = text.trim().split("\n").filter((line) => line.length > 0)
+  if (lines.length === 0) {
+    return { headers: [], rows: [] }
+  }
+
+  const parseLine = (line: string) => line.split(",").map((cell) => cell.trim())
+  const [headerLine, ...dataLines] = lines
+
+  return {
+    headers: parseLine(headerLine),
+    rows: dataLines.map(parseLine),
+  }
+}
+
+export async function downloadClaimsReportCsv(status: string): Promise<void> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  const headers: Record<string, string> = {}
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`
+  }
+
+  const response = await fetch(
+    `${apiBaseUrl}/api/ClaimReports/claims/csv?status=${encodeURIComponent(status)}`,
+    { headers },
+  )
+
+  if (!response.ok) {
+    throw new ApiError(response.status, `Report download failed with status ${response.status}`)
+  }
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `claims-report-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}

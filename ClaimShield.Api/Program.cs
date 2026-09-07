@@ -474,6 +474,38 @@ builder.Services.AddScoped<
     ClaimDecisionService>();
 
 // ------------------------------------------------------------
+// Claims Handler Dashboard (Phase 15)
+// ------------------------------------------------------------
+
+builder.Services.AddScoped<
+    IClaimsHandlerDashboardService,
+    ClaimsHandlerDashboardService>();
+
+// ------------------------------------------------------------
+// Claim Settlement (Phase 16)
+// ------------------------------------------------------------
+
+builder.Services.AddScoped<
+    IClaimSettlementService,
+    ClaimSettlementService>();
+
+// ------------------------------------------------------------
+// Claim Invoices (Liability stage - Invoice Particulars)
+// ------------------------------------------------------------
+
+builder.Services.AddScoped<
+    IClaimInvoiceService,
+    ClaimInvoiceService>();
+
+// ------------------------------------------------------------
+// Claim Reports (Checkpoint 3)
+// ------------------------------------------------------------
+
+builder.Services.AddScoped<
+    IClaimReportService,
+    ClaimReportService>();
+
+// ------------------------------------------------------------
 // Reassessment Comments
 // ------------------------------------------------------------
 
@@ -556,6 +588,12 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<
     IAiService,
     MockAiService>();
+
+// Phase 16 - Decision & Review support (rule-based, same AI/ folder,
+// same honesty-first philosophy as MockAiService above).
+builder.Services.AddScoped<
+    IDecisionSupportService,
+    DecisionSupportService>();
 
 // ============================================================
 // CORS

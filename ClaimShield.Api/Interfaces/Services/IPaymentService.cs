@@ -18,7 +18,7 @@ namespace ClaimShield.Api.Interfaces.Services
         Task<bool> ProcessAsync(
             Guid paymentId);
 
-        Task<bool> CompleteAsync(
+        Task<(bool Success, string? ErrorMessage)> CompleteAsync(
             Guid paymentId);
 
         Task<bool> FailAsync(

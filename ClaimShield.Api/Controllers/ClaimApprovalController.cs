@@ -1,3 +1,4 @@
+using ClaimShield.Api.Authentication;
 using ClaimShield.Api.Constants;
 using ClaimShield.Api.Interfaces.Services;
 using ClaimShield.Api.Models.DTOs.Claims;
@@ -7,18 +8,34 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ClaimShield.Api.Controllers
 {
+    // Phase 14 reconciliation: this controller no longer writes claim
+    // decisions on its own via IClaimApprovalService (which had no
+    // ClaimDecisions history and no AuthorityLimits enforcement) - both
+    // actions now go through IClaimDecisionService.
+    // RecordDirectApproverDecisionAsync, the same canonical path the
+    // repair-estimate-approval side effect uses, so there is one decision
+    // history and one enforcement point regardless of entry point.
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
     public class ClaimApprovalController : ControllerBase
     {
-        private readonly IClaimApprovalService _claimApprovalService;
+        private readonly IClaimDecisionService _claimDecisionService;
+        private readonly ICurrentUserService _currentUserService;
 
         public ClaimApprovalController(
-            IClaimApprovalService claimApprovalService)
+            IClaimDecisionService claimDecisionService,
+            ICurrentUserService currentUserService)
         {
-            _claimApprovalService = claimApprovalService;
+            _claimDecisionService = claimDecisionService;
+            _currentUserService = currentUserService;
         }
+
+        private bool IsAdmin =>
+            string.Equals(
+                _currentUserService.RoleName,
+                RoleConstants.Admin,
+                StringComparison.OrdinalIgnoreCase);
 
         // =========================================================
         // APPROVE CLAIM
@@ -39,20 +56,30 @@ namespace ClaimShield.Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            var approved =
-                await _claimApprovalService.ApproveClaimAsync(
-                    claimId,
-                    request);
-
-            if (!approved)
+            if (!_currentUserService.UserId.HasValue)
             {
                 return BadRequest(new
                 {
                     Success = false,
-                    Message =
-                        "Claim could not be approved. " +
-                        "It may not exist, may already be approved, " +
-                        "or may already be rejected/closed."
+                    Message = "Unable to determine the logged-in user."
+                });
+            }
+
+            var result =
+                await _claimDecisionService.RecordDirectApproverDecisionAsync(
+                    claimId,
+                    _currentUserService.UserId.Value,
+                    IsAdmin ? RoleConstants.AdminId : RoleConstants.ApproverId,
+                    ClaimDecisionConstants.Approve,
+                    request.Remarks ?? "Approved.",
+                    request.ApprovedAmount);
+
+            if (!result.Success)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = result.ErrorMessage
                 });
             }
 
@@ -62,7 +89,7 @@ namespace ClaimShield.Api.Controllers
                 Message = "Claim approved successfully.",
                 ClaimId = claimId,
                 ApprovedAmount = request.ApprovedAmount,
-                StatusId = ClaimStatusConstants.Approved,
+                StatusId = result.UpdatedClaimStatusId,
                 Status = "Approved"
             });
         }
@@ -86,20 +113,30 @@ namespace ClaimShield.Api.Controllers
                 return BadRequest(ModelState);
             }
 
-            var rejected =
-                await _claimApprovalService.RejectClaimAsync(
-                    claimId,
-                    request);
-
-            if (!rejected)
+            if (!_currentUserService.UserId.HasValue)
             {
                 return BadRequest(new
                 {
                     Success = false,
-                    Message =
-                        "Claim could not be rejected. " +
-                        "It may not exist, may already be approved, " +
-                        "or may already be rejected."
+                    Message = "Unable to determine the logged-in user."
+                });
+            }
+
+            var result =
+                await _claimDecisionService.RecordDirectApproverDecisionAsync(
+                    claimId,
+                    _currentUserService.UserId.Value,
+                    IsAdmin ? RoleConstants.AdminId : RoleConstants.ApproverId,
+                    ClaimDecisionConstants.Deny,
+                    request.Remarks,
+                    null);
+
+            if (!result.Success)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = result.ErrorMessage
                 });
             }
 
@@ -108,7 +145,7 @@ namespace ClaimShield.Api.Controllers
                 Success = true,
                 Message = "Claim rejected successfully.",
                 ClaimId = claimId,
-                StatusId = ClaimStatusConstants.Rejected,
+                StatusId = result.UpdatedClaimStatusId,
                 Status = "Rejected"
             });
         }

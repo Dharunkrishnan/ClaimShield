@@ -25,6 +25,12 @@ namespace ClaimShield.Api.Models.Entities
         [MaxLength(500)]
         public string? Remarks { get; set; }
 
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? LabourAmount { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? PartsAmount { get; set; }
+
         public DateTime CreatedDate { get; set; }
     }
 }

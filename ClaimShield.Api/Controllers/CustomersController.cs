@@ -30,6 +30,14 @@ namespace ClaimShield.Api.Controllers
                 RoleConstants.Admin,
                 StringComparison.OrdinalIgnoreCase);
 
+        // Checkpoint 5 (Module 3) - the Claims Handler needs the
+        // customer list for staff-assisted claim registration.
+        private bool IsSurveyor =>
+            string.Equals(
+                _currentUserService.RoleName,
+                RoleConstants.Surveyor,
+                StringComparison.OrdinalIgnoreCase);
+
         private static IActionResult Forbidden(
             string message)
         {
@@ -81,10 +89,10 @@ namespace ClaimShield.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAllCustomers()
         {
-            if (!IsAdmin)
+            if (!IsAdmin && !IsSurveyor)
             {
                 return Forbidden(
-                    "Only an Admin can list all customers.");
+                    "Only an Admin or Claims Handler can list all customers.");
             }
 
             var customers = await _customerService.GetAllCustomersAsync();
@@ -125,7 +133,7 @@ namespace ClaimShield.Api.Controllers
 
         // PUT: api/Customers
         [HttpPut]
-        [Authorize(Roles = RoleConstants.Admin)]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         public async Task<IActionResult> UpdateCustomer(UpdateCustomerRequest request)
         {
             var updated = await _customerService.UpdateCustomerAsync(request);

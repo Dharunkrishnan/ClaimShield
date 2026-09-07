@@ -40,5 +40,12 @@ namespace ClaimShield.Api.Interfaces.Services
         Task<(bool Success, string? Error, ClaimRaiseActionResult? Result)> DeclineAsync(
             Guid claimId,
             Guid userId);
+
+        // Checkpoint 5 (Module 3) - staff-assisted registration/intake,
+        // reusing the same CreateClaimAsync + ClaimIntake pattern as
+        // Step1Async above rather than a separate writer.
+        Task<(bool Success, string? Error, RaiseStep1ResponseDto? Result)> StaffRegisterAsync(
+            Guid staffUserId,
+            StaffRegisterClaimRequest request);
     }
 }

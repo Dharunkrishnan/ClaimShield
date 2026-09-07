@@ -1,0 +1,23 @@
+.invoice-particulars-card{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;padding:28px 32px}
+.invoice-particulars-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.invoice-particulars-header h2{margin:0;font-size:16px;font-weight:700;color:var(--color-text)}
+.invoice-particulars-add-button{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--color-primary-light);background:var(--color-selected-bg);border:none;border-radius:6px;cursor:pointer;margin-top:0}
+.invoice-particulars-add-button:hover{background:var(--color-info-light)}
+.invoice-particulars-empty{margin:0;font-size:12.5px;color:var(--color-muted)}
+.invoice-particulars-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px}
+.invoice-particulars-table th{width:18%;text-align:left;padding:6px 8px;font-size:10px;font-weight:600;color:var(--color-muted);border-bottom:1px solid var(--color-border)}
+.invoice-particulars-table th:nth-child(2){width:24%}
+.invoice-particulars-table th:nth-child(4){width:25%}
+.invoice-particulars-actions-col{width:15%!important;text-align:right!important}
+.invoice-particulars-table td{padding:8px;border-bottom:1px solid var(--color-border);color:var(--color-text);vertical-align:middle}
+.invoice-particulars-favour-pill{display:inline-flex;align-items:center;padding:3px 8px;background:var(--color-selected-bg);color:var(--color-primary-dark);border-radius:5px;font-size:11px;font-weight:600}
+.invoice-particulars-editing-row td{padding:6px 6px}
+.invoice-particulars-editing-row input,
+.invoice-particulars-editing-row select{width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--color-border);border-radius:6px;font-size:12px;font-family:inherit;background:var(--color-surface);margin:0}
+.invoice-particulars-editing-row input:focus,
+.invoice-particulars-editing-row select:focus{outline:none;border-color:var(--color-primary-light);box-shadow:0 0 0 2px rgba(37,99,199,0.12)}
+.invoice-particulars-icon-button{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:none;background:none;color:var(--color-muted);cursor:pointer;border-radius:5px;margin:0}
+.invoice-particulars-icon-button:hover{background:var(--color-divider)}
+.invoice-particulars-icon-button.invoice-particulars-save{color:var(--color-success)}
+.invoice-particulars-icon-button.invoice-particulars-delete:hover{color:var(--color-error);background:var(--color-error-light)}
+.invoice-particulars-icon-button:disabled{opacity:0.5;cursor:not-allowed}

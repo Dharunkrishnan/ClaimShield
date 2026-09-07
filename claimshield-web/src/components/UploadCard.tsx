@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ApiError, uploadClaimDocumentWithProgress } from '../lib/api'
+import { Eye } from 'lucide-react'
+import { ApiError, getDocumentDownloadUrl, uploadClaimDocumentWithProgress } from '../lib/api'
 import type { ClaimDocumentResponseDto } from '../lib/types'
 
 export function UploadCard({
@@ -16,12 +17,15 @@ export function UploadCard({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState<string | null>(null)
+  const [uploadedDoc, setUploadedDoc] = useState<ClaimDocumentResponseDto | null>(null)
   const [progress, setProgress] = useState(0)
   const [status, setStatus] = useState<'idle' | 'uploading' | 'done' | 'error'>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [viewLoading, setViewLoading] = useState(false)
 
   const handleSelect = async (file: File) => {
     setFileName(file.name)
+    setUploadedDoc(null)
     setStatus('uploading')
     setProgress(0)
     setError(null)
@@ -34,10 +38,29 @@ export function UploadCard({
         setProgress,
       )
       setStatus('done')
+      setUploadedDoc(doc)
       onUploaded(doc)
     } catch (err) {
       setStatus('error')
       setError(err instanceof ApiError ? err.message : 'Upload failed.')
+    }
+  }
+
+  const handleView = async (event: React.MouseEvent) => {
+    // Don't let this bubble up to the card's own onClick, which opens
+    // the file picker for re-uploading - viewing and replacing are
+    // two different actions sharing the same card.
+    event.stopPropagation()
+    if (!uploadedDoc || viewLoading) return
+
+    setViewLoading(true)
+    try {
+      const { url } = await getDocumentDownloadUrl(uploadedDoc.claimDocumentId)
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch {
+      setError('Could not open the file. Try again.')
+    } finally {
+      setViewLoading(false)
     }
   }
 
@@ -81,14 +104,24 @@ export function UploadCard({
           )}
 
           {status === 'done' && (
-            <motion.span
-              className="upload-card-done"
+            <motion.div
+              className="upload-card-done-row"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 500, damping: 20 }}
             >
-              ✓ Uploaded
-            </motion.span>
+              <span className="upload-card-done-label">✓ Uploaded</span>
+              {uploadedDoc && (
+                <button
+                  type="button"
+                  className="upload-card-view-link"
+                  onClick={(e) => void handleView(e)}
+                  disabled={viewLoading}
+                >
+                  <Eye size={13} /> {viewLoading ? 'Opening…' : 'View'}
+                </button>
+              )}
+            </motion.div>
           )}
 
           {status === 'error' && <span className="error-text">{error}</span>}

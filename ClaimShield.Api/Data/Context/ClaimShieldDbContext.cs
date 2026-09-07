@@ -69,6 +69,12 @@ namespace ClaimShield.Api.Data.Context
 
         public DbSet<DamageAssessmentItem> DamageAssessmentItems { get; set; }
 
+        public DbSet<LiabilityDamageItemAdjustment> LiabilityDamageItemAdjustments { get; set; }
+
+        public DbSet<ClaimInvoice> ClaimInvoices { get; set; }
+
+        public DbSet<ClaimSettlement> ClaimSettlements { get; set; }
+
 
         // =========================================================
         // MODEL CREATING
@@ -443,6 +449,50 @@ namespace ClaimShield.Api.Data.Context
                 entity.HasOne<SurveyReport>()
                     .WithMany()
                     .HasForeignKey(e => e.SurveyReportId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+
+            // =====================================================
+            // LIABILITY DAMAGE ITEM ADJUSTMENT
+            // =====================================================
+
+            modelBuilder.Entity<LiabilityDamageItemAdjustment>(entity =>
+            {
+                entity.ToTable(
+                    "LiabilityDamageItemAdjustments",
+                    "dbo");
+
+                entity.HasKey(
+                    e => e.LiabilityDamageItemAdjustmentId);
+
+                entity.HasOne<DamageAssessmentItem>()
+                    .WithMany()
+                    .HasForeignKey(e => e.DamageAssessmentItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+
+            // =====================================================
+            // CLAIM INVOICE
+            // =====================================================
+
+            modelBuilder.Entity<ClaimInvoice>(entity =>
+            {
+                entity.ToTable(
+                    "ClaimInvoices",
+                    "dbo");
+
+                entity.HasKey(
+                    e => e.ClaimInvoiceId);
+
+                entity.Property(e => e.InvoiceNumber)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.HasOne<Claim>()
+                    .WithMany()
+                    .HasForeignKey(e => e.ClaimId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
@@ -998,6 +1048,32 @@ namespace ClaimShield.Api.Data.Context
                     .IsRequired();
 
                 entity.Property(e => e.GeneratedAt)
+                    .IsRequired();
+
+                entity.HasOne<Claim>()
+                    .WithMany()
+                    .HasForeignKey(e => e.ClaimId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+
+            // =====================================================
+            // CLAIM SETTLEMENT (Phase 16)
+            // =====================================================
+
+            modelBuilder.Entity<ClaimSettlement>(entity =>
+            {
+                entity.ToTable(
+                    "ClaimSettlements",
+                    "dbo");
+
+                entity.HasKey(
+                    e => e.ClaimId);
+
+                entity.Property(e => e.ClaimId)
+                    .ValueGeneratedNever();
+
+                entity.Property(e => e.ComputedAt)
                     .IsRequired();
 
                 entity.HasOne<Claim>()

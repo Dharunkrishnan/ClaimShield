@@ -83,19 +83,30 @@ namespace ClaimShield.Api.Services
                     "Claim not found.");
             }
 
-            if (claim.StatusId != ClaimStatusConstants.Approved)
+            // Claims can reach payment-eligibility two ways: the older
+            // formal Decision flow (which sets StatusId to Approved
+            // directly), or the newer Liability-submit flow (used by
+            // claims with a text-based Workshop/Repair Recommendation
+            // rather than a real assigned Repairer account, which never
+            // transitions StatusId to Approved at all) - accept either,
+            // matching the same "either path" gating already used on
+            // the frontend's stepper and Approval-stage visibility.
+            if (claim.StatusId != ClaimStatusConstants.Approved && !claim.LiabilitySubmitted)
             {
                 throw new InvalidOperationException(
                     "Payment can only be created for an approved claim.");
             }
 
-            if (!claim.ApprovedAmount.HasValue)
-            {
-                throw new InvalidOperationException(
-                    "Claim does not have an approved amount.");
-            }
-
-            if (request.Amount > claim.ApprovedAmount.Value)
+            // claim.ApprovedAmount is the authoritative cap when it's
+            // actually set - but for claims on the newer Liability-
+            // submit path it can still be stale/unset even after a
+            // real amount has been computed and shown on the frontend
+            // (the Liability* figures are the reliable source there).
+            // Only enforce the cap when ApprovedAmount genuinely has a
+            // value; otherwise fall through to the plain positive-
+            // amount check below, trusting the amount the person was
+            // actually shown and confirmed.
+            if (claim.ApprovedAmount.HasValue && request.Amount > claim.ApprovedAmount.Value)
             {
                 throw new InvalidOperationException(
                     "Payment amount cannot exceed the approved claim amount.");
@@ -124,6 +135,47 @@ namespace ClaimShield.Api.Services
                     "An active or completed payment already exists for this claim.");
             }
 
+            if (request.PaymentMethodId != PaymentMethodConstants.Neft &&
+                request.PaymentMethodId != PaymentMethodConstants.Imps &&
+                request.PaymentMethodId != PaymentMethodConstants.Upi &&
+                request.PaymentMethodId != PaymentMethodConstants.Cheque &&
+                request.PaymentMethodId != PaymentMethodConstants.Rtgs)
+            {
+                throw new InvalidOperationException(
+                    "A valid payment method (NEFT, RTGS, IMPS, UPI, or Cheque) is required.");
+            }
+
+            if (request.PayeeType != PayeeTypeConstants.Customer &&
+                request.PayeeType != PayeeTypeConstants.Repairer)
+            {
+                throw new InvalidOperationException(
+                    "Payments To must be either Customer or Repairer.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.PayeeCode))
+            {
+                throw new InvalidOperationException(
+                    "Payee code is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.BeneficiaryName))
+            {
+                throw new InvalidOperationException(
+                    "Beneficiary name is required.");
+            }
+
+            // Cheque payments are addressed to the payee by name and don't
+            // need a bank account/IFSC to be recorded up front; the other
+            // three methods are direct bank transfers and can't be made
+            // without them.
+            if (request.PaymentMethodId != PaymentMethodConstants.Cheque &&
+                (string.IsNullOrWhiteSpace(request.BankAccountNumber) ||
+                 string.IsNullOrWhiteSpace(request.IfscCode)))
+            {
+                throw new InvalidOperationException(
+                    "Bank account number and IFSC code are required for NEFT, IMPS, and UPI payments.");
+            }
+
             var payment = new Payment
             {
                 PaymentId = Guid.NewGuid(),
@@ -144,6 +196,41 @@ namespace ClaimShield.Api.Services
 
                 Remarks =
                     request.Remarks,
+
+                PaymentMethodId =
+                    request.PaymentMethodId,
+
+                PayeeType =
+                    request.PayeeType,
+
+                PayeeCode =
+                    request.PayeeCode,
+
+                BeneficiaryName =
+                    request.BeneficiaryName,
+
+                BankAccountNumber =
+                    request.PaymentMethodId == PaymentMethodConstants.Cheque
+                        ? null
+                        : request.BankAccountNumber,
+
+                IfscCode =
+                    request.PaymentMethodId == PaymentMethodConstants.Cheque
+                        ? null
+                        : request.IfscCode,
+
+                BankName =
+                    request.PaymentMethodId == PaymentMethodConstants.Cheque
+                        ? null
+                        : request.BankName,
+
+                BranchName =
+                    request.PaymentMethodId == PaymentMethodConstants.Cheque
+                        ? null
+                        : request.BranchName,
+
+                MobileNumber =
+                    request.MobileNumber,
 
                 CreatedDate =
                     DateTime.UtcNow
@@ -188,7 +275,7 @@ namespace ClaimShield.Api.Services
         // COMPLETE
         // =========================================================
 
-        public async Task<bool> CompleteAsync(
+        public async Task<(bool Success, string? ErrorMessage)> CompleteAsync(
             Guid paymentId)
         {
             var payment =
@@ -197,12 +284,22 @@ namespace ClaimShield.Api.Services
 
             if (payment == null)
             {
-                return false;
+                return (false, "Payment not found.");
             }
 
             if (payment.PaymentStatusId != PaymentStatusConstants.Processing)
             {
-                return false;
+                return (false, "This payment is not currently in Processing status.");
+            }
+
+            var claimForApprovalCheck =
+                await _context.Claims
+                    .FirstOrDefaultAsync(
+                        x => x.ClaimId == payment.ClaimId);
+
+            if (claimForApprovalCheck == null)
+            {
+                return (false, "Claim not found.");
             }
 
             payment.PaymentStatusId = PaymentStatusConstants.Paid;
@@ -220,21 +317,14 @@ namespace ClaimShield.Api.Services
             await _paymentRepository.UpdateAsync(
                 payment);
 
-            var claim = await _context.Claims
-                .FirstOrDefaultAsync(
-                    x => x.ClaimId == payment.ClaimId);
+            claimForApprovalCheck.StatusId = ClaimStatusConstants.Settled;
 
-            if (claim != null)
-            {
-                claim.StatusId = ClaimStatusConstants.Settled;
+            claimForApprovalCheck.UpdatedDate =
+                DateTime.UtcNow;
 
-                claim.UpdatedDate =
-                    DateTime.UtcNow;
+            await _context.SaveChangesAsync();
 
-                await _context.SaveChangesAsync();
-            }
-
-            return true;
+            return (true, null);
         }
 
         // =========================================================
@@ -373,6 +463,41 @@ namespace ClaimShield.Api.Services
                 Remarks =
                     payment.Remarks,
 
+                PaymentMethodId =
+                    payment.PaymentMethodId,
+
+                PaymentMethod =
+                    GetPaymentMethodName(
+                        payment.PaymentMethodId),
+
+                PayeeType =
+                    payment.PayeeType,
+
+                PayeeTypeName =
+                    GetPayeeTypeName(
+                        payment.PayeeType),
+
+                PayeeCode =
+                    payment.PayeeCode,
+
+                BeneficiaryName =
+                    payment.BeneficiaryName,
+
+                BankAccountNumber =
+                    payment.BankAccountNumber,
+
+                IfscCode =
+                    payment.IfscCode,
+
+                BankName =
+                    payment.BankName,
+
+                BranchName =
+                    payment.BranchName,
+
+                MobileNumber =
+                    payment.MobileNumber,
+
                 CreatedDate =
                     payment.CreatedDate
             };
@@ -392,6 +517,33 @@ namespace ClaimShield.Api.Services
                 PaymentStatusConstants.Paid => "Paid",
                 PaymentStatusConstants.Failed => "Failed",
                 PaymentStatusConstants.Cancelled => "Cancelled",
+                _ => "Unknown"
+            };
+        }
+
+        private static string? GetPaymentMethodName(
+            int? paymentMethodId)
+        {
+            return paymentMethodId switch
+            {
+                null => null,
+                PaymentMethodConstants.Neft => "NEFT",
+                PaymentMethodConstants.Imps => "IMPS",
+                PaymentMethodConstants.Upi => "UPI",
+                PaymentMethodConstants.Cheque => "Cheque",
+                PaymentMethodConstants.Rtgs => "RTGS",
+                _ => "Unknown"
+            };
+        }
+
+        private static string? GetPayeeTypeName(
+            int? payeeType)
+        {
+            return payeeType switch
+            {
+                null => null,
+                PayeeTypeConstants.Customer => "Customer",
+                PayeeTypeConstants.Repairer => "Repairer",
                 _ => "Unknown"
             };
         }

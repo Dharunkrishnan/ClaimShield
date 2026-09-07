@@ -1,0 +1,42 @@
+/* Vehicle Damage Inspection table */
+/* No min-width here on purpose - a hardcoded min-width previously
+   forced this table wider than the available space on normal screens,
+   causing an unwanted horizontal scrollbar on every load rather than
+   only on genuinely too-narrow viewports. width:100% + table-layout:
+   fixed (below) already keeps every column within the container. */
+/* Row/header heights and padding kept deliberately tight below - a
+   tall table (previously 54-70px per row) makes the whole page taller
+   than it needs to be, forcing more vertical scrolling than a claim
+   with a handful of damage items should ever require. There's no
+   separate scroll container being removed here; a more compact table
+   is what actually reduces how far the page has to scroll. */
+.damage-items-table-card{overflow:hidden;padding:1.75rem 2rem;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+.damage-table-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 0 20px;border-bottom:1px solid var(--color-border);background:var(--color-surface)}
+.damage-table-header h2{margin:0;color:var(--color-text);font-size:16px;font-weight:700}
+.damage-table-header p{margin:3px 0 0;color:var(--color-muted);font-size:11px}
+.damage-table-wrap{width:100%;overflow-x:auto}
+.damage-items-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+.damage-items-table th{height:34px;padding:4px 6px;border-bottom:1px solid var(--color-border);background:var(--color-surface);color:var(--color-muted);font-size:10px;font-weight:500;line-height:1.1;letter-spacing:.02em;text-align:left;vertical-align:middle}
+.damage-items-table td{height:40px;padding:4px 6px;border-bottom:1px solid var(--color-border);color:var(--color-text);font-size:12px;vertical-align:middle;background:var(--color-surface)}
+.damage-items-table tbody tr:last-child td{border-bottom:1px solid var(--color-border)}
+.damage-items-table th:nth-child(1),.damage-items-table td:nth-child(1){width:7%}
+.damage-items-table th:nth-child(2),.damage-items-table td:nth-child(2){width:12%}
+.damage-items-table th:nth-child(3),.damage-items-table td:nth-child(3){width:11%}
+.damage-items-table th:nth-child(4),.damage-items-table td:nth-child(4){width:10%}
+.damage-items-table th:nth-child(5),.damage-items-table td:nth-child(5){width:9%}
+.damage-items-table th:nth-child(6),.damage-items-table td:nth-child(6){width:9%}
+.damage-items-table th:nth-child(n+7),.damage-items-table td:nth-child(n+7){width:10.5%}
+.damage-sno{color:var(--color-text)!important;font-weight:500}
+.damage-item-name{color:var(--color-text)!important;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.damage-money{white-space:nowrap}
+.damage-action{display:inline-flex;align-items:center;min-height:20px;padding:0 7px;border-radius:5px;font-size:10px;font-weight:700;white-space:nowrap}
+.damage-action-replace{background:var(--color-warning-light);color:var(--color-attention)}
+.damage-action-repair{background:var(--color-info-light);color:var(--color-primary-dark)}
+.damage-number-input{display:block;width:100%;height:28px;box-sizing:border-box;padding:0 7px;border:1px solid var(--color-border);border-radius:7px;background:var(--color-surface);color:var(--color-text);font-size:12px;font-family:inherit;outline:none}
+.damage-number-input:focus{border-color:var(--color-primary);box-shadow:0 0 0 2px rgba(37,99,199,.08)}
+.damage-number-input:disabled{background:var(--color-surface);color:var(--color-text);cursor:default}
+.damage-items-table tfoot td{height:34px;padding:6px;border-top:2px solid var(--color-border);border-bottom:0;background:var(--color-surface);color:var(--color-text);font-weight:700}
+.damage-total-label{font-size:12px!important}
+.damage-total-value{white-space:nowrap;font-size:12px!important}
+.damage-table-actions{display:flex;justify-content:flex-end;padding:20px 0 0;border-top:1px solid var(--color-divider);background:var(--color-surface)}
+.damage-table-actions button{min-height:30px}

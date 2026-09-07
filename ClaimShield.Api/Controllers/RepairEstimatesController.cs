@@ -363,7 +363,7 @@ namespace ClaimShield.Api.Controllers
         // =========================================================
 
         [HttpPost("{id:guid}/approve")]
-        [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -387,11 +387,21 @@ namespace ClaimShield.Api.Controllers
                 });
             }
 
-            var approved =
-                await _repairEstimateService.ApproveAsync(
-                    id,
-                    _currentUserService.UserId.Value,
-                    request);
+            bool approved;
+
+            try
+            {
+                approved =
+                    await _repairEstimateService.ApproveAsync(
+                        id,
+                        _currentUserService.UserId.Value,
+                        IsAdmin ? RoleConstants.AdminId : RoleConstants.ApproverId,
+                        request);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { Success = false, Message = ex.Message });
+            }
 
             if (!approved)
             {
@@ -416,7 +426,7 @@ namespace ClaimShield.Api.Controllers
         // =========================================================
 
         [HttpPost("{id:guid}/reject")]
-        [Authorize(Roles = $"{RoleConstants.Approver},{RoleConstants.Admin}")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

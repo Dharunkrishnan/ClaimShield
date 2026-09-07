@@ -1,0 +1,304 @@
+.tat-card {
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    padding: 16px 20px;
+    margin-top: 12px
+}
+
+.tat-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px
+}
+
+.tat-header-icon {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: #eaf1fc;
+    color: #2563c7
+}
+
+.tat-header-copy {
+    flex: 1;
+    min-width: 0
+}
+
+.tat-header-copy h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: #172033
+}
+
+.tat-header-copy p {
+    margin: 2px 0 0;
+    font-size: 10.5px;
+    color: #7c8797
+}
+
+.tat-period-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border: 1px solid #d7dee8;
+    border-radius: 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #344054;
+    background: #fff
+}
+
+.tat-charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px
+}
+
+.tat-chart-panel {
+    border: 1px solid #edf0f4;
+    border-radius: 12px;
+    padding: 12px 14px
+}
+
+.tat-chart-panel h3 {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0 0 10px;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #172033
+}
+
+.tat-chart-panel h3 svg {
+    color: #a0a9b6
+}
+
+.tat-legend {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 12px;
+    font-size: 9.5px;
+    color: #475467;
+    font-weight: 650
+}
+
+.tat-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px
+}
+
+.tat-swatch {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px
+}
+
+.tat-swatch-blue {
+    background: #2563c7
+}
+
+.tat-swatch-green {
+    background: #16834B
+}
+
+.tat-swatch-red {
+    background: #D64545
+}
+
+.tat-bars-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    gap: 6px;
+    height: 140px
+}
+
+.tat-bar-group {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%
+}
+
+.tat-bar-pair {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    width: 100%;
+    justify-content: center
+}
+
+.tat-bar-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    width: 22px
+}
+
+.tat-bar-value {
+    font-size: 9px;
+    font-weight: 800;
+    color: #172033;
+    margin-bottom: 3px;
+    text-align: center;
+    line-height: 1.2
+}
+
+.tat-bar-value small {
+    font-weight: 650;
+    color: #7c8797
+}
+
+.tat-bar {
+    width: 100%;
+    min-height: 2px;
+    border-radius: 4px 4px 0 0;
+    transition: height .3s ease
+}
+
+.tat-bar-blue {
+    background: #2563c7
+}
+
+.tat-bar-green {
+    background: #16834B
+}
+
+.tat-bar-red {
+    background: #D64545
+}
+
+.tat-bar-label {
+    margin-top: 8px;
+    font-size: 9px;
+    color: #475467;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.35
+}
+
+.tat-bar-label small {
+    font-weight: 500;
+    color: #98a2b3
+}
+
+.tat-inline-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 12px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid #edf0f4;
+    font-size: 9px;
+    color: #475467
+}
+
+.tat-formula-section {
+    margin-top: 16px
+}
+
+.tat-formula-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 10px;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #172033
+}
+
+.tat-formula-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px
+}
+
+.tat-formula-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid #edf0f4;
+    border-radius: 10px;
+    background: #fafbfd
+}
+
+.tat-formula-item svg {
+    flex: 0 0 auto;
+    color: #2563c7;
+    margin-top: 1px
+}
+
+.tat-formula-item strong {
+    display: block;
+    font-size: 10px;
+    color: #172033;
+    font-weight: 800
+}
+
+.tat-formula-item span {
+    display: block;
+    margin-top: 3px;
+    font-size: 9px;
+    color: #7c8797;
+    line-height: 1.35
+}
+
+.tat-info-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    border: 1px solid #dbe7f8;
+    border-radius: 10px;
+    background: #f1f6ff;
+    color: #1d4ed8
+}
+
+.tat-info-note svg {
+    flex: 0 0 auto;
+    margin-top: 1px
+}
+
+.tat-info-note p {
+    margin: 0;
+    font-size: 9.5px;
+    line-height: 1.5;
+    color: #344054
+}
+
+.tat-info-note p+p {
+    margin-top: 2px
+}
+
+@media(max-width:900px) {
+    .tat-charts-grid {
+        grid-template-columns: 1fr
+    }
+
+    .tat-formula-grid {
+        grid-template-columns: 1fr 1fr
+    }
+}
+
+@media(max-width:500px) {
+    .tat-formula-grid {
+        grid-template-columns: 1fr
+    }
+}

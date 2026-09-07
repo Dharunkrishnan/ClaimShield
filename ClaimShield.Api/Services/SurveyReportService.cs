@@ -5,6 +5,7 @@ using ClaimShield.Api.Interfaces.Services;
 using ClaimShield.Api.Models.DTOs.SurveyReports;
 using ClaimShield.Api.Models.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace ClaimShield.Api.Services
 {
@@ -322,12 +323,15 @@ namespace ClaimShield.Api.Services
             report.VehicleConditionId = request.VehicleConditionId;
             report.OdometerReading = request.OdometerReading;
             report.PreExistingDamageNotes = request.PreExistingDamageNotes;
+            report.SurveyorFlaggedSuspicious = request.SurveyorFlaggedSuspicious;
+            report.PreExistingDamageSuspected = request.PreExistingDamageSuspected;
             report.DamageTypeId = request.DamageTypeId;
             report.DamageDescription = request.DamageDescription;
             report.RepairabilityStatusId = request.RepairabilityStatusId;
             report.TotalLoss = request.TotalLoss;
 
             report.EstimatedRepairerName = request.EstimatedRepairerName;
+            report.RepairerTypeId = request.RepairerTypeId;
             report.LabourCost = request.LabourCost;
             report.PartsCost = request.PartsCost;
             report.TowingCharges = request.TowingCharges;
@@ -341,19 +345,25 @@ namespace ClaimShield.Api.Services
 
             // Server-computed only - deterministic, mirrors
             // EstimateEngineService's own "never trust the client total"
-            // principle. Towing is excluded from EstimatedRepairCost (the
-            // figure Stage 2 scoring reads) since it's a logistics cost,
-            // not a repair-severity signal.
-            report.EstimatedRepairCost =
-                (request.LabourCost ?? 0) + (request.PaintCost ?? 0) + (request.PartsCost ?? 0);
+            // principle. Sums Labour/Parts from the actual damage
+            // component line items (the real source of these figures
+            // since the flat LabourCost/PartsCost fields on the request
+            // were retired when that per-component UI was added) -
+            // matches the same formula the frontend's own preview uses,
+            // so what's shown while editing matches what's actually
+            // saved and read back everywhere else (Decision Support
+            // Summary included). Paint/Towing are deliberately excluded
+            // from this formula, matching that same redesign.
+            var totalLabourAmount = request.DamageAssessmentItems.Sum(x => x.LabourAmount ?? 0);
+            var totalPartsAmount = request.DamageAssessmentItems.Sum(x => x.PartsAmount ?? 0);
 
-            var gross =
-                (request.LabourCost ?? 0) + (request.PaintCost ?? 0) +
-                (request.PartsCost ?? 0) + (request.TaxAmount ?? 0);
+            report.EstimatedRepairCost = totalLabourAmount + totalPartsAmount;
+
+            var gross = totalLabourAmount + totalPartsAmount + (request.TaxAmount ?? 0);
 
             var net =
                 gross - (request.DepreciationAmount ?? 0) - (request.CompulsoryExcess ?? 0) -
-                (request.SalvageAmount ?? 0) + (request.TowingCharges ?? 0);
+                (request.SalvageAmount ?? 0);
 
             report.GrossAssessmentAmount = gross;
             report.NetAssessmentAmount = net < 0 ? 0 : net;
@@ -385,6 +395,8 @@ namespace ClaimShield.Api.Services
                     RepairRequired = item.RepairRequired,
                     ReplacementRequired = item.ReplacementRequired,
                     Remarks = item.Remarks,
+                    LabourAmount = item.LabourAmount,
+                    PartsAmount = item.PartsAmount,
                     CreatedDate = DateTime.UtcNow
                 });
             }
@@ -438,6 +450,12 @@ namespace ClaimShield.Api.Services
                 claim.StatusId = ClaimStatusConstants.SurveyCompleted;
                 claim.UpdatedDate = DateTime.UtcNow;
             }
+
+            // TAT Performance dashboard reads this - only set once, the
+            // first time a report is actually submitted for this claim,
+            // so a later re-submission/correction doesn't quietly shift
+            // the recorded completion time.
+            claim.SurveyDate ??= DateTime.UtcNow;
 
             // Keep the coarser SurveyAssignment.AssignmentStatusId (what
             // MockAiService's chat assistant actually reads to answer "what's
@@ -501,6 +519,8 @@ namespace ClaimShield.Api.Services
                 VehicleConditionId = report.VehicleConditionId,
                 OdometerReading = report.OdometerReading,
                 PreExistingDamageNotes = report.PreExistingDamageNotes,
+                SurveyorFlaggedSuspicious = report.SurveyorFlaggedSuspicious,
+                PreExistingDamageSuspected = report.PreExistingDamageSuspected,
                 DamageTypeId = report.DamageTypeId,
                 DamageDescription = report.DamageDescription,
                 RepairabilityStatusId = report.RepairabilityStatusId,
@@ -514,10 +534,13 @@ namespace ClaimShield.Api.Services
                     SeverityId = item.SeverityId,
                     RepairRequired = item.RepairRequired,
                     ReplacementRequired = item.ReplacementRequired,
-                    Remarks = item.Remarks
+                    Remarks = item.Remarks,
+                    LabourAmount = item.LabourAmount,
+                    PartsAmount = item.PartsAmount
                 }).ToList(),
 
                 EstimatedRepairerName = report.EstimatedRepairerName,
+                RepairerTypeId = report.RepairerTypeId,
                 LabourCost = report.LabourCost,
                 PartsCost = report.PartsCost,
                 TowingCharges = report.TowingCharges,

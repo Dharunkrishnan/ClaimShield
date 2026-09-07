@@ -15,5 +15,15 @@ namespace ClaimShield.Api.Models.DTOs.ClaimDecisions
 
         // Populated only when QueueReason is AwaitingApproverDecision.
         public Guid? PendingDecisionId { get; set; }
+
+        // Phase 15 - Claims Handler dashboard. The date this item entered
+        // its current queue bucket (assignment date for AwaitingSurvey,
+        // survey-completion date for AwaitingSurveyorDecision, latest
+        // decision date for AwaitingApproverDecision) - used client-side
+        // to compute ageing/SLA badges, and the customer's display name
+        // so the work queue table doesn't need a second round trip per row.
+        public DateTime? RelevantDate { get; set; }
+
+        public string? CustomerName { get; set; }
     }
 }

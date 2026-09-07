@@ -27,6 +27,9 @@ namespace ClaimShield.Api.AI.Services
         private readonly ISurveyAssignmentService _surveyAssignmentService;
         private readonly IRepairAssignmentService _repairAssignmentService;
         private readonly IClaimClosureService _claimClosureService;
+        private readonly IClaimsHandlerDashboardService _claimsHandlerDashboardService;
+        private readonly IClaimDecisionService _claimDecisionService;
+        private readonly IClaimSettlementService _claimSettlementService;
 
         // =========================================================
         // REPOSITORIES
@@ -34,6 +37,8 @@ namespace ClaimShield.Api.AI.Services
 
         private readonly IUserRepository _userRepository;
         private readonly ICustomerRepository _customerRepository;
+        private readonly IPolicyRepository _policyRepository;
+        private readonly IVehicleRepository _vehicleRepository;
 
         // =========================================================
         // HTTP CONTEXT
@@ -53,8 +58,13 @@ namespace ClaimShield.Api.AI.Services
             ISurveyAssignmentService surveyAssignmentService,
             IRepairAssignmentService repairAssignmentService,
             IClaimClosureService claimClosureService,
+            IClaimsHandlerDashboardService claimsHandlerDashboardService,
+            IClaimDecisionService claimDecisionService,
+            IClaimSettlementService claimSettlementService,
             IUserRepository userRepository,
             ICustomerRepository customerRepository,
+            IPolicyRepository policyRepository,
+            IVehicleRepository vehicleRepository,
             IHttpContextAccessor httpContextAccessor,
             ICurrentUserService currentUserService)
         {
@@ -64,9 +74,14 @@ namespace ClaimShield.Api.AI.Services
             _surveyAssignmentService = surveyAssignmentService;
             _repairAssignmentService = repairAssignmentService;
             _claimClosureService = claimClosureService;
+            _claimsHandlerDashboardService = claimsHandlerDashboardService;
+            _claimDecisionService = claimDecisionService;
+            _claimSettlementService = claimSettlementService;
 
             _userRepository = userRepository;
             _customerRepository = customerRepository;
+            _policyRepository = policyRepository;
+            _vehicleRepository = vehicleRepository;
 
             _httpContextAccessor = httpContextAccessor;
             _currentUserService = currentUserService;
@@ -120,6 +135,16 @@ namespace ClaimShield.Api.AI.Services
             if (IsPendingApprovalIntent(message))
             {
                 return await HandlePendingApprovalsAsync();
+            }
+
+            // =====================================================
+            // SURVEYOR - ALL MY CLAIMS OVERVIEW (status, approver,
+            // estimated amount, across every claim assigned to them)
+            // =====================================================
+
+            if (IsMyClaimsOverviewIntent(message))
+            {
+                return await HandleMyClaimsOverviewAsync();
             }
 
             // =====================================================
@@ -245,6 +270,21 @@ namespace ClaimShield.Api.AI.Services
                 case "GET_DOCUMENTS":
 
                     return await HandleDocumentsAsync(
+                        request.ClaimId);
+
+                case "GET_SETTLED_AMOUNT":
+
+                    return await HandleSettledAmountAsync(
+                        request.ClaimId);
+
+                case "GET_POLICY_DETAILS":
+
+                    return await HandlePolicyDetailsAsync(
+                        request.ClaimId);
+
+                case "GET_VEHICLE_DETAILS":
+
+                    return await HandleVehicleDetailsAsync(
                         request.ClaimId);
 
                 default:
@@ -588,6 +628,198 @@ namespace ClaimShield.Api.AI.Services
                 Intent =
                     "GET_PENDING_APPROVALS"
             };
+        }
+
+        // =========================================================
+        // MY CLAIMS OVERVIEW (status + approver + estimated amount,
+        // across every claim the current handler user has)
+        // =========================================================
+
+        private async Task<AiChatResponse>
+            HandleMyClaimsOverviewAsync()
+        {
+            var currentUserId =
+                _currentUserService.UserId;
+
+            if (!currentUserId.HasValue)
+            {
+                return new AiChatResponse
+                {
+                    Success = false,
+
+                    Message =
+                        "Unable to determine the logged-in user.",
+
+                    Intent =
+                        "MY_CLAIMS_OVERVIEW_ACCESS_DENIED"
+                };
+            }
+
+            var databaseUser =
+                await _userRepository.GetByIdAsync(
+                    currentUserId.Value);
+
+            if (databaseUser == null)
+            {
+                return new AiChatResponse
+                {
+                    Success = false,
+
+                    Message =
+                        "Unable to determine the logged-in user.",
+
+                    Intent =
+                        "MY_CLAIMS_OVERVIEW_ACCESS_DENIED"
+                };
+            }
+
+            // Reuses the exact same scoping the Claims list page uses
+            // (ClaimsHandlerDashboardService.GetMyClaimsAsync) - for a
+            // Surveyor that's every claim they have a SurveyAssignment
+            // for, so this can never show claims outside what they can
+            // already see on their own Claims page.
+            var myClaims =
+                await _claimsHandlerDashboardService.GetMyClaimsAsync(
+                    databaseUser.UserId,
+                    databaseUser.RoleId);
+
+            var claimList =
+                myClaims.ToList();
+
+            if (claimList.Count == 0)
+            {
+                return new AiChatResponse
+                {
+                    Success = true,
+
+                    Message =
+                        "You don't have any claims right now.",
+
+                    Intent =
+                        "GET_MY_CLAIMS_OVERVIEW"
+                };
+            }
+
+            var lines =
+                new List<string>();
+
+            foreach (var claimSummary in claimList)
+            {
+                var claim =
+                    await _claimService.GetClaimByIdAsync(
+                        claimSummary.ClaimId);
+
+                if (claim == null)
+                {
+                    continue;
+                }
+
+                var status =
+                    GetClaimStatusName(
+                        Convert.ToInt32(
+                            claim.StatusId));
+
+                var approverName =
+                    await GetApproverNameAsync(
+                        claim.ClaimId);
+
+                var estimatedAmount =
+                    ComputeLiveEstimatedAmount(
+                        claim);
+
+                lines.Add(
+                    $"• Claim {claim.ClaimNumber} - " +
+                    $"Status: {status} - " +
+                    $"Approver: {approverName} - " +
+                    $"Estimated amount: ₹ {estimatedAmount:N2}");
+            }
+
+            return new AiChatResponse
+            {
+                Success = true,
+
+                Message =
+                    $"You have {claimList.Count} claim(s):\n\n" +
+                    string.Join(
+                        "\n",
+                        lines),
+
+                Intent =
+                    "GET_MY_CLAIMS_OVERVIEW"
+            };
+        }
+
+        // =========================================================
+        // APPROVER NAME FOR A CLAIM
+        // =========================================================
+        //
+        // "The approver" for a claim means whoever most recently made
+        // an Approver-role decision on it (ClaimDecisions.RoleId ==
+        // ApproverId) - not just the latest decision of any role,
+        // which could be a Surveyor's own escalation recommendation.
+        // If no Approver has decided on it yet, the claim simply
+        // hasn't reached that stage - there is no single individual
+        // "assigned" as approver ahead of time in this system.
+        // =========================================================
+
+        private async Task<string>
+            GetApproverNameAsync(
+                Guid claimId)
+        {
+            var history =
+                await _claimDecisionService.GetHistoryAsync(
+                    claimId);
+
+            var latestApproverDecision =
+                history
+                    .Where(
+                        x =>
+                            x.RoleId == RoleConstants.ApproverId)
+                    .OrderByDescending(
+                        x =>
+                            x.DecisionDate)
+                    .FirstOrDefault();
+
+            return
+                latestApproverDecision != null
+                    ? latestApproverDecision.DecidedByName
+                    : "Not yet reviewed by an approver";
+        }
+
+        // =========================================================
+        // LIVE ESTIMATED AMOUNT
+        // =========================================================
+        //
+        // Mirrors computeLiveApprovedAmount in
+        // claimshield-web/src/routes/ClaimDetailPage.tsx exactly -
+        // Claim.ApprovedAmount itself is not trustworthy (see that
+        // file's comments), so both frontend and this chatbot compute
+        // it live from the same Liability* fields instead.
+        // =========================================================
+
+        private static decimal
+            ComputeLiveEstimatedAmount(
+                ClaimResponseDto claim)
+        {
+            var gross =
+                (claim.LiabilityTotalLabour ?? 0m) +
+                (claim.LiabilityTotalParts ?? 0m) +
+                (claim.LiabilityTaxAmount ?? 0m);
+
+            var totalDeduction =
+                (claim.LiabilityDepreciationAmount ?? 0m) +
+                (claim.LiabilityCompulsoryExcess ?? 0m) +
+                (claim.LiabilityImposedExcess ?? 0m) +
+                (claim.LiabilitySalvageDeductions ?? 0m) +
+                (claim.LiabilityOtherDeduction ?? 0m);
+
+            var net =
+                gross - totalDeduction;
+
+            return
+                net < 0m
+                    ? 0m
+                    : net;
         }
 
         // =========================================================
@@ -1541,6 +1773,234 @@ namespace ClaimShield.Api.AI.Services
         }
 
         // =========================================================
+        // SETTLED AMOUNT
+        // =========================================================
+        //
+        // Uses ClaimSettlements.NetSettlementAmount (see
+        // ClaimSettlementService) - the one server-computed figure
+        // that actually represents what was settled, tying together
+        // the Survey assessment, the approved repair estimate, and
+        // the policy's own Excess/IDV/AddOns. Not the same thing as
+        // the live estimated amount surfaced elsewhere in this file
+        // (ComputeLiveEstimatedAmount) - that's a running estimate
+        // from Liability figures before settlement; this is the
+        // actual settlement once it has been computed.
+        // =========================================================
+
+        private async Task<AiChatResponse>
+            HandleSettledAmountAsync(
+                Guid? claimId)
+        {
+            if (!claimId.HasValue)
+            {
+                return ClaimIdRequired(
+                    "Please provide the Claim ID so I can retrieve the settled amount.");
+            }
+
+            var claim =
+                await _claimService.GetClaimByIdAsync(
+                    claimId.Value);
+
+            if (claim == null)
+            {
+                return ClaimNotFound(
+                    "GET_SETTLED_AMOUNT");
+            }
+
+            var settlement =
+                await _claimSettlementService.GetByClaimAsync(
+                    claimId.Value);
+
+            if (settlement == null)
+            {
+                return new AiChatResponse
+                {
+                    Success = true,
+
+                    Message =
+                        $"Claim {claim.ClaimNumber} has not been settled yet.",
+
+                    Intent =
+                        "GET_SETTLED_AMOUNT",
+
+                    ClaimId =
+                        claim.ClaimId
+                };
+            }
+
+            return new AiChatResponse
+            {
+                Success = true,
+
+                Message =
+                    $"Claim {claim.ClaimNumber} was settled for " +
+                    $"₹ {settlement.NetSettlementAmount:N2} " +
+                    $"(computed {settlement.ComputedAt:dd MMM yyyy}).",
+
+                Intent =
+                    "GET_SETTLED_AMOUNT",
+
+                ClaimId =
+                    claim.ClaimId
+            };
+        }
+
+        // =========================================================
+        // POLICY DETAILS
+        // =========================================================
+
+        private async Task<AiChatResponse>
+            HandlePolicyDetailsAsync(
+                Guid? claimId)
+        {
+            if (!claimId.HasValue)
+            {
+                return ClaimIdRequired(
+                    "Please provide the Claim ID so I can retrieve the policy details.");
+            }
+
+            var claim =
+                await _claimService.GetClaimByIdAsync(
+                    claimId.Value);
+
+            if (claim == null)
+            {
+                return ClaimNotFound(
+                    "GET_POLICY_DETAILS");
+            }
+
+            var policy =
+                await _policyRepository.GetByIdAsync(
+                    claim.PolicyId);
+
+            if (policy == null)
+            {
+                return new AiChatResponse
+                {
+                    Success = true,
+
+                    Message =
+                        $"No policy record was found for claim {claim.ClaimNumber}.",
+
+                    Intent =
+                        "GET_POLICY_DETAILS",
+
+                    ClaimId =
+                        claim.ClaimId
+                };
+            }
+
+            var idv =
+                policy.IDV.HasValue
+                    ? $"₹ {policy.IDV.Value:N2}"
+                    : "Not set";
+
+            var excess =
+                policy.Excess.HasValue
+                    ? $"₹ {policy.Excess.Value:N2}"
+                    : "Not set";
+
+            var addOns =
+                string.IsNullOrWhiteSpace(policy.AddOns)
+                    ? "None"
+                    : policy.AddOns;
+
+            return new AiChatResponse
+            {
+                Success = true,
+
+                Message =
+                    $"Policy details for claim {claim.ClaimNumber}: " +
+                    $"Policy number {policy.PolicyNumber}, " +
+                    $"valid from {policy.StartDate:dd MMM yyyy} " +
+                    $"to {policy.EndDate:dd MMM yyyy}, " +
+                    $"coverage amount ₹ {policy.CoverageAmount:N2}, " +
+                    $"IDV {idv}, excess {excess}, add-ons: {addOns}.",
+
+                Intent =
+                    "GET_POLICY_DETAILS",
+
+                ClaimId =
+                    claim.ClaimId
+            };
+        }
+
+        // =========================================================
+        // VEHICLE DETAILS
+        // =========================================================
+
+        private async Task<AiChatResponse>
+            HandleVehicleDetailsAsync(
+                Guid? claimId)
+        {
+            if (!claimId.HasValue)
+            {
+                return ClaimIdRequired(
+                    "Please provide the Claim ID so I can retrieve the vehicle details.");
+            }
+
+            var claim =
+                await _claimService.GetClaimByIdAsync(
+                    claimId.Value);
+
+            if (claim == null)
+            {
+                return ClaimNotFound(
+                    "GET_VEHICLE_DETAILS");
+            }
+
+            var vehicle =
+                await _vehicleRepository.GetByIdAsync(
+                    claim.VehicleId);
+
+            if (vehicle == null)
+            {
+                return new AiChatResponse
+                {
+                    Success = true,
+
+                    Message =
+                        $"No vehicle record was found for claim {claim.ClaimNumber}.",
+
+                    Intent =
+                        "GET_VEHICLE_DETAILS",
+
+                    ClaimId =
+                        claim.ClaimId
+                };
+            }
+
+            var variant =
+                string.IsNullOrWhiteSpace(vehicle.Variant)
+                    ? "Not specified"
+                    : vehicle.Variant;
+
+            var color =
+                string.IsNullOrWhiteSpace(vehicle.VehicleColor)
+                    ? "Not specified"
+                    : vehicle.VehicleColor;
+
+            return new AiChatResponse
+            {
+                Success = true,
+
+                Message =
+                    $"Vehicle details for claim {claim.ClaimNumber}: " +
+                    $"Registration number {vehicle.RegistrationNumber}, " +
+                    $"manufactured {vehicle.ManufacturingYear}, " +
+                    $"variant {variant}, colour {color}, " +
+                    $"chassis number {vehicle.ChassisNumber}, " +
+                    $"engine number {vehicle.EngineNumber}.",
+
+                Intent =
+                    "GET_VEHICLE_DETAILS",
+
+                ClaimId =
+                    claim.ClaimId
+            };
+        }
+
+        // =========================================================
         // MULTI INTENT
         // =========================================================
 
@@ -1791,6 +2251,62 @@ namespace ClaimShield.Api.AI.Services
                     sections.Add(
                         "• Documents: No documents were found.");
                 }
+            }
+
+            // =====================================================
+            // SETTLED AMOUNT
+            // =====================================================
+
+            if (intents.Contains(
+                    "GET_SETTLED_AMOUNT"))
+            {
+                var settlement =
+                    await _claimSettlementService.GetByClaimAsync(
+                        claimId.Value);
+
+                sections.Add(
+                    settlement != null
+                        ? $"• Settled amount: ₹ {settlement.NetSettlementAmount:N2}"
+                        : "• Settled amount: Not settled yet.");
+            }
+
+            // =====================================================
+            // POLICY DETAILS
+            // =====================================================
+
+            if (intents.Contains(
+                    "GET_POLICY_DETAILS"))
+            {
+                var policy =
+                    await _policyRepository.GetByIdAsync(
+                        claim.PolicyId);
+
+                sections.Add(
+                    policy != null
+                        ? $"• Policy: {policy.PolicyNumber}, " +
+                          $"coverage ₹ {policy.CoverageAmount:N2}, " +
+                          $"valid {policy.StartDate:dd MMM yyyy} " +
+                          $"to {policy.EndDate:dd MMM yyyy}"
+                        : "• Policy: No policy record was found.");
+            }
+
+            // =====================================================
+            // VEHICLE DETAILS
+            // =====================================================
+
+            if (intents.Contains(
+                    "GET_VEHICLE_DETAILS"))
+            {
+                var vehicle =
+                    await _vehicleRepository.GetByIdAsync(
+                        claim.VehicleId);
+
+                sections.Add(
+                    vehicle != null
+                        ? $"• Vehicle: {vehicle.RegistrationNumber}, " +
+                          $"{vehicle.ManufacturingYear}, " +
+                          $"chassis {vehicle.ChassisNumber}"
+                        : "• Vehicle: No vehicle record was found.");
             }
 
             if (sections.Count == 0)
@@ -2123,6 +2639,66 @@ namespace ClaimShield.Api.AI.Services
             }
 
             // =====================================================
+            // SETTLED AMOUNT
+            // =====================================================
+
+            if (
+                message.Contains("settled amount") ||
+                message.Contains("settlement amount") ||
+                message.Contains("amount settled") ||
+                message.Contains("how much was settled") ||
+                message.Contains("how much has been settled") ||
+                message.Contains("what was settled") ||
+                message.Contains("final settlement") ||
+                message.Contains("settlement details") ||
+                message.Contains("net settlement") ||
+                message.Contains("claim settlement"))
+            {
+                intents.Add(
+                    "GET_SETTLED_AMOUNT");
+            }
+
+            // =====================================================
+            // POLICY DETAILS
+            // =====================================================
+
+            if (
+                message.Contains("policy details") ||
+                message.Contains("policy detail") ||
+                message.Contains("policy information") ||
+                message.Contains("policy info") ||
+                message.Contains("about the policy") ||
+                message.Contains("show me the policy") ||
+                message.Contains("show policy") ||
+                message.Contains("what is the policy") ||
+                message.Contains("policy coverage") ||
+                message.Contains("policy number"))
+            {
+                intents.Add(
+                    "GET_POLICY_DETAILS");
+            }
+
+            // =====================================================
+            // VEHICLE DETAILS
+            // =====================================================
+
+            if (
+                message.Contains("vehicle details") ||
+                message.Contains("vehicle detail") ||
+                message.Contains("vehicle information") ||
+                message.Contains("vehicle info") ||
+                message.Contains("about the vehicle") ||
+                message.Contains("show me the vehicle") ||
+                message.Contains("show vehicle") ||
+                message.Contains("what is the vehicle") ||
+                message.Contains("car details") ||
+                message.Contains("registration number"))
+            {
+                intents.Add(
+                    "GET_VEHICLE_DETAILS");
+            }
+
+            // =====================================================
             // CLAIM DETAILS
             // =====================================================
 
@@ -2210,6 +2786,89 @@ namespace ClaimShield.Api.AI.Services
 
                 message.Contains(
                     "show claims waiting for approval");
+        }
+
+        // =========================================================
+        // MY CLAIMS OVERVIEW INTENT (Surveyor - status, approver,
+        // estimated amount across all their assigned claims)
+        // =========================================================
+
+        private static bool
+            IsMyClaimsOverviewIntent(
+                string message)
+        {
+            return
+                message.Contains(
+                    "all my claims") ||
+
+                message.Contains(
+                    "all claims") ||
+
+                message.Contains(
+                    "list my claims") ||
+
+                message.Contains(
+                    "my claims overview") ||
+
+                message.Contains(
+                    "overview of my claims") ||
+
+                message.Contains(
+                    "details of all my claims") ||
+
+                message.Contains(
+                    "details of all claims") ||
+
+                message.Contains(
+                    "status of all my claims") ||
+
+                message.Contains(
+                    "where are all my claims") ||
+
+                message.Contains(
+                    "where are my claims") ||
+
+                message.Contains(
+                    "who is the approver") ||
+
+                message.Contains(
+                    "who are the approvers") ||
+
+                message.Contains(
+                    "estimated amount of my claims") ||
+
+                message.Contains(
+                    "estimated amounts of my claims") ||
+
+                message.Contains(
+                    "summary of my claims") ||
+
+                message.Contains(
+                    "update on my claims") ||
+
+                message.Contains(
+                    "update on all my claims") ||
+
+                message.Contains(
+                    "update me on my claims") ||
+
+                message.Contains(
+                    "how are my claims") ||
+
+                message.Contains(
+                    "how's my claims") ||
+
+                message.Contains(
+                    "my claims doing") ||
+
+                message.Contains(
+                    "where do my claims stand") ||
+
+                message.Contains(
+                    "where my claims stand") ||
+
+                message.Contains(
+                    "claims update");
         }
 
         // =========================================================

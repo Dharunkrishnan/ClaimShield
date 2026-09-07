@@ -1,5 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { useEffect } from 'react'
+import type { ReactNode, MouseEvent } from 'react'
 
 export function Modal({
   open,
@@ -12,7 +14,25 @@ export function Modal({
   title?: string
   children: ReactNode
 }) {
-  return (
+  // Escape-to-close - keyboard users otherwise have no way to dismiss a
+  // modal without a mouse (the backdrop click-through has no keyboard
+  // equivalent).
+  useEffect(() => {
+    if (!open || !onClose) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, onClose])
+
+  if (typeof document === 'undefined') {
+    return null
+  }
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -21,21 +41,52 @@ export function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          onClick={onClose}
+          onMouseDown={(event: MouseEvent<HTMLDivElement>) => {
+            if (event.target === event.currentTarget) {
+              onClose?.()
+            }
+          }}
         >
           <motion.div
             className="modal-panel"
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-            onClick={(e) => e.stopPropagation()}
+            initial={{
+              opacity: 0,
+              y: 24,
+              scale: 0.96,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1,
+            }}
+            exit={{
+              opacity: 0,
+              y: 16,
+              scale: 0.97,
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 320,
+              damping: 28,
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? 'claimshield-modal-title' : undefined}
+            onMouseDown={(event) => {
+              event.stopPropagation()
+            }}
           >
-            {title && <h2>{title}</h2>}
+            {title && (
+              <h2 id="claimshield-modal-title">
+                {title}
+              </h2>
+            )}
+
             {children}
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   )
 }

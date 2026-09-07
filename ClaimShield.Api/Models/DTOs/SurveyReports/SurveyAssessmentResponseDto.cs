@@ -32,6 +32,10 @@ namespace ClaimShield.Api.Models.DTOs.SurveyReports
 
         public string? PreExistingDamageNotes { get; set; }
 
+        public bool? SurveyorFlaggedSuspicious { get; set; }
+
+        public bool? PreExistingDamageSuspected { get; set; }
+
         public int DamageTypeId { get; set; }
 
         public string? DamageDescription { get; set; }
@@ -47,6 +51,8 @@ namespace ClaimShield.Api.Models.DTOs.SurveyReports
         // ---- Repair Estimate Details ----
 
         public string? EstimatedRepairerName { get; set; }
+
+        public int? RepairerTypeId { get; set; }
 
         public decimal? LabourCost { get; set; }
 

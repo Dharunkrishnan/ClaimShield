@@ -4,10 +4,7 @@ import {
   ClipboardList,
   MapPin,
   Gauge,
-  AlertTriangle,
-  Wrench,
   Calculator,
-  CheckCircle2,
   Camera,
   Activity,
   Plus,
@@ -15,47 +12,61 @@ import {
   Save,
   Eye,
   Send,
+  ChevronDown,
 } from 'lucide-react'
 import {
   ApiError,
   getSurveyAssessment,
   getSurveyAssignmentsByClaim,
   getClaimDocuments,
-  getAuditLogsForClaim,
   saveSurveyAssessmentDraft,
   completeSurveyAssessment,
+  getMyPolicies,
+  getMyVehicles,
 } from '../lib/api'
 import type {
   ClaimResponseDto,
   SurveyAssessmentResponseDto,
   SurveyAssignmentResponseDto,
   ClaimDocumentResponseDto,
-  AuditLogResponseDto,
   DamageAssessmentItemRequest,
   SaveSurveyAssessmentRequest,
+  PolicyResponseDto,
+  VehicleResponseDto,
 } from '../lib/types'
 import { RoleId, type RoleIdValue } from '../lib/roles'
+import { useAuth } from '../context/AuthContext'
 import {
   AssessmentStatus,
-  ASSESSMENT_STEP_LABELS,
-  VehicleConditionName,
-  RepairabilityStatusName,
-  SurveyorRecommendationName,
   DamageCategoryName,
   DamageSeverityName,
   LossTypeName,
   InspectionModeName,
   ClaimStatusName,
   DocumentType,
+  PolicyTypeName,
+  RepairerType,
+  RepairerTypeName,
 } from '../lib/statuses'
-import { WizardProgress } from './WizardShell'
+import { REPAIRER_MASTER } from '../lib/repairerMaster'
 import { Modal } from './Modal'
 import { SkeletonBlock } from './Skeleton'
 import { UploadCard } from './UploadCard'
+import { TextareaWithMic } from './TextareaWithMic'
 import { useToast } from '../context/ToastContext'
 
 function formatDate(value: string | null | undefined) {
   return value ? new Date(value).toLocaleDateString('en-IN') : '—'
+}
+
+// Policy.EndDate is stored as the exclusive cutoff (coverage renews
+// starting that day), so the last real day of cover - and what a
+// person expects to read as "expires on" - is the day before it.
+function formatPolicyEndDate(value: string | null | undefined) {
+  if (!value) return '—'
+  const d = new Date(value)
+  d.setDate(d.getDate() - 1)
+  return d.toLocaleDateString('en-IN')
 }
 
 function formatCurrency(amount: number | null | undefined) {
@@ -85,12 +96,15 @@ interface FormState {
   vehicleConditionId: string
   odometerReading: string
   preExistingDamageNotes: string
+  surveyorFlaggedSuspicious: boolean
+  preExistingDamageSuspected: boolean
   damageTypeId: string
   damageDescription: string
   repairabilityStatusId: string
   totalLoss: boolean
 
   estimatedRepairerName: string
+  repairerTypeId: string
   labourCost: string
   partsCost: string
   towingCharges: string
@@ -123,12 +137,15 @@ function buildInitialForm(
     vehicleConditionId: numToStr(assessment?.vehicleConditionId),
     odometerReading: numToStr(assessment?.odometerReading),
     preExistingDamageNotes: assessment?.preExistingDamageNotes ?? '',
+    surveyorFlaggedSuspicious: assessment?.surveyorFlaggedSuspicious ?? false,
+    preExistingDamageSuspected: assessment?.preExistingDamageSuspected ?? false,
     damageTypeId: assessment ? String(assessment.damageTypeId) : numToStr(claim.lossTypeId),
     damageDescription: assessment?.damageDescription ?? '',
     repairabilityStatusId: numToStr(assessment?.repairabilityStatusId),
     totalLoss: assessment?.totalLoss ?? false,
 
     estimatedRepairerName: assessment?.estimatedRepairerName ?? '',
+    repairerTypeId: assessment?.repairerTypeId?.toString() ?? '',
     labourCost: numToStr(assessment?.labourCost),
     partsCost: numToStr(assessment?.partsCost),
     towingCharges: numToStr(assessment?.towingCharges),
@@ -153,27 +170,40 @@ export function SurveyAssessment({
   claim,
   roleId,
   currentUserId,
+  onCompleted,
 }: {
   claim: ClaimResponseDto
   roleId: RoleIdValue | null
   currentUserId: string | null
+  // Called after the assessment is successfully completed, so the
+  // parent (which owns the claim object driving the lifecycle
+  // stepper) can refetch and unlock the next stage - without this,
+  // this component's own local assessment state updates fine, but the
+  // stepper has no way to know the claim's status actually changed
+  // until a full page refresh re-fetches everything from scratch.
+  onCompleted?: () => void
 }) {
   const { showToast } = useToast()
+  const { displayName } = useAuth()
 
   const [loaded, setLoaded] = useState(false)
   const [assessment, setAssessment] = useState<SurveyAssessmentResponseDto | null>(null)
   const [assignments, setAssignments] = useState<SurveyAssignmentResponseDto[]>([])
-  const [documents, setDocuments] = useState<ClaimDocumentResponseDto[]>([])
-  const [auditLogs, setAuditLogs] = useState<AuditLogResponseDto[]>([])
+  // documents itself isn't read anywhere now that Supporting Documents
+  // (the one place that listed uploaded files by name) was removed -
+  // setDocuments is still needed, each UploadCard's onUploaded callback
+  // appends to it so a fresh upload is reflected without a full reload.
+  const [, setDocuments] = useState<ClaimDocumentResponseDto[]>([])
+  const [policy, setPolicy] = useState<PolicyResponseDto | null>(null)
+  const [vehicle, setVehicle] = useState<VehicleResponseDto | null>(null)
 
   const [form, setForm] = useState<FormState>(() => buildInitialForm(null, claim))
   const [damageItems, setDamageItems] = useState<DamageAssessmentItemRequest[]>([])
-  const [damagePhotoSlots, setDamagePhotoSlots] = useState(1)
-  const [supportingDocSlots, setSupportingDocSlots] = useState(1)
 
   const [saving, setSaving] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [claimInfoExpanded, setClaimInfoExpanded] = useState(false)
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
 
   useEffect(() => {
@@ -181,19 +211,22 @@ export function SurveyAssessment({
 
     async function load() {
       try {
-        const [assessmentData, assignmentData, docData, logData] = await Promise.all([
-          getSurveyAssessment(claim.claimId).catch(() => null),
-          getSurveyAssignmentsByClaim(claim.claimId).catch(() => []),
-          getClaimDocuments(claim.claimId).catch(() => []),
-          getAuditLogsForClaim(claim.claimId).catch(() => []),
-        ])
+        const [assessmentData, assignmentData, docData, policiesData, vehiclesData] =
+          await Promise.all([
+            getSurveyAssessment(claim.claimId).catch(() => null),
+            getSurveyAssignmentsByClaim(claim.claimId).catch(() => []),
+            getClaimDocuments(claim.claimId).catch(() => []),
+            getMyPolicies(claim.customerId).catch(() => []),
+            getMyVehicles(claim.customerId).catch(() => []),
+          ])
 
         if (cancelled) return
 
         setAssessment(assessmentData)
         setAssignments(assignmentData)
         setDocuments(docData)
-        setAuditLogs(logData)
+        setPolicy(policiesData.find((p) => p.policyId === claim.policyId) ?? null)
+        setVehicle(vehiclesData.find((v) => v.vehicleId === claim.vehicleId) ?? null)
         setForm(buildInitialForm(assessmentData, claim))
         setDamageItems(
           assessmentData?.damageAssessmentItems.map((item) => ({
@@ -202,7 +235,9 @@ export function SurveyAssessment({
             severityId: item.severityId,
             repairRequired: item.repairRequired,
             replacementRequired: item.replacementRequired,
-            remarks: item.remarks,
+            remarks: null,
+            labourAmount: item.labourAmount,
+            partsAmount: item.partsAmount,
           })) ?? [],
         )
       } finally {
@@ -232,15 +267,21 @@ export function SurveyAssessment({
 
   const surveyTypeId = assessment?.surveyTypeId ?? myAssignment?.inspectionMode ?? null
 
-  const previewGross = num(form.labourCost) + num(form.paintCost) + num(form.partsCost) + num(form.taxAmount)
-  const previewNet = Math.max(
-    0,
-    previewGross -
-      num(form.depreciationAmount) -
-      num(form.compulsoryExcess) -
-      num(form.salvageAmount) +
-      num(form.towingCharges),
-  )
+  // Labour/Parts now come from the per-component damage table (added
+  // alongside Repair/Replace) rather than the old flat Repair Estimate
+  // Details fields (removed) - sum them here instead of reading
+  // form.labourCost/partsCost, which no longer have any input feeding
+  // them.
+  const totalLabourAmount = damageItems.reduce((sum, item) => sum + (item.labourAmount ?? 0), 0)
+  const totalPartsAmount = damageItems.reduce((sum, item) => sum + (item.partsAmount ?? 0), 0)
+
+  // Gross = left column (Total Labour + Total Parts + Tax). Total
+  // Deductions = right column (Depreciation + Policy Excess +
+  // Salvage). Net = Gross - Total Deductions.
+  const previewGross = totalLabourAmount + totalPartsAmount + num(form.taxAmount)
+  const totalDeductions =
+    num(form.depreciationAmount) + num(form.compulsoryExcess) + num(form.salvageAmount)
+  const previewNet = Math.max(0, previewGross - totalDeductions)
 
   if (!loaded) {
     return (
@@ -275,6 +316,8 @@ export function SurveyAssessment({
       vehicleConditionId: form.vehicleConditionId ? Number(form.vehicleConditionId) : null,
       odometerReading: form.odometerReading ? Number(form.odometerReading) : null,
       preExistingDamageNotes: form.preExistingDamageNotes || null,
+      surveyorFlaggedSuspicious: form.surveyorFlaggedSuspicious,
+      preExistingDamageSuspected: form.preExistingDamageSuspected,
       damageTypeId: Number(form.damageTypeId),
       damageDescription: form.damageDescription || null,
       repairabilityStatusId: form.repairabilityStatusId ? Number(form.repairabilityStatusId) : null,
@@ -283,6 +326,7 @@ export function SurveyAssessment({
       damageAssessmentItems: damageItems.filter((item) => item.componentName.trim() !== ''),
 
       estimatedRepairerName: form.estimatedRepairerName || null,
+      repairerTypeId: form.repairerTypeId ? Number(form.repairerTypeId) : null,
       labourCost: form.labourCost ? Number(form.labourCost) : null,
       partsCost: form.partsCost ? Number(form.partsCost) : null,
       towingCharges: form.towingCharges ? Number(form.towingCharges) : null,
@@ -338,9 +382,7 @@ export function SurveyAssessment({
       setAssessment(result)
       setShowCompleteConfirm(false)
       showToast('Assessment completed and submitted for review.', 'success')
-
-      const refreshedLogs = await getAuditLogsForClaim(claim.claimId).catch(() => [])
-      setAuditLogs(refreshedLogs)
+      onCompleted?.()
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to complete assessment.', 'error')
     } finally {
@@ -358,6 +400,8 @@ export function SurveyAssessment({
         repairRequired: false,
         replacementRequired: false,
         remarks: null,
+        labourAmount: null,
+        partsAmount: null,
       },
     ])
 
@@ -367,129 +411,230 @@ export function SurveyAssessment({
   const updateDamageItem = (index: number, patch: Partial<DamageAssessmentItemRequest>) =>
     setDamageItems((items) => items.map((item, i) => (i === index ? { ...item, ...patch } : item)))
 
-  const docsFor = (documentTypeId: number) =>
-    documents.filter((d) => d.documentTypeId === documentTypeId)
-
   return (
     <div className="survey-assessment">
-      <section className="card survey-stepper-card">
-        <WizardProgress
-          currentStep={form.assessmentStatusId}
-          labels={ASSESSMENT_STEP_LABELS}
-        />
-      </section>
-
       <section className="card survey-section survey-claim-header">
-        <div className="survey-section-title">
+        <button
+          type="button"
+          className="survey-section-title survey-section-title-toggle"
+          onClick={() => setClaimInfoExpanded((v) => !v)}
+          aria-expanded={claimInfoExpanded}
+        >
           <span className="survey-section-icon"><ClipboardList size={17} /></span>
           <h2>Claim Information</h2>
-        </div>
-        <dl className="survey-fact-grid">
-          <dt>Claim Number</dt>
-          <dd>{claim.claimNumber}</dd>
-          <dt>Customer</dt>
-          <dd>{claim.customerName ?? '—'}</dd>
-          <dt>Policy Number</dt>
-          <dd>{claim.policyNumber ?? '—'}</dd>
-          <dt>Vehicle Number</dt>
-          <dd>{claim.vehicleRegistrationNumber ?? '—'}</dd>
-          <dt>Claim Type</dt>
-          <dd>{claim.lossTypeId ? LossTypeName[claim.lossTypeId] : '—'}</dd>
-          <dt>Date of Loss</dt>
-          <dd>{formatDate(claim.incidentDate)}</dd>
-          <dt>Date of Intimation</dt>
-          <dd>{formatDate(claim.reportedDate)}</dd>
-          <dt>Current Status</dt>
-          <dd>{claim.statusId ? ClaimStatusName[claim.statusId] : '—'}</dd>
-        </dl>
+          <ChevronDown
+            size={16}
+            className="survey-section-chevron"
+            style={{
+              transform: claimInfoExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              marginLeft: 'auto',
+            }}
+          />
+        </button>
+
+        {!claimInfoExpanded && (
+          <p className="survey-claim-summary">
+            {claim.claimNumber} · {claim.customerName ?? '—'} ·{' '}
+            {claim.statusId ? ClaimStatusName[claim.statusId] : '—'}
+          </p>
+        )}
+
+        {claimInfoExpanded && (
+          <dl className="survey-fact-grid">
+            <dt>Claim Number</dt>
+            <dd>{claim.claimNumber}</dd>
+            <dt>Customer</dt>
+            <dd>{claim.customerName ?? '—'}</dd>
+            <dt>Policy Number</dt>
+            <dd>{claim.policyNumber ?? '—'}</dd>
+            <dt>Vehicle Number</dt>
+            <dd>{claim.vehicleRegistrationNumber ?? '—'}</dd>
+            <dt>Claim Type</dt>
+            <dd>{claim.lossTypeId ? LossTypeName[claim.lossTypeId] : '—'}</dd>
+            <dt>Date of Loss</dt>
+            <dd>{formatDate(claim.incidentDate)}</dd>
+            <dt>Date of Intimation</dt>
+            <dd>{formatDate(claim.reportedDate)}</dd>
+            <dt>Current Status</dt>
+            <dd>{claim.statusId ? ClaimStatusName[claim.statusId] : '—'}</dd>
+            <dt>Chassis Number</dt>
+            <dd>{vehicle?.chassisNumber || '—'}</dd>
+            <dt>Engine Number</dt>
+            <dd>{vehicle?.engineNumber || '—'}</dd>
+            <dt>IDV</dt>
+            <dd>{formatCurrency(policy?.idv)}</dd>
+            <dt>Policy Type</dt>
+            <dd>{policy?.policyTypeId ? (PolicyTypeName[policy.policyTypeId] ?? '—') : '—'}</dd>
+            <dt>Policy Period</dt>
+            <dd>
+              {policy ? `${formatDate(policy.startDate)} – ${formatPolicyEndDate(policy.endDate)}` : '—'}
+            </dd>
+            <dt>Add-ons</dt>
+            <dd>{policy?.addOns || '—'}</dd>
+          </dl>
+        )}
       </section>
 
-      <section className="card survey-section">
-        <div className="survey-section-title">
-          <span className="survey-section-icon"><MapPin size={17} /></span>
-          <h2>Survey Information</h2>
-        </div>
-        <div className="survey-grid">
-          <div className="survey-field">
-            <label>Surveyor</label>
-            <input value={assessment?.surveyorName ?? '—'} disabled />
+      <div className="inspection-two-col-row">
+        <section className="card survey-section">
+          <div className="survey-section-title">
+            <span className="survey-section-icon"><MapPin size={17} /></span>
+            <h2>Survey Information</h2>
           </div>
-          <div className="survey-field">
-            <label htmlFor="survey-date">Survey Date</label>
-            <input
-              id="survey-date"
-              type="date"
-              value={form.inspectionDate}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, inspectionDate: e.target.value }))}
+          <div className="survey-grid">
+            <div className="survey-field">
+              <label>Surveyor</label>
+              <input
+                value={assessment?.surveyorName ?? (myAssignment ? displayName : '—')}
+                disabled
+              />
+            </div>
+            <div className="survey-field">
+              <label htmlFor="survey-date">Survey Date</label>
+              <input
+                id="survey-date"
+                type="date"
+                value={form.inspectionDate}
+                disabled={!editable}
+                onChange={(e) => setForm((f) => ({ ...f, inspectionDate: e.target.value }))}
+              />
+            </div>
+            <div className="survey-field">
+              <label htmlFor="survey-location">Location</label>
+              <input
+                id="survey-location"
+                list="survey-location-options"
+                value={form.surveyLocation}
+                disabled={!editable}
+                placeholder="Select or type a location"
+                onChange={(e) => setForm((f) => ({ ...f, surveyLocation: e.target.value }))}
+              />
+              <datalist id="survey-location-options">
+                <option value="Coimbatore" />
+                <option value="Chennai" />
+                <option value="Madurai" />
+                <option value="Tiruchirappalli" />
+                <option value="Salem" />
+                <option value="Tirunelveli" />
+                <option value="Erode" />
+                <option value="Vellore" />
+                <option value="Thoothukudi" />
+                <option value="Thanjavur" />
+                <option value="Bengaluru" />
+                <option value="Hyderabad" />
+                <option value="Mumbai" />
+              </datalist>
+            </div>
+            <div className="survey-field">
+              <label>Survey Type</label>
+              <input value={surveyTypeId ? InspectionModeName[surveyTypeId] : '—'} disabled />
+            </div>
+            <div className="survey-field">
+              <label htmlFor="survey-workshop-name">Workshop Name</label>
+              <input
+                id="survey-workshop-name"
+                list="survey-workshop-name-options"
+                value={form.estimatedRepairerName}
+                disabled={!editable}
+                placeholder="Select or type a workshop name"
+                onChange={(e) => setForm((f) => ({ ...f, estimatedRepairerName: e.target.value }))}
+              />
+              <datalist id="survey-workshop-name-options">
+                {REPAIRER_MASTER.map((entry) => (
+                  <option key={entry.id} value={entry.workshopName} />
+                ))}
+              </datalist>
+            </div>
+            <div className="survey-field">
+              <label htmlFor="survey-repairer-type">Type of Repairer</label>
+              <select
+                id="survey-repairer-type"
+                value={form.repairerTypeId}
+                disabled={!editable}
+                onChange={(e) => setForm((f) => ({ ...f, repairerTypeId: e.target.value }))}
+              >
+                <option value="">Select…</option>
+                {Object.values(RepairerType).map((id) => (
+                  <option key={id} value={id}>
+                    {RepairerTypeName[id]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section className="card survey-section">
+          <div className="survey-section-title">
+            <span className="survey-section-icon"><Camera size={17} /></span>
+            <h2>Photos &amp; Documents</h2>
+          </div>
+
+          <h3 className="survey-doc-group-title">Vehicle Photos</h3>
+          <div className="upload-grid">
+            <UploadCard
+              label="Front"
+              claimId={claim.claimId}
+              documentTypeId={DocumentType.VehicleFront}
+              onUploaded={(doc) => setDocuments((d) => [...d, doc])}
+            />
+            <UploadCard
+              label="Left"
+              claimId={claim.claimId}
+              documentTypeId={DocumentType.VehicleLeft}
+              onUploaded={(doc) => setDocuments((d) => [...d, doc])}
+            />
+            <UploadCard
+              label="Back"
+              claimId={claim.claimId}
+              documentTypeId={DocumentType.VehicleBack}
+              onUploaded={(doc) => setDocuments((d) => [...d, doc])}
+            />
+            <UploadCard
+              label="Right"
+              claimId={claim.claimId}
+              documentTypeId={DocumentType.VehicleRight}
+              onUploaded={(doc) => setDocuments((d) => [...d, doc])}
+            />
+            <UploadCard
+              label="Damage 1"
+              claimId={claim.claimId}
+              documentTypeId={DocumentType.DamagePhoto}
+              onUploaded={(doc) => setDocuments((d) => [...d, doc])}
+            />
+            <UploadCard
+              label="Damage 2"
+              claimId={claim.claimId}
+              documentTypeId={DocumentType.DamagePhoto2}
+              onUploaded={(doc) => setDocuments((d) => [...d, doc])}
             />
           </div>
-          <div className="survey-field">
-            <label htmlFor="survey-location">Location</label>
-            <input
-              id="survey-location"
-              value={form.surveyLocation}
-              disabled={!editable}
-              placeholder="Survey site / workshop address"
-              onChange={(e) => setForm((f) => ({ ...f, surveyLocation: e.target.value }))}
+
+          <h3 className="survey-doc-group-title">Repair Quotation / Survey Report</h3>
+          <div className="upload-grid">
+            <UploadCard
+              label="Repair Quotation"
+              claimId={claim.claimId}
+              documentTypeId={DocumentType.RepairEstimateDocument}
+              onUploaded={(doc) => setDocuments((d) => [...d, doc])}
+            />
+            <UploadCard
+              label="Survey Report"
+              claimId={claim.claimId}
+              documentTypeId={DocumentType.SurveyReportDocument}
+              onUploaded={(doc) => setDocuments((d) => [...d, doc])}
             />
           </div>
-          <div className="survey-field">
-            <label>Survey Type</label>
-            <input value={surveyTypeId ? InspectionModeName[surveyTypeId] : '—'} disabled />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="survey-status">Status</label>
-            <select
-              id="survey-status"
-              value={form.assessmentStatusId}
-              disabled={!editable}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, assessmentStatusId: Number(e.target.value) }))
-              }
-            >
-              {ASSESSMENT_STEP_LABELS.slice(0, 6).map((label, i) => (
-                <option key={label} value={i + 1}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="survey-field survey-field-wide">
-            <label htmlFor="survey-remarks">Remarks</label>
-            <textarea
-              id="survey-remarks"
-              rows={2}
-              value={form.surveyRemarks}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, surveyRemarks: e.target.value }))}
-            />
-          </div>
-        </div>
-      </section>
+
+        </section>
+      </div>
 
       <section className="card survey-section">
         <div className="survey-section-title">
           <span className="survey-section-icon"><Gauge size={17} /></span>
-          <h2>Vehicle Inspection Details</h2>
+          <h2>Vehicle Damage Inspection</h2>
         </div>
-        <div className="survey-grid">
-          <div className="survey-field">
-            <label htmlFor="vehicle-condition">Vehicle Condition</label>
-            <select
-              id="vehicle-condition"
-              value={form.vehicleConditionId}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, vehicleConditionId: e.target.value }))}
-            >
-              <option value="">Select…</option>
-              {Object.entries(VehicleConditionName).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="survey-damage-top-row">
           <div className="survey-field">
             <label htmlFor="odometer">Odometer Reading (km)</label>
             <input
@@ -517,22 +662,6 @@ export function SurveyAssessment({
               ))}
             </select>
           </div>
-          <div className="survey-field">
-            <label htmlFor="repairability">Repairability Status</label>
-            <select
-              id="repairability"
-              value={form.repairabilityStatusId}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, repairabilityStatusId: e.target.value }))}
-            >
-              <option value="">Select…</option>
-              {Object.entries(RepairabilityStatusName).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="survey-field survey-field-checkbox">
             <label>
               <input
@@ -544,34 +673,34 @@ export function SurveyAssessment({
               Total Loss Indicator
             </label>
           </div>
-          <div className="survey-field survey-field-wide">
-            <label htmlFor="pre-existing-damage">Pre-existing Damage Notes</label>
-            <textarea
-              id="pre-existing-damage"
-              rows={2}
-              value={form.preExistingDamageNotes}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, preExistingDamageNotes: e.target.value }))}
-            />
+          <div className="survey-field survey-field-checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={form.surveyorFlaggedSuspicious}
+                disabled={!editable}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, surveyorFlaggedSuspicious: e.target.checked }))
+                }
+              />
+              Flag claim as suspicious / recommend investigation
+            </label>
           </div>
-          <div className="survey-field survey-field-wide">
-            <label htmlFor="accident-damage">Accident-related Damage</label>
-            <textarea
-              id="accident-damage"
-              rows={2}
-              value={form.damageDescription}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, damageDescription: e.target.value }))}
-            />
+          <div className="survey-field survey-field-checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={form.preExistingDamageSuspected}
+                disabled={!editable}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, preExistingDamageSuspected: e.target.checked }))
+                }
+              />
+              Pre-existing damage suspected (claimed as new)
+            </label>
           </div>
         </div>
-      </section>
 
-      <section className="card survey-section">
-        <div className="survey-section-title">
-          <span className="survey-section-icon"><AlertTriangle size={17} /></span>
-          <h2>Damage Assessment</h2>
-        </div>
         <div className="survey-damage-table-wrap">
           <table className="survey-damage-table">
             <thead>
@@ -581,14 +710,15 @@ export function SurveyAssessment({
                 <th>Severity</th>
                 <th>Repair</th>
                 <th>Replace</th>
-                <th>Remarks</th>
-                {editable && <th></th>}
+                <th>Labour (₹)</th>
+                <th>Parts Amount (₹)</th>
+                {editable && <th className="survey-damage-remove-col"></th>}
               </tr>
             </thead>
             <tbody>
               {damageItems.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="survey-damage-empty">
+                  <td colSpan={editable ? 8 : 7} className="survey-damage-empty">
                     No damaged components added yet.
                   </td>
                 </tr>
@@ -641,31 +771,64 @@ export function SurveyAssessment({
                   </td>
                   <td className="survey-damage-checkbox-cell">
                     <input
-                      type="checkbox"
+                      type="radio"
+                      name={`repair-replace-${index}`}
                       checked={item.repairRequired}
                       disabled={!editable}
-                      onChange={(e) => updateDamageItem(index, { repairRequired: e.target.checked })}
+                      onChange={() =>
+                        updateDamageItem(index, {
+                          repairRequired: true,
+                          replacementRequired: false,
+                          partsAmount: null,
+                        })
+                      }
                     />
                   </td>
                   <td className="survey-damage-checkbox-cell">
                     <input
-                      type="checkbox"
+                      type="radio"
+                      name={`repair-replace-${index}`}
                       checked={item.replacementRequired}
                       disabled={!editable}
-                      onChange={(e) =>
-                        updateDamageItem(index, { replacementRequired: e.target.checked })
+                      onChange={() =>
+                        updateDamageItem(index, {
+                          repairRequired: false,
+                          replacementRequired: true,
+                        })
                       }
                     />
                   </td>
                   <td>
                     <input
-                      value={item.remarks ?? ''}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.labourAmount ?? ''}
                       disabled={!editable}
-                      onChange={(e) => updateDamageItem(index, { remarks: e.target.value })}
+                      onChange={(e) =>
+                        updateDamageItem(index, {
+                          labourAmount: e.target.value ? Number(e.target.value) : null,
+                        })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.partsAmount ?? ''}
+                      disabled={!editable || item.repairRequired}
+                      title={item.repairRequired ? 'Not applicable when Repair is selected' : undefined}
+                      onChange={(e) =>
+                        updateDamageItem(index, {
+                          partsAmount: e.target.value ? Number(e.target.value) : null,
+                        })
+                      }
                     />
                   </td>
                   {editable && (
-                    <td>
+                    <td className="survey-damage-remove-col">
                       <button
                         type="button"
                         className="survey-icon-button survey-icon-button-danger"
@@ -688,151 +851,80 @@ export function SurveyAssessment({
         )}
       </section>
 
-      <section className="card survey-section">
-        <div className="survey-section-title">
-          <span className="survey-section-icon"><Wrench size={17} /></span>
-          <h2>Repair Estimate Details</h2>
-        </div>
-        <div className="survey-grid">
-          <div className="survey-field survey-field-wide">
-            <label htmlFor="repairer-name">Repairer / Workshop</label>
-            <input
-              id="repairer-name"
-              value={form.estimatedRepairerName}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, estimatedRepairerName: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="labour-cost">Labour Cost (₹)</label>
-            <input
-              id="labour-cost"
-              type="number"
-              min="0"
-              value={form.labourCost}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, labourCost: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="parts-cost">Parts Cost (₹)</label>
-            <input
-              id="parts-cost"
-              type="number"
-              min="0"
-              value={form.partsCost}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, partsCost: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="towing-charges">Towing Charges (₹)</label>
-            <input
-              id="towing-charges"
-              type="number"
-              min="0"
-              value={form.towingCharges}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, towingCharges: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="paint-cost">Paint Cost (₹)</label>
-            <input
-              id="paint-cost"
-              type="number"
-              min="0"
-              value={form.paintCost}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, paintCost: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="est-duration">Estimated Duration (days)</label>
-            <input
-              id="est-duration"
-              type="number"
-              min="0"
-              value={form.estimatedDurationDays}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, estimatedDurationDays: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label>Estimated Repair Amount</label>
-            <input value={formatCurrency(assessment?.estimatedRepairCost)} disabled />
-          </div>
-        </div>
-      </section>
-
       <section className="card survey-section survey-section-computation">
         <div className="survey-section-title">
           <span className="survey-section-icon"><Calculator size={17} /></span>
           <h2>Assessment Computation</h2>
         </div>
-        <div className="survey-grid">
-          <div className="survey-field">
-            <label>Labour Amount (₹)</label>
-            <input value={formatCurrency(num(form.labourCost))} disabled />
+        <div className="survey-computation-columns">
+          <div className="survey-computation-col">
+            <div className="survey-field">
+              <label>Total Labour</label>
+              <input value={formatCurrency(totalLabourAmount)} disabled />
+            </div>
+            <div className="survey-field">
+              <label>Total Parts</label>
+              <input value={formatCurrency(totalPartsAmount)} disabled />
+            </div>
+            <div className="survey-field">
+              <label htmlFor="tax-amount">Tax (₹)</label>
+              <input
+                id="tax-amount"
+                type="number"
+                min="0"
+                value={form.taxAmount}
+                disabled={!editable}
+                onChange={(e) => setForm((f) => ({ ...f, taxAmount: e.target.value }))}
+              />
+            </div>
+            <div className="survey-computation-line survey-computation-subtotal">
+              <span>Gross</span>
+              <strong>{formatCurrency(assessment?.grossAssessmentAmount ?? previewGross)}</strong>
+            </div>
           </div>
-          <div className="survey-field">
-            <label>Parts Amount (₹)</label>
-            <input value={formatCurrency(num(form.partsCost))} disabled />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="tax-amount">Tax (₹)</label>
-            <input
-              id="tax-amount"
-              type="number"
-              min="0"
-              value={form.taxAmount}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, taxAmount: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="depreciation">Depreciation (₹)</label>
-            <input
-              id="depreciation"
-              type="number"
-              min="0"
-              value={form.depreciationAmount}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, depreciationAmount: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="excess">Compulsory Excess (₹)</label>
-            <input
-              id="excess"
-              type="number"
-              min="0"
-              value={form.compulsoryExcess}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, compulsoryExcess: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label htmlFor="salvage">Salvage Amount (₹)</label>
-            <input
-              id="salvage"
-              type="number"
-              min="0"
-              value={form.salvageAmount}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, salvageAmount: e.target.value }))}
-            />
-          </div>
-          <div className="survey-field">
-            <label>Towing Amount (₹)</label>
-            <input value={formatCurrency(num(form.towingCharges))} disabled />
+
+          <div className="survey-computation-col">
+            <div className="survey-field">
+              <label htmlFor="depreciation">Depreciation (₹)</label>
+              <input
+                id="depreciation"
+                type="number"
+                min="0"
+                value={form.depreciationAmount}
+                disabled={!editable}
+                onChange={(e) => setForm((f) => ({ ...f, depreciationAmount: e.target.value }))}
+              />
+            </div>
+            <div className="survey-field">
+              <label htmlFor="excess">Policy Excess (₹)</label>
+              <input
+                id="excess"
+                type="number"
+                min="0"
+                value={form.compulsoryExcess}
+                disabled={!editable}
+                onChange={(e) => setForm((f) => ({ ...f, compulsoryExcess: e.target.value }))}
+              />
+            </div>
+            <div className="survey-field">
+              <label htmlFor="salvage">Salvage (₹)</label>
+              <input
+                id="salvage"
+                type="number"
+                min="0"
+                value={form.salvageAmount}
+                disabled={!editable}
+                onChange={(e) => setForm((f) => ({ ...f, salvageAmount: e.target.value }))}
+              />
+            </div>
+            <div className="survey-computation-line survey-computation-subtotal">
+              <span>Total</span>
+              <strong>{formatCurrency(totalDeductions)}</strong>
+            </div>
           </div>
         </div>
+
         <div className="survey-computation-summary">
-          <div className="survey-computation-line">
-            <span>Gross Assessment Amount</span>
-            <strong>{formatCurrency(assessment?.grossAssessmentAmount ?? previewGross)}</strong>
-          </div>
           <div className="survey-computation-line survey-computation-net">
             <span>Net Assessment Amount</span>
             <strong>{formatCurrency(assessment?.netAssessmentAmount ?? previewNet)}</strong>
@@ -842,216 +934,22 @@ export function SurveyAssessment({
 
       <section className="card survey-section">
         <div className="survey-section-title">
-          <span className="survey-section-icon"><CheckCircle2 size={17} /></span>
-          <h2>Assessment Recommendation</h2>
-        </div>
-        <div className="survey-recommendation-checks">
-          <label>
-            <input
-              type="checkbox"
-              checked={form.repairRecommended}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, repairRecommended: e.target.checked }))}
-            />
-            Repair Recommended
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={form.replaceRecommended}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, replaceRecommended: e.target.checked }))}
-            />
-            Replace Recommended
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={form.cashSettlementRecommended}
-              disabled={!editable}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, cashSettlementRecommended: e.target.checked }))
-              }
-            />
-            Cash Settlement Recommended
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={form.totalLossRecommended}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, totalLossRecommended: e.target.checked }))}
-            />
-            Total Loss Recommended
-          </label>
+          <span className="survey-section-icon"><Activity size={17} /></span>
+          <h2>Remarks</h2>
         </div>
         <div className="survey-grid">
-          <div className="survey-field">
-            <label htmlFor="overall-recommendation">Overall Recommendation</label>
-            <select
-              id="overall-recommendation"
-              value={form.overallRecommendationId}
-              disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, overallRecommendationId: e.target.value }))}
-            >
-              <option value="">Select…</option>
-              {Object.entries(SurveyorRecommendationName).map(([id, label]) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="survey-field survey-field-wide">
-            <label htmlFor="assessment-remarks">Assessment Remarks</label>
-            <textarea
+            <label htmlFor="assessment-remarks">Remarks</label>
+            <TextareaWithMic
               id="assessment-remarks"
-              rows={2}
               value={form.assessmentRemarks}
               disabled={!editable}
-              onChange={(e) => setForm((f) => ({ ...f, assessmentRemarks: e.target.value }))}
+              rows={3}
+              onChange={(value) => setForm((f) => ({ ...f, assessmentRemarks: value }))}
             />
           </div>
         </div>
       </section>
-
-      <section className="card survey-section">
-        <div className="survey-section-title">
-          <span className="survey-section-icon"><Camera size={17} /></span>
-          <h2>Photos &amp; Documents</h2>
-        </div>
-
-        <h3 className="survey-doc-group-title">Vehicle Photos</h3>
-        <div className="upload-grid">
-          <UploadCard
-            label="Front"
-            claimId={claim.claimId}
-            documentTypeId={DocumentType.VehicleFront}
-            onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-          />
-          <UploadCard
-            label="Left"
-            claimId={claim.claimId}
-            documentTypeId={DocumentType.VehicleLeft}
-            onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-          />
-          <UploadCard
-            label="Back"
-            claimId={claim.claimId}
-            documentTypeId={DocumentType.VehicleBack}
-            onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-          />
-          <UploadCard
-            label="Right"
-            claimId={claim.claimId}
-            documentTypeId={DocumentType.VehicleRight}
-            onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-          />
-        </div>
-
-        <h3 className="survey-doc-group-title">Damage Photos</h3>
-        {docsFor(DocumentType.DamagePhoto).length > 0 && (
-          <ul className="survey-doc-list">
-            {docsFor(DocumentType.DamagePhoto).map((doc) => (
-              <li key={doc.claimDocumentId}>{doc.originalFileName}</li>
-            ))}
-          </ul>
-        )}
-        {editable && (
-          <>
-            <div className="upload-grid">
-              {Array.from({ length: damagePhotoSlots }, (_, i) => (
-                <UploadCard
-                  key={`damage-${i}`}
-                  label={`Damage Photo ${i + 1}`}
-                  claimId={claim.claimId}
-                  documentTypeId={DocumentType.DamagePhoto}
-                  onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              className="survey-add-row-button"
-              onClick={() => setDamagePhotoSlots((n) => n + 1)}
-            >
-              <Plus size={14} /> Add another photo
-            </button>
-          </>
-        )}
-
-        <h3 className="survey-doc-group-title">Repair Estimate / Workshop Quotation / Survey Report</h3>
-        <div className="upload-grid">
-          <UploadCard
-            label="Repair Estimate"
-            claimId={claim.claimId}
-            documentTypeId={DocumentType.RepairEstimateDocument}
-            onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-          />
-          <UploadCard
-            label="Workshop Quotation"
-            claimId={claim.claimId}
-            documentTypeId={DocumentType.WorkshopQuotation}
-            onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-          />
-          <UploadCard
-            label="Survey Report"
-            claimId={claim.claimId}
-            documentTypeId={DocumentType.SurveyReportDocument}
-            onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-          />
-        </div>
-
-        <h3 className="survey-doc-group-title">Supporting Documents</h3>
-        {docsFor(DocumentType.Other).length > 0 && (
-          <ul className="survey-doc-list">
-            {docsFor(DocumentType.Other).map((doc) => (
-              <li key={doc.claimDocumentId}>{doc.originalFileName}</li>
-            ))}
-          </ul>
-        )}
-        {editable && (
-          <>
-            <div className="upload-grid">
-              {Array.from({ length: supportingDocSlots }, (_, i) => (
-                <UploadCard
-                  key={`support-${i}`}
-                  label={`Supporting Doc ${i + 1}`}
-                  claimId={claim.claimId}
-                  documentTypeId={DocumentType.Other}
-                  onUploaded={(doc) => setDocuments((d) => [...d, doc])}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              className="survey-add-row-button"
-              onClick={() => setSupportingDocSlots((n) => n + 1)}
-            >
-              <Plus size={14} /> Add another document
-            </button>
-          </>
-        )}
-      </section>
-
-      {auditLogs.length > 0 && (
-        <section className="card survey-section">
-          <div className="survey-section-title">
-            <span className="survey-section-icon"><Activity size={17} /></span>
-            <h2>Recent Activity</h2>
-          </div>
-          <ul className="survey-activity-list">
-            {auditLogs.map((log) => (
-              <li key={log.auditLogId}>
-                <strong>{log.userName}</strong> — {log.action.replace(/\./g, ' › ')}
-                <span className="survey-activity-time">
-                  {new Date(log.timestamp).toLocaleString('en-IN')}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       {editable && (
         <div className="survey-actions">
@@ -1091,10 +989,6 @@ export function SurveyAssessment({
           <dd>{formatDate(form.inspectionDate)}</dd>
           <dt>Location</dt>
           <dd>{form.surveyLocation || '—'}</dd>
-          <dt>Vehicle Condition</dt>
-          <dd>
-            {form.vehicleConditionId ? VehicleConditionName[Number(form.vehicleConditionId)] : '—'}
-          </dd>
           <dt>Total Loss</dt>
           <dd>{form.totalLoss ? 'Yes' : 'No'}</dd>
           <dt>Damaged Components</dt>
@@ -1103,12 +997,6 @@ export function SurveyAssessment({
           <dd>{formatCurrency(previewGross)}</dd>
           <dt>Net Assessment Amount</dt>
           <dd>{formatCurrency(previewNet)}</dd>
-          <dt>Overall Recommendation</dt>
-          <dd>
-            {form.overallRecommendationId
-              ? SurveyorRecommendationName[Number(form.overallRecommendationId)]
-              : '—'}
-          </dd>
         </dl>
         <button type="button" onClick={() => setShowPreview(false)}>
           Close

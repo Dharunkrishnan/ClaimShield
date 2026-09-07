@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ComponentType } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  MessageCircle,
   X,
   Send,
   Mic,
@@ -15,9 +14,22 @@ import {
   Gauge,
   Eye,
   Wrench,
+  Layers,
+  IndianRupee,
+  FileText,
+  Car,
 } from 'lucide-react'
-import { ApiError, getMyClaims, getMyCustomerProfile, sendAiChatMessage } from '../lib/api'
+import {
+  ApiError,
+  getClaimsHandlerAllClaims,
+  getMyClaims,
+  getMyCustomerProfile,
+  sendAiChatMessage,
+} from '../lib/api'
 import type { ClaimResponseDto } from '../lib/types'
+import { useAuth } from '../context/AuthContext'
+import { RoleId } from '../lib/roles'
+import { BotMascotIcon } from './BotMascotIcon'
 
 interface ChatMessage {
   id: string
@@ -31,10 +43,41 @@ interface QuickPrompt {
   icon: ComponentType<{ size?: number }>
 }
 
-const QUICK_PROMPTS: QuickPrompt[] = [
+const CUSTOMER_QUICK_PROMPTS: QuickPrompt[] = [
   { label: 'Claim status', text: 'What is the status of my claim?', icon: Gauge },
   { label: 'My Surveyor', text: 'Who is my surveyor?', icon: Eye },
   { label: 'My Repairer', text: 'Who is repairing my vehicle?', icon: Wrench },
+]
+
+// A Surveyor is looking at claims they're handling for someone else, not
+// their own - "Who is my surveyor?" and "my vehicle" don't make sense
+// coming from the Surveyor themselves, so this is a separate set, not a
+// reworded copy of the Customer one above. Two prompts work off whatever
+// claim is selected in the picker; "My claims" steps back to an update
+// across everything assigned to them.
+const SURVEYOR_QUICK_PROMPTS: QuickPrompt[] = [
+  { label: 'Claim status', text: 'What is the status of this claim?', icon: Gauge },
+  { label: 'Repair status', text: 'What is the repair status for this claim?', icon: Wrench },
+  {
+    label: 'Settled amount',
+    text: 'What is the settled amount for this claim?',
+    icon: IndianRupee,
+  },
+  {
+    label: 'Policy details',
+    text: 'Show me the policy details for this claim.',
+    icon: FileText,
+  },
+  {
+    label: 'Vehicle details',
+    text: 'Show me the vehicle details for this claim.',
+    icon: Car,
+  },
+  {
+    label: 'My claims',
+    text: 'Can you give me an update on all my claims?',
+    icon: Layers,
+  },
 ]
 
 function getSpeechRecognitionCtor() {
@@ -52,9 +95,11 @@ const SPEECH_OUTPUT_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesi
 
 export function ChatAssistant() {
   const [open, setOpen] = useState(false)
-  const [claims, setClaims] = useState<ClaimResponseDto[]>([])
+  const [claims, setClaims] = useState<Array<{ claimId: string; claimNumber: string }>>([])
+  const { roleId, displayName } = useAuth()
   const [claimId, setClaimId] = useState('')
   const [claimsLoaded, setClaimsLoaded] = useState(false)
+  const [greetingDismissed, setGreetingDismissed] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -65,12 +110,24 @@ export function ChatAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const loadedClaimsRef = useRef(false)
 
+  const quickPrompts = roleId === RoleId.Surveyor ? SURVEYOR_QUICK_PROMPTS : CUSTOMER_QUICK_PROMPTS
+
   useEffect(() => {
     if (!open || loadedClaimsRef.current) return
     loadedClaimsRef.current = true
 
-    getMyCustomerProfile()
-      .then((customer) => getMyClaims(customer.customerId))
+    const loadClaims =
+      roleId === RoleId.Surveyor
+        ? getClaimsHandlerAllClaims().then((data) =>
+            data.map((c) => ({ claimId: c.claimId, claimNumber: c.claimNumber })),
+          )
+        : getMyCustomerProfile()
+            .then((customer) => getMyClaims(customer.customerId))
+            .then((data: ClaimResponseDto[]) =>
+              data.map((c) => ({ claimId: c.claimId, claimNumber: c.claimNumber })),
+            )
+
+    loadClaims
       .then((data) => {
         setClaims(data)
         if (data.length > 0) setClaimId(data[0].claimId)
@@ -80,7 +137,7 @@ export function ChatAssistant() {
            will ask for a claim number in that case. */
       })
       .finally(() => setClaimsLoaded(true))
-  }, [open])
+  }, [open, roleId])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -163,15 +220,45 @@ export function ChatAssistant() {
 
   return (
     <>
+      <AnimatePresence>
+        {!open && !greetingDismissed && (
+          <motion.div
+            className="chat-greeting-bubble"
+            initial={{ opacity: 0, y: 8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            <button
+              type="button"
+              className="chat-greeting-dismiss"
+              onClick={(e) => {
+                e.stopPropagation()
+                setGreetingDismissed(true)
+              }}
+              aria-label="Dismiss"
+            >
+              <X size={12} />
+            </button>
+            <p>
+              Hi {displayName}, I&apos;m your assistant here to help.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.button
         type="button"
         className="chat-bubble"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          setOpen((o) => !o)
+          setGreetingDismissed(true)
+        }}
         whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.94 }}
         aria-label={open ? 'Close assistant' : 'Open assistant'}
       >
-        {open ? <X size={22} /> : <MessageCircle size={22} />}
+        {open ? <X size={22} /> : <BotMascotIcon size={30} />}
       </motion.button>
 
       <AnimatePresence>
@@ -185,7 +272,7 @@ export function ChatAssistant() {
           >
             <div className="chat-panel-header">
               <span className="chat-panel-header-icon">
-                <Bot size={20} />
+                <BotMascotIcon size={22} />
                 <span className="chat-header-status-dot" />
               </span>
               <div className="chat-panel-header-text">
@@ -235,11 +322,12 @@ export function ChatAssistant() {
                     <Sparkles size={20} />
                   </span>
                   <p className="chat-empty-hint">
-                    Ask about your claim status, who your Surveyor is, or who's handling your
-                    repair.
+                    {roleId === RoleId.Surveyor
+                      ? "Select a claim above to ask about it, or get an update across all your claims."
+                      : "Ask about your claim status, who your Surveyor is, or who's handling your repair."}
                   </p>
                   <div className="chat-quick-prompts">
-                    {QUICK_PROMPTS.map((q) => (
+                    {quickPrompts.map((q) => (
                       <motion.button
                         key={q.label}
                         type="button"

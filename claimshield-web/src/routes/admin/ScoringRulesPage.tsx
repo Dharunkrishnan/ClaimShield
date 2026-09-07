@@ -23,7 +23,16 @@ const CONDITION_FIELDS: Record<number, string[]> = {
     'PriorClaimsCount',
     'IsFraudSuspected',
     'PolicyCoverageRatio',
+
+    // FNOL scoring rules
+    'PolicyActiveOnLossDate',
+    'DaysFromPolicyStart',
+    'FirRequiredButMissing',
+    'ClaimFrequency',
+    'IsPermittedDriver',
+    'IsUsageAreaConsistent',
   ],
+
   2: [
     'IntimationDelayDays',
     'EstimatedLossAmount',
@@ -34,6 +43,11 @@ const CONDITION_FIELDS: Record<number, string[]> = {
     'TotalLoss',
     'DocumentCount',
     'RepairToLossRatio',
+
+    // Survey scoring rules
+    'RepairCostToIdvRatio',
+    'SurveyorFlaggedSuspicious',
+    'PreExistingDamageSuspected',
   ],
 }
 

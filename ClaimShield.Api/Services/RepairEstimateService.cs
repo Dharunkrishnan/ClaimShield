@@ -1,7 +1,6 @@
 using ClaimShield.Api.Constants;
 using ClaimShield.Api.Interfaces.Repositories;
 using ClaimShield.Api.Interfaces.Services;
-using ClaimShield.Api.Models.DTOs.Claims;
 using ClaimShield.Api.Models.DTOs.RepairEstimates;
 using ClaimShield.Api.Models.Entities;
 
@@ -10,17 +9,20 @@ namespace ClaimShield.Api.Services
     public class RepairEstimateService : IRepairEstimateService
     {
         private readonly IRepairEstimateRepository _repairEstimateRepository;
-        private readonly IClaimApprovalService _claimApprovalService;
+        private readonly IClaimDecisionService _claimDecisionService;
         private readonly IAuditLogService _auditLogService;
+        private readonly IClaimSettlementService _claimSettlementService;
 
         public RepairEstimateService(
             IRepairEstimateRepository repairEstimateRepository,
-            IClaimApprovalService claimApprovalService,
-            IAuditLogService auditLogService)
+            IClaimDecisionService claimDecisionService,
+            IAuditLogService auditLogService,
+            IClaimSettlementService claimSettlementService)
         {
             _repairEstimateRepository = repairEstimateRepository;
-            _claimApprovalService = claimApprovalService;
+            _claimDecisionService = claimDecisionService;
             _auditLogService = auditLogService;
+            _claimSettlementService = claimSettlementService;
         }
 
         // =========================================================
@@ -167,16 +169,19 @@ namespace ClaimShield.Api.Services
         // =========================================================
         // APPROVE
         //
-        // Auto-advances the claim itself (via IClaimApprovalService)
-        // in the same step, mirroring how completing a Payment
-        // already auto-settles the claim - the pipeline closes in
-        // one action per step rather than requiring a separate
-        // manual claim-approval click.
+        // Auto-advances the claim itself (via IClaimDecisionService's
+        // canonical direct-decision path - Phase 14 reconciliation)
+        // in the same step, mirroring how completing a Payment already
+        // auto-settles the claim. The claim-level decision is applied
+        // FIRST: if it's blocked by AuthorityLimits, the repair estimate
+        // itself is left untouched (still pending) rather than ending up
+        // approved-on-the-estimate-but-not-on-the-claim.
         // =========================================================
 
         public async Task<bool> ApproveAsync(
             Guid repairEstimateId,
             Guid approvedBy,
+            int approvedByRoleId,
             ApproveRepairEstimateRequest request)
         {
             var repairEstimate =
@@ -186,6 +191,21 @@ namespace ClaimShield.Api.Services
             if (repairEstimate == null)
             {
                 return false;
+            }
+
+            var claimDecision =
+                await _claimDecisionService.RecordDirectApproverDecisionAsync(
+                    repairEstimate.ClaimId,
+                    approvedBy,
+                    approvedByRoleId,
+                    ClaimDecisionConstants.Approve,
+                    request.Remarks ?? "Approved via repair estimate approval.",
+                    request.ApprovedAmount,
+                    requireRepairInProgress: true);
+
+            if (!claimDecision.Success)
+            {
+                throw new InvalidOperationException(claimDecision.ErrorMessage);
             }
 
             repairEstimate.ApprovedAmount =
@@ -203,17 +223,6 @@ namespace ClaimShield.Api.Services
             await _repairEstimateRepository.UpdateAsync(
                 repairEstimate);
 
-            var claimApproved =
-                await _claimApprovalService.ApproveClaimAsync(
-                    repairEstimate.ClaimId,
-                    new ApproveClaimRequest
-                    {
-                        ApprovedAmount = request.ApprovedAmount,
-                        Remarks =
-                            request.Remarks ??
-                            "Approved via repair estimate approval."
-                    });
-
             await _auditLogService.LogAsync(
                 approvedBy,
                 "RepairEstimate.Approved",
@@ -224,8 +233,24 @@ namespace ClaimShield.Api.Services
                 {
                     repairEstimate.ApprovedAmount,
                     repairEstimate.ApprovalRemarks,
-                    ClaimApproved = claimApproved
+                    ClaimApproved = true
                 });
+
+            // The repair estimate is now persisted as Approved (above),
+            // so this is the earliest point a Settlement computation can
+            // actually see it - triggering it any earlier (e.g. from
+            // inside RecordDirectApproverDecisionAsync) would read the
+            // estimate as still pending. Never let a settlement-computation
+            // hiccup fail the approval that already succeeded.
+            try
+            {
+                await _claimSettlementService.ComputeAsync(repairEstimate.ClaimId);
+            }
+            catch
+            {
+                // Intentionally swallowed - settlement can be recomputed
+                // manually via ClaimSettlementsController if this fails.
+            }
 
             return true;
         }

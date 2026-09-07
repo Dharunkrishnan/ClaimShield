@@ -66,9 +66,19 @@ namespace ClaimShield.Api.Services
             // ClaimDecisionService).
             // -----------------------------------------------------
 
+            // Checkpoint 5 - ClaimDecisions also holds Hold/Resume/Return
+            // for Rework/Request Info rows now, not just real maker-
+            // checker outcomes, so this must filter to Approve/Review/
+            // Deny - otherwise a claim merely held-then-resumed while
+            // SurveyCompleted would look like an open escalation.
             var latestDecision =
                 await _context.ClaimDecisions
-                    .Where(x => x.ClaimId == request.ClaimId)
+                    .Where(
+                        x =>
+                            x.ClaimId == request.ClaimId &&
+                            (x.Decision == ClaimDecisionConstants.Approve ||
+                             x.Decision == ClaimDecisionConstants.Review ||
+                             x.Decision == ClaimDecisionConstants.Deny))
                     .OrderByDescending(x => x.DecisionDate)
                     .FirstOrDefaultAsync();
 

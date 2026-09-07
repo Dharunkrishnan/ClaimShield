@@ -12,6 +12,14 @@ import { MyClaimDetailPage } from './routes/MyClaimDetailPage'
 import { MyPolicyPage } from './routes/MyPolicyPage'
 import { MyVehiclePage } from './routes/MyVehiclePage'
 import { CustomerDashboardPage } from './routes/CustomerDashboardPage'
+import { ClaimsHandlerDashboardPage } from './routes/ClaimsHandlerDashboardPage'
+import { TrackClaimPage } from './routes/TrackClaimPage'
+import { Claim360Page } from './routes/Claim360Page'
+import { ClaimsListPage } from './routes/ClaimsListPage'
+import { ReportsPage } from './routes/ReportsPage'
+import { StaffRegisterClaimPage } from './routes/StaffRegisterClaimPage'
+import { HandlerNotificationsPage } from './routes/HandlerNotificationsPage'
+import { HandlerHelpPage } from './routes/HandlerHelpPage'
 import { AdminOnlyLayout } from './routes/admin/AdminOnlyLayout'
 import { UsersPage } from './routes/admin/UsersPage'
 import { AdminClaimsPage } from './routes/admin/AdminClaimsPage'
@@ -31,7 +39,9 @@ function HomeRedirect() {
         ? '/dashboard'
         : roleId === RoleId.Admin
           ? '/admin/dashboard'
-          : '/queue'
+          : roleId === RoleId.Surveyor
+            ? '/handler/dashboard'
+            : '/queue'
   return <Navigate to={target} replace />
 }
 
@@ -43,13 +53,22 @@ function App() {
 
       <Route element={<ProtectedLayout />}>
         <Route path="/queue" element={<QueuePage />} />
-        <Route path="/claims/:claimId" element={<ClaimDetailPage />} />
+        <Route path="/claims/:claimId/:stage?" element={<ClaimDetailPage />} />
         <Route path="/repairs" element={<RepairQueuePage />} />
         <Route
           path="/repairs/:repairAssignmentId"
           element={<RepairAssignmentDetailPage />}
         />
         <Route path="/dashboard" element={<CustomerDashboardPage />} />
+        <Route path="/handler/dashboard" element={<ClaimsHandlerDashboardPage />} />
+        <Route path="/handler/claims" element={<ClaimsListPage />} />
+        <Route path="/handler/reports" element={<ReportsPage />} />
+        <Route path="/handler/track-claim" element={<TrackClaimPage />} />
+        <Route path="/handler/claim-360" element={<Claim360Page />} />
+        <Route path="/claims/:claimId/360" element={<Claim360Page />} />
+        <Route path="/handler/register-claim" element={<StaffRegisterClaimPage />} />
+        <Route path="/handler/notifications" element={<HandlerNotificationsPage />} />
+        <Route path="/handler/help" element={<HandlerHelpPage />} />
         <Route path="/my-policy" element={<MyPolicyPage />} />
         <Route path="/my-vehicle" element={<MyVehiclePage />} />
         <Route path="/my-claims" element={<MyClaimsPage />} />

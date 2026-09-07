@@ -54,6 +54,16 @@ namespace ClaimShield.Api.Services
 
             dto.LossTypeId = intake?.LossType;
 
+            if (claim.PreferredRepairerId.HasValue)
+            {
+                var repairerUser =
+                    await _context.Users
+                        .FirstOrDefaultAsync(
+                            x => x.UserId == claim.PreferredRepairerId.Value);
+
+                dto.PreferredRepairerName = GetUserDisplayName(repairerUser);
+            }
+
             return dto;
         }
 
@@ -166,6 +176,203 @@ namespace ClaimShield.Api.Services
             return true;
         }
 
+        // Claim 360 - only ever touches these four fields, deliberately
+        // never StatusId/ApprovedAmount/PolicyId/CustomerId/VehicleId/
+        // ClaimNumber/IsFraudSuspected - see UpdateClaimDetailsRequest.
+        public async Task<bool> UpdateClaimDetailsAsync(UpdateClaimDetailsRequest request)
+        {
+            var claim = await _claimRepository.GetByIdAsync(request.ClaimId);
+
+            if (claim == null)
+                return false;
+
+            claim.IncidentDate = request.IncidentDate;
+            claim.IncidentLocation = request.IncidentLocation;
+            claim.IncidentDescription = request.IncidentDescription;
+            claim.EstimatedLossAmount = request.EstimatedLossAmount;
+            claim.UpdatedDate = DateTime.UtcNow;
+
+            await _claimRepository.UpdateAsync(claim);
+
+            return true;
+        }
+
+        public async Task<bool> UpdateRepairAuthorizationAsync(UpdateRepairAuthorizationRequest request)
+        {
+            var claim = await _claimRepository.GetByIdAsync(request.ClaimId);
+
+            if (claim == null)
+                return false;
+
+            claim.RepairAuthorizationStatusId = request.RepairAuthorizationStatusId;
+            claim.RepairAuthorizationDate = request.RepairAuthorizationDate;
+            claim.UpdatedDate = DateTime.UtcNow;
+
+            await _claimRepository.UpdateAsync(claim);
+
+            return true;
+        }
+
+        public async Task<bool> UpdateApprovedAmountAsync(UpdateApprovedAmountRequest request)
+        {
+            var claim = await _claimRepository.GetByIdAsync(request.ClaimId);
+
+            if (claim == null)
+                return false;
+
+            claim.ApprovedAmount = request.ApprovedAmount;
+            claim.UpdatedDate = DateTime.UtcNow;
+
+            await _claimRepository.UpdateAsync(claim);
+
+            return true;
+        }
+
+        public async Task<bool> UpdateLiabilityFiguresAsync(UpdateLiabilityFiguresRequest request)
+        {
+            var claim = await _claimRepository.GetByIdAsync(request.ClaimId);
+
+            if (claim == null)
+                return false;
+
+            claim.LiabilityTaxAmount = request.LiabilityTaxAmount;
+            claim.LiabilityTotalLabour = request.LiabilityTotalLabour;
+            claim.LiabilityTotalParts = request.LiabilityTotalParts;
+            claim.LiabilityDepWaiver = request.LiabilityDepWaiver;
+            claim.LiabilityDepreciationAmount = request.LiabilityDepreciationAmount;
+            claim.LiabilityCompulsoryExcess = request.LiabilityCompulsoryExcess;
+            claim.LiabilityImposedExcess = request.LiabilityImposedExcess;
+            claim.LiabilitySalvageDeductions = request.LiabilitySalvageDeductions;
+            claim.LiabilityOtherDeduction = request.LiabilityOtherDeduction;
+            claim.LiabilityTowingAmount = request.LiabilityTowingAmount;
+            claim.UpdatedDate = DateTime.UtcNow;
+
+            await _claimRepository.UpdateAsync(claim);
+
+            return true;
+        }
+
+        public async Task<bool> SubmitLiabilityAsync(Guid claimId)
+        {
+            var claim = await _claimRepository.GetByIdAsync(claimId);
+
+            if (claim == null)
+                return false;
+
+            claim.LiabilitySubmitted = true;
+            claim.LiabilitySubmittedDate = DateTime.UtcNow;
+
+            // Same reasoning as the "Final Liability Amount" field this
+            // replaced: claims that reach Approved via this newer
+            // Liability-submit path (rather than the older repair
+            // estimate approval flow) never otherwise get
+            // ApprovedAmount set at all - Payments and the "approved
+            // amount" shown on the Bank account details form would
+            // stay blank forever without this. Computed here from the
+            // same Liability* figures and formula
+            // (ClaimSettlementCard's own Net Assessment calculation),
+            // so what gets set here matches what was shown on-screen
+            // when Liability was submitted.
+            var gross =
+                (claim.LiabilityTotalLabour ?? 0) + (claim.LiabilityTotalParts ?? 0) +
+                (claim.LiabilityTaxAmount ?? 0);
+            var totalDeduction =
+                (claim.LiabilityDepreciationAmount ?? 0) + (claim.LiabilityCompulsoryExcess ?? 0) +
+                (claim.LiabilityImposedExcess ?? 0) + (claim.LiabilitySalvageDeductions ?? 0) +
+                (claim.LiabilityOtherDeduction ?? 0);
+            var net = gross - totalDeduction;
+
+            claim.ApprovedAmount = net < 0 ? 0 : net;
+            claim.UpdatedDate = DateTime.UtcNow;
+
+            await _claimRepository.UpdateAsync(claim);
+
+            return true;
+        }
+
+        // Liability stage - per-component damage table. Finds the
+        // claim's SurveyReport, reads its DamageAssessmentItems (the
+        // real source for Item Name/Repair-Replace/Category/Labour/
+        // Parts), left-joins any already-saved LiabilityDamageItemAdjustment
+        // per item so Depn/R&R/T&D/Painting/Others show real saved
+        // values once edited, or null (displayed as 0) the first time.
+        public async Task<List<LiabilityDamageItemResponseDto>> GetLiabilityDamageItemsAsync(
+            Guid claimId)
+        {
+            var surveyReport = await _context.SurveyReports
+                .Where(sr => sr.ClaimId == claimId)
+                .OrderByDescending(sr => sr.CreatedDate)
+                .FirstOrDefaultAsync();
+
+            if (surveyReport == null)
+                return new List<LiabilityDamageItemResponseDto>();
+
+            var items = await _context.DamageAssessmentItems
+                .Where(i => i.SurveyReportId == surveyReport.SurveyReportId)
+                .ToListAsync();
+
+            var itemIds = items.Select(i => i.DamageAssessmentItemId).ToList();
+
+            var adjustments = await _context.LiabilityDamageItemAdjustments
+                .Where(a => itemIds.Contains(a.DamageAssessmentItemId))
+                .ToListAsync();
+
+            return items.Select(i =>
+            {
+                var adjustment = adjustments.FirstOrDefault(
+                    a => a.DamageAssessmentItemId == i.DamageAssessmentItemId);
+
+                return new LiabilityDamageItemResponseDto
+                {
+                    DamageAssessmentItemId = i.DamageAssessmentItemId,
+                    ComponentName = i.ComponentName,
+                    DamageCategoryId = i.DamageCategoryId,
+                    RepairRequired = i.RepairRequired,
+                    ReplacementRequired = i.ReplacementRequired,
+                    LabourAmount = i.LabourAmount,
+                    PartsAmount = i.PartsAmount,
+                    DepreciationAmount = adjustment?.DepreciationAmount,
+                    RRAmount = adjustment?.RRAmount,
+                    TDAmount = adjustment?.TDAmount,
+                    PaintingAmount = adjustment?.PaintingAmount,
+                    OthersAmount = adjustment?.OthersAmount
+                };
+            }).ToList();
+        }
+
+        public async Task<bool> UpdateLiabilityDamageItemsAsync(
+            UpdateLiabilityDamageItemsRequest request)
+        {
+            foreach (var input in request.Items)
+            {
+                var existing = await _context.LiabilityDamageItemAdjustments
+                    .FirstOrDefaultAsync(
+                        a => a.DamageAssessmentItemId == input.DamageAssessmentItemId);
+
+                if (existing == null)
+                {
+                    existing = new LiabilityDamageItemAdjustment
+                    {
+                        LiabilityDamageItemAdjustmentId = Guid.NewGuid(),
+                        ClaimId = request.ClaimId,
+                        DamageAssessmentItemId = input.DamageAssessmentItemId
+                    };
+                    _context.LiabilityDamageItemAdjustments.Add(existing);
+                }
+
+                existing.DepreciationAmount = input.DepreciationAmount;
+                existing.RRAmount = input.RRAmount;
+                existing.TDAmount = input.TDAmount;
+                existing.PaintingAmount = input.PaintingAmount;
+                existing.OthersAmount = input.OthersAmount;
+                existing.UpdatedDate = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
         public async Task<bool> DeleteClaimAsync(Guid claimId)
         {
             var claim = await _claimRepository.GetByIdAsync(claimId);
@@ -199,9 +406,42 @@ namespace ClaimShield.Api.Services
                 EstimatedLossAmount = claim.EstimatedLossAmount,
                 ApprovedAmount = claim.ApprovedAmount,
                 IsFraudSuspected = claim.IsFraudSuspected,
+                ClosureRemarks = claim.ClosureRemarks,
+                ClosureReasonId = claim.ClosureReasonId,
+                PriorStatusId = claim.PriorStatusId,
+                HoldReason = claim.HoldReason,
+                OnHoldDate = claim.OnHoldDate,
+                InfoRequestReason = claim.InfoRequestReason,
+                InfoRequestedDate = claim.InfoRequestedDate,
+                InfoRequestedFromRoleId = claim.InfoRequestedFromRoleId,
+                PreferredRepairerId = claim.PreferredRepairerId,
+                RegisteredByUserId = claim.RegisteredByUserId,
+                InitialReserveAmount = claim.InitialReserveAmount,
                 StatusId = claim.StatusId,
                 CreatedDate = claim.CreatedDate,
-                UpdatedDate = claim.UpdatedDate
+                UpdatedDate = claim.UpdatedDate,
+                DriverName = claim.DriverName,
+                DriverDob = claim.DriverDob,
+                WorkshopRecommendation = claim.WorkshopRecommendation,
+                PreferredRepairerTypeId = claim.PreferredRepairerTypeId,
+                RepairAuthorizationStatusId = claim.RepairAuthorizationStatusId,
+                RepairAuthorizationDate = claim.RepairAuthorizationDate,
+                RepairAuthClosureReasonId = claim.RepairAuthClosureReasonId,
+                RepairAuthDenialReasonId = claim.RepairAuthDenialReasonId,
+                RepairAuthClosureRemarks = claim.RepairAuthClosureRemarks,
+                SurveyDate = claim.SurveyDate,
+                LiabilityTaxAmount = claim.LiabilityTaxAmount,
+                LiabilityTotalLabour = claim.LiabilityTotalLabour,
+                LiabilityTotalParts = claim.LiabilityTotalParts,
+                LiabilityDepWaiver = claim.LiabilityDepWaiver,
+                LiabilityDepreciationAmount = claim.LiabilityDepreciationAmount,
+                LiabilityCompulsoryExcess = claim.LiabilityCompulsoryExcess,
+                LiabilityImposedExcess = claim.LiabilityImposedExcess,
+                LiabilitySalvageDeductions = claim.LiabilitySalvageDeductions,
+                LiabilityOtherDeduction = claim.LiabilityOtherDeduction,
+                LiabilityTowingAmount = claim.LiabilityTowingAmount,
+                LiabilitySubmitted = claim.LiabilitySubmitted,
+                LiabilitySubmittedDate = claim.LiabilitySubmittedDate
             };
         }
     }

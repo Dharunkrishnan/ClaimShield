@@ -28,6 +28,15 @@ namespace ClaimShield.Api.Models.Entities
 
         public bool? DeathOccurred { get; set; }
 
+        // Checkpoint 9 - staff Register Claim form additions.
+        public bool? ThirdPartyDamage { get; set; }
+
+        public bool? PoliceReported { get; set; }
+
+        // Checkpoint 10 - a contact number for this specific incident,
+        // which may differ from the customer's own account phone number.
+        public string? ContactMobileNumber { get; set; }
+
         public DateTime CreatedDate { get; set; }
     }
 }

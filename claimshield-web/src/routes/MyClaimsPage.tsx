@@ -29,12 +29,12 @@ export function MyClaimsPage() {
   }, [])
 
   return (
-    <div>
+    <div className="my-claims-page">
       <h1>My Claims</h1>
 
       <p>
         <Link to="/my-claims/new" className="button-link">
-          Submit a new claim
+          Start Claims Process
         </Link>
       </p>
 

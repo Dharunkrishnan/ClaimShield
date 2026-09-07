@@ -40,6 +40,18 @@ namespace ClaimShield.Api.Controllers
                 RoleConstants.Repairer,
                 StringComparison.OrdinalIgnoreCase);
 
+        // Claim 360 needs read access to a claim's repair assignment
+        // too, alongside Admin/Repairer who could already see it.
+        private bool IsSurveyorOrApprover =>
+            string.Equals(
+                _currentUserService.RoleName,
+                RoleConstants.Surveyor,
+                StringComparison.OrdinalIgnoreCase)
+            || string.Equals(
+                _currentUserService.RoleName,
+                RoleConstants.Approver,
+                StringComparison.OrdinalIgnoreCase);
+
         private static IActionResult Forbidden(
             string message)
         {
@@ -128,7 +140,7 @@ namespace ClaimShield.Api.Controllers
         public async Task<IActionResult> GetByClaim(
             Guid claimId)
         {
-            if (!IsAdmin && !IsRepairer)
+            if (!IsAdmin && !IsRepairer && !IsSurveyorOrApprover)
             {
                 return Forbidden(
                     "You are not authorized to view repair assignments for this claim.");
@@ -138,7 +150,7 @@ namespace ClaimShield.Api.Controllers
                 await _repairAssignmentService.GetByClaimAsync(
                     claimId);
 
-            if (!IsAdmin)
+            if (IsRepairer && !IsAdmin)
             {
                 assignments =
                     assignments.Where(

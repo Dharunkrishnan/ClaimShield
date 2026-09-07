@@ -16,6 +16,7 @@ namespace ClaimShield.Api.Services
     // Stage 1 (FNOL) runs once at claim registration. Stage 2
     // (Survey) runs on every survey report submission/resubmission,
     // each run superseding the prior one rather than overwriting it.
+    //
     // Composite = Stage1 + Stage2 scores, re-banded against the same
     // thresholds, forced Red if either stage had a Hard rule fire.
     // =============================================================
@@ -69,6 +70,7 @@ namespace ClaimShield.Api.Services
             var triggeredRuleIds = new List<string>();
             var reasonLines = new List<string>();
             var versionParts = new List<string>();
+
             var scoreValue = 0;
             var hardFlagTriggered = false;
 
@@ -96,7 +98,9 @@ namespace ClaimShield.Api.Services
 
                 reasonLines.Add(
                     $"Flagged: {rule.Category} — " +
-                    $"{rule.ConditionField} {rule.ConditionOperator} {rule.ConditionThreshold}");
+                    $"{rule.ConditionField} " +
+                    $"{rule.ConditionOperator} " +
+                    $"{rule.ConditionThreshold}");
 
                 if (rule.Severity == ScoringSeverityConstants.Hard)
                 {
@@ -137,16 +141,21 @@ namespace ClaimShield.Api.Services
                 Band = band,
 
                 TriggeredRuleIds =
-                    JsonSerializer.Serialize(triggeredRuleIds),
+                    JsonSerializer.Serialize(
+                        triggeredRuleIds),
 
                 ReasonText =
                     reasonLines.Count > 0
-                        ? string.Join(" ", reasonLines)
+                        ? string.Join(
+                            " ",
+                            reasonLines)
                         : "No rules triggered.",
 
                 RuleSetVersion =
                     versionParts.Count > 0
-                        ? string.Join(",", versionParts)
+                        ? string.Join(
+                            ",",
+                            versionParts)
                         : "none",
 
                 ScoredAt = DateTime.UtcNow
@@ -156,7 +165,8 @@ namespace ClaimShield.Api.Services
 
             foreach (var prior in priorResults)
             {
-                prior.SupersededBy = newResult.ClaimScoringResultId;
+                prior.SupersededBy =
+                    newResult.ClaimScoringResultId;
             }
 
             await _context.SaveChangesAsync();
@@ -179,7 +189,7 @@ namespace ClaimShield.Api.Services
         }
 
         // =========================================================
-        // INTERNAL (Surveyor / Approver / Admin) VIEW
+        // INTERNAL VIEW
         // =========================================================
 
         public async Task<InternalClaimScoringDto?> GetInternalScoringAsync(
@@ -200,30 +210,42 @@ namespace ClaimShield.Api.Services
                 return null;
             }
 
-            var (compositeScore, compositeBand, lastScoredAt) =
+            var (
+                compositeScore,
+                compositeBand,
+                lastScoredAt) =
                 await ComputeCompositeAsync(
                     stage1,
                     stage2);
 
-            var stages = new List<ScoringStageDto>();
+            var stages =
+                new List<ScoringStageDto>();
 
             if (stage1 != null)
             {
-                stages.Add(MapStageToDto(stage1));
+                stages.Add(
+                    MapStageToDto(stage1));
             }
 
             if (stage2 != null)
             {
-                stages.Add(MapStageToDto(stage2));
+                stages.Add(
+                    MapStageToDto(stage2));
             }
 
             return new InternalClaimScoringDto
             {
                 ClaimId = claimId,
+
                 CompositeScore = compositeScore,
+
                 CompositeBand = compositeBand,
-                CompositeBandName = GetBandName(compositeBand),
+
+                CompositeBandName =
+                    GetBandName(compositeBand),
+
                 LastScoredAt = lastScoredAt,
+
                 Stages = stages
             };
         }
@@ -236,7 +258,8 @@ namespace ClaimShield.Api.Services
             Guid claimId)
         {
             var internalDto =
-                await GetInternalScoringAsync(claimId);
+                await GetInternalScoringAsync(
+                    claimId);
 
             if (internalDto == null)
             {
@@ -246,24 +269,23 @@ namespace ClaimShield.Api.Services
             return new CustomerClaimScoreDto
             {
                 ClaimId = internalDto.ClaimId,
-                CompositeScore = internalDto.CompositeScore,
-                CompositeBand = internalDto.CompositeBand,
-                CompositeBandName = internalDto.CompositeBandName,
-                LastScoredAt = internalDto.LastScoredAt
+
+                CompositeScore =
+                    internalDto.CompositeScore,
+
+                CompositeBand =
+                    internalDto.CompositeBand,
+
+                CompositeBandName =
+                    internalDto.CompositeBandName,
+
+                LastScoredAt =
+                    internalDto.LastScoredAt
             };
         }
 
         // =========================================================
         // ROLE-GATED ACCESS
-        //
-        // Single source of truth for who may see what. Customer =
-        // band-only, own claims only. Surveyor = full detail, only
-        // if assigned. Approver = full detail, only while the claim
-        // has an open Surveyor escalation (mirrors ClaimsController.
-        // CanAccessClaimAsync's Approver branch exactly). Admin =
-        // full detail, any claim. Anyone else, or wrong ownership =
-        // not authorized - callers must return 403, never a filtered
-        // 200, so claim existence is never leaked either.
         // =========================================================
 
         public async Task<ScoringAccessResult> GetScoringForUserAsync(
@@ -296,9 +318,13 @@ namespace ClaimShield.Api.Services
                 var customer =
                     await _context.Customers
                         .FirstOrDefaultAsync(
-                            x => x.CustomerId == claim.CustomerId);
+                            x =>
+                                x.CustomerId ==
+                                claim.CustomerId);
 
-                authorized = customer != null && customer.UserId == userId;
+                authorized =
+                    customer != null &&
+                    customer.UserId == userId;
             }
             else if (roleId == RoleConstants.SurveyorId)
             {
@@ -311,15 +337,8 @@ namespace ClaimShield.Api.Services
             }
             else if (roleId == RoleConstants.ApproverId)
             {
-                // Status check rather than decision history: a claim
-                // approved via repair-estimate approval
-                // (IClaimApprovalService) never creates a ClaimDecision
-                // row, so history-based checks would wrongly lock the
-                // Approver out once repairs are underway. Not
-                // IClaimDecisionService directly - that service depends
-                // on IClaimScoringService, so injecting it here would be
-                // a circular dependency.
-                if (claim.StatusId >= ClaimStatusConstants.RepairInProgress)
+                if (claim.StatusId >=
+                    ClaimStatusConstants.RepairInProgress)
                 {
                     authorized = true;
                 }
@@ -327,14 +346,29 @@ namespace ClaimShield.Api.Services
                 {
                     var latestDecision =
                         await _context.ClaimDecisions
-                            .Where(x => x.ClaimId == claimId)
-                            .OrderByDescending(x => x.DecisionDate)
+                            .Where(
+                                x =>
+                                    x.ClaimId == claimId &&
+                                    (
+                                        x.Decision ==
+                                        ClaimDecisionConstants.Approve ||
+
+                                        x.Decision ==
+                                        ClaimDecisionConstants.Review ||
+
+                                        x.Decision ==
+                                        ClaimDecisionConstants.Deny
+                                    ))
+                            .OrderByDescending(
+                                x => x.DecisionDate)
                             .FirstOrDefaultAsync();
 
                     authorized =
                         latestDecision != null &&
-                        latestDecision.RoleId == RoleConstants.SurveyorId &&
-                        claim.StatusId == ClaimStatusConstants.SurveyCompleted;
+                        latestDecision.RoleId ==
+                            RoleConstants.SurveyorId &&
+                        claim.StatusId ==
+                            ClaimStatusConstants.SurveyCompleted;
                 }
             }
 
@@ -347,112 +381,377 @@ namespace ClaimShield.Api.Services
                 };
             }
 
-            if (roleId == RoleConstants.CustomerId)
+            if (roleId ==
+                RoleConstants.CustomerId)
             {
                 return new ScoringAccessResult
                 {
                     ClaimFound = true,
+
                     Authorized = true,
-                    CustomerView = await GetCustomerScoringAsync(claimId)
+
+                    CustomerView =
+                        await GetCustomerScoringAsync(
+                            claimId)
                 };
             }
 
             return new ScoringAccessResult
             {
                 ClaimFound = true,
+
                 Authorized = true,
-                InternalView = await GetInternalScoringAsync(claimId)
+
+                InternalView =
+                    await GetInternalScoringAsync(
+                        claimId)
             };
         }
 
         // =========================================================
         // FACT CATALOG
         //
-        // Only these keys are ever populated - the Admin rule form
-        // restricts ConditionField to this same catalog so a rule
-        // can never silently reference an unknown field.
+        // These are the values that Admin scoring rules can evaluate.
         // =========================================================
 
         private async Task<Dictionary<string, decimal>> BuildFactsAsync(
             Claim claim,
             int stage)
         {
-            var facts = new Dictionary<string, decimal>();
+            var facts =
+                new Dictionary<string, decimal>();
+
+            // =====================================================
+            // EXISTING FNOL FACTS
+            // =====================================================
 
             var intimationDelayDays =
                 claim.ReportedDate.HasValue
-                    ? (decimal)(claim.ReportedDate.Value - claim.IncidentDate).TotalDays
+                    ? (decimal)
+                        (
+                            claim.ReportedDate.Value -
+                            claim.IncidentDate
+                        ).TotalDays
                     : 0m;
 
-            facts["IntimationDelayDays"] = intimationDelayDays;
+            facts["IntimationDelayDays"] =
+                intimationDelayDays;
 
-            facts["EstimatedLossAmount"] = claim.EstimatedLossAmount ?? 0m;
+            facts["EstimatedLossAmount"] =
+                claim.EstimatedLossAmount ?? 0m;
 
             facts["IsFraudSuspected"] =
-                claim.IsFraudSuspected == true ? 1m : 0m;
+                claim.IsFraudSuspected == true
+                    ? 1m
+                    : 0m;
 
             var priorClaimsCount =
                 await _context.Claims
                     .CountAsync(
                         x =>
-                            x.CustomerId == claim.CustomerId &&
-                            x.ClaimId != claim.ClaimId);
+                            x.CustomerId ==
+                                claim.CustomerId &&
+                            x.ClaimId !=
+                                claim.ClaimId);
 
-            facts["PriorClaimsCount"] = priorClaimsCount;
+            facts["PriorClaimsCount"] =
+                priorClaimsCount;
+
+            // =====================================================
+            // POLICY
+            // =====================================================
 
             var policy =
                 await _context.Policies
                     .FirstOrDefaultAsync(
-                        x => x.PolicyId == claim.PolicyId);
+                        x =>
+                            x.PolicyId ==
+                            claim.PolicyId);
 
             facts["PolicyCoverageRatio"] =
-                policy != null && policy.CoverageAmount > 0
-                    ? (claim.EstimatedLossAmount ?? 0m) / policy.CoverageAmount
+                policy != null &&
+                policy.CoverageAmount > 0
+                    ? (
+                        claim.EstimatedLossAmount ??
+                        0m
+                      ) /
+                      policy.CoverageAmount
                     : 0m;
 
-            // Phase 12 (Raise Claim wizard) facts - additive, optional
-            // for an Admin to key ScoringRules off. Populated once
-            // Step 2 has run; 0/absent before that (e.g. at Stage 1,
-            // which fires at claim creation, before Step 2 exists).
+            // =====================================================
+            // S1-R01
+            //
+            // Policy not active / lapsed on loss date.
+            //
+            // 1 = active on loss date
+            // 0 = not active on loss date
+            //
+            // We use StartDate and EndDate because the current
+            // Policy entity does not expose documented status
+            // constants for active/lapsed values.
+            // =====================================================
+
+            facts["PolicyActiveOnLossDate"] =
+                policy != null &&
+                claim.IncidentDate.Date >=
+                    policy.StartDate.Date &&
+                claim.IncidentDate.Date <=
+                    policy.EndDate.Date
+                    ? 1m
+                    : 0m;
+
+            // =====================================================
+            // S1-R03
+            //
+            // Loss date within X days of policy inception.
+            //
+            // Example:
+            // DaysFromPolicyStart <= 15
+            //
+            // If there is no policy, return a very large value
+            // so the rule cannot accidentally trigger.
+            // =====================================================
+
+            facts["DaysFromPolicyStart"] =
+                policy != null
+                    ? (decimal)
+                        (
+                            claim.IncidentDate.Date -
+                            policy.StartDate.Date
+                        ).TotalDays
+                    : 999999m;
+
+            // =====================================================
+            // CLAIM INTAKE
+            // =====================================================
+
             var intake =
                 await _context.ClaimIntakes
-                    .FirstOrDefaultAsync(x => x.ClaimId == claim.ClaimId);
+                    .FirstOrDefaultAsync(
+                        x =>
+                            x.ClaimId ==
+                            claim.ClaimId);
+
+            // =====================================================
+            // S1-R04
+            //
+            // FIR required but not provided.
+            //
+            // Current implementation considers FIR required for:
+            // - Full loss theft
+            // - Major accident
+            // - Fire
+            // - Death occurred
+            // - Third-party damage
+            //
+            // 1 = FIR required and missing
+            // 0 = otherwise
+            // =====================================================
+
+            var firRequired =
+                intake != null &&
+                (
+                    intake.LossType ==
+                        LossTypeConstants.FullLossTheft ||
+
+                    intake.LossType ==
+                        LossTypeConstants.MajorAccident ||
+
+                    intake.LossType ==
+                        LossTypeConstants.Fire ||
+
+                    intake.DeathOccurred == true ||
+
+                    intake.ThirdPartyDamage == true
+                );
+
+            facts["FirRequiredButMissing"] =
+                firRequired &&
+                intake?.PoliceReported != true
+                    ? 1m
+                    : 0m;
+
+            // =====================================================
+            // S1-R05
+            //
+            // Claim frequency for vehicle / claimant.
+            //
+            // Counts previous claims where either:
+            // - Customer is the same
+            // OR
+            // - Vehicle is the same
+            //
+            // Current claim is excluded.
+            // =====================================================
+
+            var claimFrequency =
+                await _context.Claims
+                    .CountAsync(
+                        x =>
+                            x.ClaimId !=
+                                claim.ClaimId &&
+
+                            (
+                                x.CustomerId ==
+                                    claim.CustomerId ||
+
+                                x.VehicleId ==
+                                    claim.VehicleId
+                            ));
+
+            facts["ClaimFrequency"] =
+                claimFrequency;
+
+            // =====================================================
+            // S1-R06
+            //
+            // Driver at loss is not a permitted driver.
+            //
+            // IMPORTANT:
+            // The current Policy model does not contain permitted
+            // driver information. Therefore we do NOT invent a
+            // driver relationship here.
+            //
+            // This is temporarily 0 and must be implemented after
+            // permitted-driver data is added to Policy/database.
+            //
+            // 1 = permitted driver
+            // 0 = not permitted
+            // =====================================================
+
+            facts["IsPermittedDriver"] =
+                0m;
+
+            // =====================================================
+            // S1-R07
+            //
+            // Loss location inconsistent with permitted usage area.
+            //
+            // IMPORTANT:
+            // The current Policy/Vehicle models do not contain a
+            // permitted usage-area field.
+            //
+            // Therefore we do NOT guess this value.
+            //
+            // 1 = location is consistent
+            // 0 = location is inconsistent
+            // =====================================================
+
+            facts["IsUsageAreaConsistent"] =
+                0m;
+
+            // =====================================================
+            // EXISTING OPTIONAL FNOL FACTS
+            // =====================================================
 
             facts["DeathOccurred"] =
-                intake?.DeathOccurred == true ? 1m : 0m;
+                intake?.DeathOccurred == true
+                    ? 1m
+                    : 0m;
 
             var rcOcrResult =
                 await _context.ClaimRcOcrResults
-                    .FirstOrDefaultAsync(x => x.ClaimId == claim.ClaimId);
+                    .FirstOrDefaultAsync(
+                        x =>
+                            x.ClaimId ==
+                            claim.ClaimId);
 
             facts["RcMismatch"] =
-                rcOcrResult?.MatchStatus == RcMatchStatusConstants.Mismatched ? 1m : 0m;
+                rcOcrResult?.MatchStatus ==
+                    RcMatchStatusConstants.Mismatched
+                    ? 1m
+                    : 0m;
 
-            if (stage == ScoringStageConstants.Stage2_Survey)
+            // =====================================================
+            // STAGE 2 / SURVEY FACTS
+            // =====================================================
+
+            if (stage ==
+                ScoringStageConstants.Stage2_Survey)
             {
                 var latestSurveyReport =
                     await _context.SurveyReports
-                        .Where(x => x.ClaimId == claim.ClaimId)
-                        .OrderByDescending(x => x.CreatedDate)
+                        .Where(
+                            x =>
+                                x.ClaimId ==
+                                claim.ClaimId)
+                        .OrderByDescending(
+                            x =>
+                                x.CreatedDate)
                         .FirstOrDefaultAsync();
 
                 facts["EstimatedRepairCost"] =
-                    latestSurveyReport?.EstimatedRepairCost ?? 0m;
+                    latestSurveyReport
+                        ?.EstimatedRepairCost ??
+                    0m;
 
                 facts["TotalLoss"] =
-                    latestSurveyReport?.TotalLoss == true ? 1m : 0m;
+                    latestSurveyReport?.TotalLoss == true
+                        ? 1m
+                        : 0m;
 
                 var documentCount =
                     await _context.ClaimDocuments
-                        .CountAsync(x => x.ClaimId == claim.ClaimId);
+                        .CountAsync(
+                            x =>
+                                x.ClaimId ==
+                                claim.ClaimId);
 
-                facts["DocumentCount"] = documentCount;
+                facts["DocumentCount"] =
+                    documentCount;
 
                 facts["RepairToLossRatio"] =
                     claim.EstimatedLossAmount is > 0 &&
-                        latestSurveyReport?.EstimatedRepairCost != null
+                    latestSurveyReport
+                        ?.EstimatedRepairCost != null
+                        ? latestSurveyReport
+                            .EstimatedRepairCost.Value /
+                          claim.EstimatedLossAmount.Value
+                        : 0m;
+
+                // =================================================
+                // S2-R03
+                //
+                // Estimated repair cost at/above a configurable %
+                // of IDV (Insured Declared Value) - Policy's
+                // CoverageAmount is used as IDV, matching the same
+                // convention as the existing PolicyCoverageRatio
+                // fact above.
+                // =================================================
+
+                facts["RepairCostToIdvRatio"] =
+                    policy != null &&
+                    policy.CoverageAmount > 0 &&
+                    latestSurveyReport?.EstimatedRepairCost != null
                         ? latestSurveyReport.EstimatedRepairCost.Value /
-                            claim.EstimatedLossAmount.Value
+                          policy.CoverageAmount
+                        : 0m;
+
+                // =================================================
+                // S2-R01
+                //
+                // Surveyor explicitly flags claim as suspicious /
+                // recommends investigation.
+                // =================================================
+
+                facts["SurveyorFlaggedSuspicious"] =
+                    latestSurveyReport?.SurveyorFlaggedSuspicious == true
+                        ? 1m
+                        : 0m;
+
+                // =================================================
+                // S2-R05
+                //
+                // Evidence suggests pre-existing damage claimed as
+                // new. Deliberately a separate explicit checkbox,
+                // not derived from the free-text
+                // PreExistingDamageNotes field - free text can't be
+                // safely thresholded for automated scoring.
+                // =================================================
+
+                facts["PreExistingDamageSuspected"] =
+                    latestSurveyReport?.PreExistingDamageSuspected == true
+                        ? 1m
                         : 0m;
             }
 
@@ -460,7 +759,7 @@ namespace ClaimShield.Api.Services
         }
 
         // =========================================================
-        // HELPERS
+        // CONDITION EVALUATION
         // =========================================================
 
         private static bool EvaluateCondition(
@@ -468,27 +767,47 @@ namespace ClaimShield.Api.Services
             string conditionOperator,
             string thresholdText)
         {
-            if (!decimal.TryParse(thresholdText, out var threshold))
+            if (!decimal.TryParse(
+                    thresholdText,
+                    out var threshold))
             {
                 return false;
             }
 
             return conditionOperator switch
             {
-                ">" => factValue > threshold,
-                ">=" => factValue >= threshold,
-                "<" => factValue < threshold,
-                "<=" => factValue <= threshold,
-                "=" => factValue == threshold,
-                "!=" => factValue != threshold,
-                _ => false
+                ">" =>
+                    factValue > threshold,
+
+                ">=" =>
+                    factValue >= threshold,
+
+                "<" =>
+                    factValue < threshold,
+
+                "<=" =>
+                    factValue <= threshold,
+
+                "=" =>
+                    factValue == threshold,
+
+                "!=" =>
+                    factValue != threshold,
+
+                _ =>
+                    false
             };
         }
+
+        // =========================================================
+        // DETERMINE SCORE BAND
+        // =========================================================
 
         private async Task<int> DetermineBandAsync(
             int scoreValue,
             bool hardFlagTriggered)
         {
+            // Any Hard rule immediately forces Red.
             if (hardFlagTriggered)
             {
                 return ScoringBandConstants.Red;
@@ -496,22 +815,23 @@ namespace ClaimShield.Api.Services
 
             var threshold =
                 await _context.ScoringThresholds
-                    .FirstOrDefaultAsync(x => x.IsActive);
+                    .FirstOrDefaultAsync(
+                        x => x.IsActive);
 
-            // No active threshold configured yet - fail-safe to Red,
-            // same conservative-default principle as AuthorityLimits
-            // having no row for a role.
+            // Fail-safe to Red if no threshold is configured.
             if (threshold == null)
             {
                 return ScoringBandConstants.Red;
             }
 
-            if (scoreValue >= threshold.RedMin)
+            if (scoreValue >=
+                threshold.RedMin)
             {
                 return ScoringBandConstants.Red;
             }
 
-            if (scoreValue >= threshold.AmberMin)
+            if (scoreValue >=
+                threshold.AmberMin)
             {
                 return ScoringBandConstants.Amber;
             }
@@ -519,9 +839,17 @@ namespace ClaimShield.Api.Services
             return ScoringBandConstants.Green;
         }
 
-        private async Task<(int Score, int Band, DateTime? LastScoredAt)> ComputeCompositeAsync(
-            ClaimScoringResult? stage1,
-            ClaimScoringResult? stage2)
+        // =========================================================
+        // COMPOSITE SCORE
+        // =========================================================
+
+        private async Task<(
+            int Score,
+            int Band,
+            DateTime? LastScoredAt)>
+            ComputeCompositeAsync(
+                ClaimScoringResult? stage1,
+                ClaimScoringResult? stage2)
         {
             var score =
                 (stage1?.ScoreValue ?? 0) +
@@ -539,23 +867,41 @@ namespace ClaimShield.Api.Services
             DateTime? lastScoredAt = null;
 
             if (stage1 != null &&
-                (lastScoredAt == null || stage1.ScoredAt > lastScoredAt))
+                (
+                    lastScoredAt == null ||
+                    stage1.ScoredAt >
+                        lastScoredAt
+                ))
             {
-                lastScoredAt = stage1.ScoredAt;
+                lastScoredAt =
+                    stage1.ScoredAt;
             }
 
             if (stage2 != null &&
-                (lastScoredAt == null || stage2.ScoredAt > lastScoredAt))
+                (
+                    lastScoredAt == null ||
+                    stage2.ScoredAt >
+                        lastScoredAt
+                ))
             {
-                lastScoredAt = stage2.ScoredAt;
+                lastScoredAt =
+                    stage2.ScoredAt;
             }
 
-            return (score, band, lastScoredAt);
+            return (
+                score,
+                band,
+                lastScoredAt);
         }
 
-        private async Task<ClaimScoringResult?> GetLatestNonSupersededAsync(
-            Guid claimId,
-            int stage)
+        // =========================================================
+        // GET LATEST RESULT
+        // =========================================================
+
+        private async Task<ClaimScoringResult?>
+            GetLatestNonSupersededAsync(
+                Guid claimId,
+                int stage)
         {
             return await _context.ClaimScoringResults
                 .Where(
@@ -563,50 +909,96 @@ namespace ClaimShield.Api.Services
                         x.ClaimId == claimId &&
                         x.Stage == stage &&
                         x.SupersededBy == null)
-                .OrderByDescending(x => x.ScoredAt)
+                .OrderByDescending(
+                    x => x.ScoredAt)
                 .FirstOrDefaultAsync();
         }
+
+        // =========================================================
+        // MAP RESULT
+        // =========================================================
 
         private static ScoringStageDto MapStageToDto(
             ClaimScoringResult result)
         {
             return new ScoringStageDto
             {
-                Stage = result.Stage,
-                StageName = GetStageName(result.Stage),
-                ScoreValue = result.ScoreValue,
-                HardFlagTriggered = result.HardFlagTriggered,
-                Band = result.Band,
-                BandName = GetBandName(result.Band),
+                Stage =
+                    result.Stage,
+
+                StageName =
+                    GetStageName(
+                        result.Stage),
+
+                ScoreValue =
+                    result.ScoreValue,
+
+                HardFlagTriggered =
+                    result.HardFlagTriggered,
+
+                Band =
+                    result.Band,
+
+                BandName =
+                    GetBandName(
+                        result.Band),
+
                 TriggeredRuleIds =
                     JsonSerializer.Deserialize<List<string>>(
-                        result.TriggeredRuleIds) ?? new(),
-                ReasonText = result.ReasonText,
-                RuleSetVersion = result.RuleSetVersion,
-                ScoredAt = result.ScoredAt
+                        result.TriggeredRuleIds)
+                    ?? new(),
+
+                ReasonText =
+                    result.ReasonText,
+
+                RuleSetVersion =
+                    result.RuleSetVersion,
+
+                ScoredAt =
+                    result.ScoredAt
             };
         }
+
+        // =========================================================
+        // STAGE NAME
+        // =========================================================
 
         private static string GetStageName(
             int stage)
         {
             return stage switch
             {
-                ScoringStageConstants.Stage1_FNOL => "Stage1_FNOL",
-                ScoringStageConstants.Stage2_Survey => "Stage2_Survey",
-                _ => "Unknown"
+                ScoringStageConstants.Stage1_FNOL =>
+                    "Stage1_FNOL",
+
+                ScoringStageConstants.Stage2_Survey =>
+                    "Stage2_Survey",
+
+                _ =>
+                    "Unknown"
             };
         }
+
+        // =========================================================
+        // BAND NAME
+        // =========================================================
 
         private static string GetBandName(
             int band)
         {
             return band switch
             {
-                ScoringBandConstants.Green => "Green",
-                ScoringBandConstants.Amber => "Amber",
-                ScoringBandConstants.Red => "Red",
-                _ => "Unknown"
+                ScoringBandConstants.Green =>
+                    "Green",
+
+                ScoringBandConstants.Amber =>
+                    "Amber",
+
+                ScoringBandConstants.Red =>
+                    "Red",
+
+                _ =>
+                    "Unknown"
             };
         }
     }

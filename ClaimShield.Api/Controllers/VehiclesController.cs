@@ -34,6 +34,24 @@ namespace ClaimShield.Api.Controllers
                 RoleConstants.Admin,
                 StringComparison.OrdinalIgnoreCase);
 
+        // Checkpoint 5 (Module 3) - the Claims Handler needs a
+        // customer's vehicles for staff-assisted claim registration.
+        private bool IsSurveyor =>
+            string.Equals(
+                _currentUserService.RoleName,
+                RoleConstants.Surveyor,
+                StringComparison.OrdinalIgnoreCase);
+
+        // The Approver views the same Claim Information card (vehicle
+        // chassis/engine number, IDV, policy type/period, add-ons) on a
+        // claim's Inspection stage as the Surveyor does, so needs the
+        // same read access to a claim's vehicle - not just their own.
+        private bool IsApprover =>
+            string.Equals(
+                _currentUserService.RoleName,
+                RoleConstants.Approver,
+                StringComparison.OrdinalIgnoreCase);
+
         private static IActionResult Forbidden(
             string message)
         {
@@ -93,6 +111,8 @@ namespace ClaimShield.Api.Controllers
         public async Task<IActionResult> GetByCustomer(Guid customerId)
         {
             if (!IsAdmin &&
+                !IsSurveyor &&
+                !IsApprover &&
                 !await OwnsCustomerAsync(customerId))
             {
                 return Forbidden(
@@ -112,7 +132,7 @@ namespace ClaimShield.Api.Controllers
         }
 
         [HttpPut]
-        [Authorize(Roles = RoleConstants.Admin)]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
         public async Task<IActionResult> Update(UpdateVehicleRequest request)
         {
             if (!await _vehicleService.UpdateVehicleAsync(request))

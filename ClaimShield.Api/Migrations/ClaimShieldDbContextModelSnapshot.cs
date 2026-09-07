@@ -98,6 +98,13 @@ namespace ClaimShield.Api.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<int?>("ClosureReasonId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ClosureRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
                     b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -108,8 +115,18 @@ namespace ClaimShield.Api.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<DateTime?>("DriverDob")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DriverName")
+                        .HasColumnType("text");
+
                     b.Property<decimal?>("EstimatedLossAmount")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("HoldReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime>("IncidentDate")
                         .HasColumnType("timestamp with time zone");
@@ -121,11 +138,91 @@ namespace ClaimShield.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("InfoRequestReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("InfoRequestedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("InfoRequestedFromRoleId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("InitialReserveAmount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<bool?>("IsFraudSuspected")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal?>("LiabilityCompulsoryExcess")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LiabilityDepWaiver")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LiabilityDepreciationAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LiabilityImposedExcess")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LiabilityOtherDeduction")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LiabilitySalvageDeductions")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("LiabilitySubmitted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LiabilitySubmittedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("LiabilityTaxAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LiabilityTotalLabour")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LiabilityTotalParts")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("LiabilityTowingAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("OnHoldDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("PolicyId")
                         .HasColumnType("uuid");
+
+                    b.Property<Guid?>("PreferredRepairerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("PreferredRepairerTypeId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PriorStatusId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("RegisteredByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("RepairAuthClosureReasonId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RepairAuthClosureRemarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int?>("RepairAuthDenialReasonId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("RepairAuthorizationDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("RepairAuthorizationStatusId")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("ReportedDate")
                         .HasColumnType("timestamp with time zone");
@@ -136,11 +233,18 @@ namespace ClaimShield.Api.Migrations
                     b.Property<int?>("StatusId")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("SurveyDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("UpdatedDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("WorkshopRecommendation")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.HasKey("ClaimId");
 
@@ -295,6 +399,9 @@ namespace ClaimShield.Api.Migrations
                     b.Property<Guid>("ClaimId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ContactMobileNumber")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -314,6 +421,12 @@ namespace ClaimShield.Api.Migrations
                     b.Property<int>("LossType")
                         .HasColumnType("integer");
 
+                    b.Property<bool?>("PoliceReported")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("ThirdPartyDamage")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("VehicleLocationAtLoss")
                         .HasColumnType("integer");
 
@@ -323,6 +436,42 @@ namespace ClaimShield.Api.Migrations
                     b.HasKey("ClaimId");
 
                     b.ToTable("ClaimIntakes", "dbo");
+                });
+
+            modelBuilder.Entity("ClaimShield.Api.Models.Entities.ClaimInvoice", b =>
+                {
+                    b.Property<Guid>("ClaimInvoiceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClaimId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("InvoiceAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("InvoiceDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("InvoiceFavour")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ClaimInvoiceId");
+
+                    b.HasIndex("ClaimId");
+
+                    b.ToTable("ClaimInvoices", "dbo");
                 });
 
             modelBuilder.Entity("ClaimShield.Api.Models.Entities.ClaimRcOcrResult", b =>
@@ -411,6 +560,50 @@ namespace ClaimShield.Api.Migrations
                     b.ToTable("ClaimScoringResults", "dbo");
                 });
 
+            modelBuilder.Entity("ClaimShield.Api.Models.Entities.ClaimSettlement", b =>
+                {
+                    b.Property<Guid>("ClaimId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("AssessedAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BaseAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("ComputedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("GrossSettlementAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IdvCapApplied")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("NetSettlementAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal>("PolicyExcessDeducted")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PolicyIdvCap")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("RepairApprovedAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("ZeroDepreciationWaiverAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("ClaimId");
+
+                    b.ToTable("ClaimSettlements", "dbo");
+                });
+
             modelBuilder.Entity("ClaimShield.Api.Models.Entities.Customer", b =>
                 {
                     b.Property<Guid>("CustomerId")
@@ -489,6 +682,12 @@ namespace ClaimShield.Api.Migrations
 
                     b.Property<int?>("DamageCategoryId")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("LabourAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PartsAmount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Remarks")
                         .HasMaxLength(500)
@@ -605,6 +804,43 @@ namespace ClaimShield.Api.Migrations
                     b.ToTable("InstantClaimRateCards", "Masters");
                 });
 
+            modelBuilder.Entity("ClaimShield.Api.Models.Entities.LiabilityDamageItemAdjustment", b =>
+                {
+                    b.Property<Guid>("LiabilityDamageItemAdjustmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ClaimId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DamageAssessmentItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("DepreciationAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("OthersAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PaintingAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("RRAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("TDAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("LiabilityDamageItemAdjustmentId");
+
+                    b.HasIndex("DamageAssessmentItemId");
+
+                    b.ToTable("LiabilityDamageItemAdjustments", "dbo");
+                });
+
             modelBuilder.Entity("ClaimShield.Api.Models.Entities.OtpVerification", b =>
                 {
                     b.Property<Guid>("OtpVerificationId")
@@ -653,14 +889,48 @@ namespace ClaimShield.Api.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("BankAccountNumber")
+                        .HasMaxLength(34)
+                        .HasColumnType("character varying(34)");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BeneficiaryName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BranchName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<Guid>("ClaimId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("CreatedDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("IfscCode")
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
+                    b.Property<string>("MobileNumber")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PayeeCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("PayeeType")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("PaymentDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("PaymentMethodId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("PaymentStatusId")
                         .HasColumnType("integer");
@@ -1074,10 +1344,16 @@ namespace ClaimShield.Api.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<bool?>("PreExistingDamageSuspected")
+                        .HasColumnType("boolean");
+
                     b.Property<bool?>("RepairRecommended")
                         .HasColumnType("boolean");
 
                     b.Property<int?>("RepairabilityStatusId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RepairerTypeId")
                         .HasColumnType("integer");
 
                     b.Property<bool?>("ReplaceRecommended")
@@ -1095,6 +1371,9 @@ namespace ClaimShield.Api.Migrations
 
                     b.Property<string>("SurveyRemarks")
                         .HasColumnType("text");
+
+                    b.Property<bool?>("SurveyorFlaggedSuspicious")
+                        .HasColumnType("boolean");
 
                     b.Property<Guid>("SurveyorId")
                         .HasColumnType("uuid");
@@ -1328,6 +1607,15 @@ namespace ClaimShield.Api.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ClaimShield.Api.Models.Entities.ClaimInvoice", b =>
+                {
+                    b.HasOne("ClaimShield.Api.Models.Entities.Claim", null)
+                        .WithMany()
+                        .HasForeignKey("ClaimId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ClaimShield.Api.Models.Entities.ClaimRcOcrResult", b =>
                 {
                     b.HasOne("ClaimShield.Api.Models.Entities.Claim", null)
@@ -1338,6 +1626,15 @@ namespace ClaimShield.Api.Migrations
                 });
 
             modelBuilder.Entity("ClaimShield.Api.Models.Entities.ClaimScoringResult", b =>
+                {
+                    b.HasOne("ClaimShield.Api.Models.Entities.Claim", null)
+                        .WithMany()
+                        .HasForeignKey("ClaimId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ClaimShield.Api.Models.Entities.ClaimSettlement", b =>
                 {
                     b.HasOne("ClaimShield.Api.Models.Entities.Claim", null)
                         .WithMany()
@@ -1362,6 +1659,15 @@ namespace ClaimShield.Api.Migrations
                     b.HasOne("ClaimShield.Api.Models.Entities.SurveyReport", null)
                         .WithMany()
                         .HasForeignKey("SurveyReportId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ClaimShield.Api.Models.Entities.LiabilityDamageItemAdjustment", b =>
+                {
+                    b.HasOne("ClaimShield.Api.Models.Entities.DamageAssessmentItem", null)
+                        .WithMany()
+                        .HasForeignKey("DamageAssessmentItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

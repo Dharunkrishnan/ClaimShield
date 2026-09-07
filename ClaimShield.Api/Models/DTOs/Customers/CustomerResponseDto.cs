@@ -26,5 +26,10 @@ namespace ClaimShield.Api.Models.DTOs.Customers
         public string? State { get; set; }
 
         public string? Pincode { get; set; }
+
+        // Checkpoint 9 - resolved from the linked User record (not
+        // stored on Customer itself), for staff-facing lookups where a
+        // real name is more useful than the Customer Code alone.
+        public string? CustomerName { get; set; }
     }
 }

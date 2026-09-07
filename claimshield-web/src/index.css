@@ -2,20 +2,30 @@
   color-scheme: light;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  --color-bg: #f5f6f8;
+  --color-bg: #f5f7fa;
   --color-surface: #ffffff;
-  --color-border: #d9dde3;
-  --color-text: #1a1d21;
-  --color-muted: #5f6672;
-  --color-primary: #1f5fbf;
-  --color-primary-dark: #164a99;
-  --color-primary-light: #5b9ef0;
-  --color-error: #b3261e;
-  --color-success: #1e7e34;
-  --color-navy-deep: #0a1930;
-  --color-navy: #122a52;
-  --color-teal-deep: #0d4a44;
-  --color-teal: #0f6e63;
+  --color-border: #d9e1ea;
+  --color-text: #172b4d;
+  --color-muted: #667085;
+  --color-primary: #2563c7;
+  --color-primary-dark: #1d4fa3;
+  --color-primary-light: #1f5fbf;
+  --color-error: #d64545;
+  --color-success: #16834b;
+  --color-navy-deep: #123b5d;
+  --color-navy: #172f4d;
+  --color-teal-deep: #123b5d;
+  --color-teal: #2878c8;
+  --color-selected-bg: #eaf2ff;
+  --color-divider: #e7ebf0;
+  --color-disabled-text: #98a2b3;
+  --color-success-light: #e8f7ee;
+  --color-warning: #d99000;
+  --color-warning-light: #fff5d9;
+  --color-attention: #e67e22;
+  --color-error-light: #fdecec;
+  --color-info: #2878c8;
+  --color-info-light: #eaf3ff;
   --radius: 8px;
   --radius-lg: 14px;
   --shadow-card: 0 1px 2px rgba(20, 24, 30, 0.04), 0 8px 24px rgba(20, 24, 30, 0.06);
@@ -30,13 +40,15 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% -10%, rgba(31, 95, 191, 0.07), transparent 38%),
+    radial-gradient(circle at 12% -10%, rgba(37, 99, 199, 0.07), transparent 38%),
     radial-gradient(circle at 100% 110%, rgba(15, 110, 99, 0.06), transparent 42%),
     var(--color-bg);
   color: var(--color-text);
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   margin: 0 0 0.5rem 0;
 }
 
@@ -83,16 +95,16 @@ a {
 
 /* Section-header accent inside cards - a small gradient underline
    instead of a plain heading, reused everywhere .card h2 appears. */
-.card > h2,
-.card > h3 {
+.card>h2,
+.card>h3 {
   padding-bottom: 0.6rem;
   margin-bottom: 1rem;
   border-bottom: 1px solid var(--color-border);
   position: relative;
 }
 
-.card > h2::after,
-.card > h3::after {
+.card>h2::after,
+.card>h3::after {
   content: '';
   position: absolute;
   left: 0;
@@ -147,6 +159,28 @@ label {
   margin-bottom: 1.1rem;
 }
 
+.decision-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.decision-radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.decision-radio-option input {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+}
+
 .form-field label {
   margin-top: 0;
 }
@@ -163,7 +197,9 @@ label {
   }
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   font: inherit;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--color-border);
@@ -174,13 +210,16 @@ input, select, textarea {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-input:focus, select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(31, 95, 191, 0.15);
+  box-shadow: 0 0 0 3px rgba(37, 99, 199, 0.15);
 }
 
-input[type='date']::-webkit-calendar-picker-indicator {
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator {
   cursor: pointer;
   border-radius: 4px;
   padding: 3px;
@@ -188,7 +227,8 @@ input[type='date']::-webkit-calendar-picker-indicator {
   transition: filter 0.15s ease, background-color 0.15s ease;
 }
 
-input[type='date']::-webkit-calendar-picker-indicator:hover {
+input[type='date']::-webkit-calendar-picker-indicator:hover,
+input[type='datetime-local']::-webkit-calendar-picker-indicator:hover {
   filter: opacity(1);
   background-color: var(--color-bg);
 }
@@ -209,7 +249,7 @@ button {
 
 button:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
-  box-shadow: 0 4px 12px rgba(31, 95, 191, 0.25);
+  box-shadow: 0 4px 12px rgba(37, 99, 199, 0.25);
 }
 
 button:active:not(:disabled) {
@@ -231,7 +271,7 @@ button:active:not(:disabled) {
 
 .button-link:hover {
   background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
-  box-shadow: 0 4px 12px rgba(31, 95, 191, 0.25);
+  box-shadow: 0 4px 12px rgba(37, 99, 199, 0.25);
 }
 
 button:disabled {
@@ -263,12 +303,23 @@ button:disabled {
   flex-direction: column;
 }
 
+/* Sidebar layout only (Surveyor/Approver/Admin) - bound the shell to
+   exactly the viewport height and let .app-main handle its own
+   scrolling internally. Doing this only for THIS layout, not the base
+   .app-shell used elsewhere (e.g. Customer's non-sidebar pages), which
+   still rely on normal whole-page scrolling and would break if forced
+   into a fixed-height, non-scrolling shell. */
+.app-shell-sidebar {
+  height: 100vh;
+  overflow: hidden;
+}
+
 .app-header {
   display: flex;
   align-items: center;
   gap: 1.5rem;
   padding: 0.75rem 1.5rem;
-  background: linear-gradient(115deg, var(--color-primary) 0%, var(--color-primary-dark) 45%, var(--color-teal-deep) 100%);
+  background: var(--color-navy-deep);
   border-bottom: none;
   box-shadow: 0 4px 24px rgba(8, 28, 56, 0.28);
   position: relative;
@@ -284,7 +335,9 @@ button:disabled {
 .app-header nav {
   flex: 1;
   display: flex;
-  gap: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  min-width: 0;
 }
 
 .header-right {
@@ -293,6 +346,7 @@ button:disabled {
   gap: 1rem;
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.82);
+  flex-shrink: 0;
 }
 
 .header-right button {
@@ -318,17 +372,20 @@ button:disabled {
   box-shadow: var(--shadow-card);
 }
 
-.queue-table th, .queue-table td {
+.queue-table th,
+.queue-table td {
   text-align: left;
   padding: 0.65rem 0.9rem;
   border-bottom: 1px solid var(--color-border);
 }
 
 .queue-table th {
-  background: #eef1f5;
+  background: #f1f4f8;
   font-size: 0.85rem;
   text-transform: uppercase;
-  color: var(--color-muted);
+  /* Design system's specific table-header text color, distinct from
+     the more general --color-muted used for secondary text elsewhere. */
+  color: #475467;
 }
 
 .queue-table th svg {
@@ -341,8 +398,12 @@ button:disabled {
   transition: background-color 0.15s ease;
 }
 
+.queue-table tbody tr.clickable-row {
+  cursor: pointer;
+}
+
 .queue-table tbody tr:hover {
-  background-color: #f5f8fd;
+  background-color: #f9f9ff;
 }
 
 .queue-table tbody tr:last-child td {
@@ -424,6 +485,138 @@ button:disabled {
 .fact-icon-amber {
   background: #fff3cd;
   color: #7a5c00;
+}
+
+/* Checkpoint 4 - compact claim summary card header (status + fraud-flag
+   badges), same .badge/.fact-grid-rich language used elsewhere. */
+.claim-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.claim-summary-header h2 {
+  margin: 0;
+}
+
+/* =====================================================================
+   Claim 360 - one titled "tile" per entity (Claim/Policy/Vehicle/
+   Insured/Repairer/Surveyor/Driver), each an InfoCard: a compact
+   header row (title + optional Edit link) above a boxed 3-column
+   read-only grid, reusing the same .detail-panel-box/.detail-item
+   pattern already established elsewhere for visual consistency.
+   ===================================================================== */
+
+.claim360-page .card {
+  margin-bottom: 1.1rem;
+}
+
+.claim360-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem;
+  align-items: stretch;
+}
+
+.claim360-cards-grid .card {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 210px;
+}
+
+.claim360-cards-grid .card .detail-panel-box {
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .claim360-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.claim360-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin: 0.25rem 0 1.1rem;
+}
+
+.claim360-title-row h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.claim360-title-row button {
+  margin-top: 0;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.claim360-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.9rem;
+}
+
+.claim360-card-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.claim360-edit-link {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.claim360-edit-link:hover {
+  background: rgba(37, 99, 199, 0.08);
+}
+
+.claim360-empty-state {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  background: #f7f9fc;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* Page title + inline "Find Claim" search now live in
+   src/styles/claim360-header.css (.claim360-topbar / .claim360-title /
+   .claim360-search-inline etc.) - that file already existed in the
+   project, purpose-built for this exact layout, but was never actually
+   imported or wired into the JSX until now. See Claim360Page.tsx. */
+
+@media (max-width: 800px) {
+  .claim360-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.claim-summary-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .policy-highlight-card {
@@ -531,18 +724,22 @@ button:disabled {
   font-size: 0.9rem;
 }
 
-.timeline, .document-list, .comment-list {
+.timeline,
+.document-list,
+.comment-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.timeline li, .comment-list li {
+.timeline li,
+.comment-list li {
   padding: 0.6rem 0;
   border-bottom: 1px solid var(--color-border);
 }
 
-.timeline li:last-child, .comment-list li:last-child {
+.timeline li:last-child,
+.comment-list li:last-child {
   border-bottom: none;
 }
 
@@ -567,7 +764,7 @@ button:disabled {
 }
 
 .card-tint-blue {
-  background: linear-gradient(160deg, #f5f9fe 0%, #ffffff 55%);
+  background: linear-gradient(160deg, var(--color-info-light) 0%, var(--color-surface) 55%);
 }
 
 .badge {
@@ -575,8 +772,8 @@ button:disabled {
   margin-left: 0.5rem;
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: #fff3cd;
-  color: #7a5c00;
+  background: var(--color-warning-light);
+  color: var(--color-warning);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -589,28 +786,28 @@ button:disabled {
 }
 
 .badge-blue {
-  background: linear-gradient(135deg, #eaf1fc 0%, #d3e3f9 100%);
-  color: var(--color-primary-dark);
+  background: var(--color-info-light);
+  color: var(--color-info);
 }
 
 .badge-green {
-  background: linear-gradient(135deg, #d7f5df 0%, #c1edd0 100%);
-  color: #1a7a37;
+  background: var(--color-success-light);
+  color: var(--color-success);
 }
 
 .badge-amber {
-  background: linear-gradient(135deg, #fff3cd 0%, #ffe9ac 100%);
-  color: #7a5c00;
+  background: var(--color-warning-light);
+  color: var(--color-warning);
 }
 
 .badge-red {
-  background: linear-gradient(135deg, #f9d6d6 0%, #f4c1c1 100%);
-  color: #9c1f1f;
+  background: var(--color-error-light);
+  color: var(--color-error);
 }
 
 .badge-neutral {
-  background: linear-gradient(135deg, #eaeaea 0%, #dadada 100%);
-  color: #555;
+  background: var(--color-border);
+  color: var(--color-muted);
 }
 
 .band-badge {
@@ -680,6 +877,59 @@ button:disabled {
 
 .document-list button {
   margin-top: 0;
+}
+
+/* Claim 360's Documents modal - filenames vary in length, so without
+   this the View buttons end up at different horizontal positions per
+   row (justify-content: space-between here keeps them flush right,
+   min-width keeps every button the same size regardless of label). */
+.claim360-document-list li {
+  padding: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.claim360-document-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claim360-document-list button {
+  margin-top: 0;
+  min-width: 84px;
+  flex-shrink: 0;
+}
+
+.claim360-document-upload {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem;
+}
+
+.claim360-document-upload label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  flex-basis: 100%;
+}
+
+.claim360-document-upload input[type='file'] {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.claim360-document-upload button {
+  margin-top: 0;
+  flex-shrink: 0;
 }
 
 .stat-cards {
@@ -946,7 +1196,14 @@ button:disabled {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  z-index: 1000;
+  /* Was 1000 - on paper that already beats every other z-index in this
+     file (the claim detail sticky header/stepper sit at 90), but it
+     was still rendering behind the lifecycle stepper in practice.
+     Pushed well above everything else in the file (nothing else here
+     goes above 1200) and isolated into its own stacking context so
+     there's no ambiguity left, regardless of the exact mechanism. */
+  z-index: 9999;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -979,10 +1236,22 @@ button:disabled {
   inset: 0;
   background: rgba(15, 18, 22, 0.5);
   display: flex;
-  align-items: center;
+  /* Was align-items: center. Centering a flex container whose child
+     can overflow it is a known trap: the overflow spills off BOTH the
+     top and bottom equally, and content that overflows above a
+     centered flex container has no way to be scrolled into view - it
+     just silently disappears off-screen, which is what was happening
+     here (the modal's heading was rendering above the visible
+     viewport with no way to reach it). flex-start + generous vertical
+     padding + the backdrop scrolling itself, instead of relying
+     solely on .modal-panel's own max-height/overflow-y, means the
+     full modal - top and bottom - is always reachable no matter how
+     tall it ends up being. */
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
   z-index: 900;
-  padding: 1rem;
+  padding: 3rem 1rem;
 }
 
 .modal-panel {
@@ -991,9 +1260,56 @@ button:disabled {
   padding: 1.75rem;
   max-width: 480px;
   width: 100%;
-  max-height: 90vh;
+  /* Belt-and-braces alongside the backdrop's own scroll above - if the
+     panel alone somehow still ends up taller than the viewport, it
+     can still scroll its own content rather than only relying on the
+     backdrop. */
+  max-height: calc(100vh - 6rem);
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.payment-confirmation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.9rem;
+}
+
+.payment-confirmation-icon {
+  color: var(--color-success);
+}
+
+.payment-confirmation-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1rem;
+  text-align: left;
+  width: 100%;
+  padding: 0.9rem 1rem;
+  background: #f7f9fc;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.payment-confirmation-details dt {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.payment-confirmation-details dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.payment-confirmation-description {
+  margin: 0;
+  color: var(--color-text);
 }
 
 .otp-input-row {
@@ -1040,12 +1356,10 @@ button:disabled {
 .skeleton {
   display: inline-block;
   border-radius: 4px;
-  background: linear-gradient(
-    90deg,
-    var(--color-bg) 25%,
-    #eceef1 37%,
-    var(--color-bg) 63%
-  );
+  background: linear-gradient(90deg,
+      var(--color-bg) 25%,
+      #eceef1 37%,
+      var(--color-bg) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.4s ease infinite;
 }
@@ -1054,6 +1368,7 @@ button:disabled {
   0% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0 50%;
   }
@@ -1130,6 +1445,197 @@ button:disabled {
   color: #fff;
 }
 
+/* Checkpoint 4 - claim lifecycle stepper. Same track/fill/dot pattern as
+   .wizard-progress above (the existing Survey & Assessment step-
+   indicator), with per-stage icons instead of numbers and an added
+   "rejected" terminal state. */
+.lifecycle-stepper {
+  margin-bottom: 0.6rem;
+}
+
+/* =====================================================================
+   Claim detail page - sticky claim number + lifecycle stepper. Stays
+   visible and clickable while scrolling down a long claim page, page
+   content scrolls behind it. Sticks relative to .app-main's own
+   internal scroll region (see .app-shell-sidebar .app-main below) -
+   top: 0 is correct here, not the app header's height, since the app
+   header lives outside .app-main entirely, in the non-scrolling shell
+   chrome above it, not in the same scrolling context as this element.
+
+   margin-top: -1.5rem pulls this up into .app-main's own top padding
+   (also 1.5rem) - without it, position: sticky's top: 0 sticks just
+   below that padding, leaving a thin strip of .app-main's padding area
+   exposed above the sticky header where already-scrolled-past content
+   peeks through instead of staying fully hidden. Pulling the header up
+   to cover that padding, then adding the same amount back as its own
+   padding-top, keeps the visible content (Back link/claim number) at
+   the same position while the background now fully covers the gap.
+
+   IMPORTANT: that negative margin lives on .claim-detail (below),
+   never directly on .claim-detail-sticky-header itself. A negative
+   margin on a position: sticky element is known to cause real
+   rendering corruption in some browsers (sticky's "resting position"
+   calculation includes the element's own margin, and a negative one
+   there can throw stacking/paint order off) - confirmed by testing,
+   not just theory. Pulling the whole outer wrapper up instead achieves
+   the same visual result (closing the gap above the sticky header)
+   with zero risk, since .claim-detail itself is a plain block, never
+   sticky-positioned.
+   ===================================================================== */
+
+.claim-detail {
+  margin-top: -1rem;
+}
+
+.claim-detail-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  background: var(--color-bg);
+  padding: 2rem 1.5rem 0.75rem;
+  margin: 0 -1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 6px 12px -8px rgba(20, 24, 30, 0.15);
+}
+
+.claim-detail-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1.1rem;
+  margin: 0 0 0.35rem;
+}
+
+.claim-detail-info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.claim-detail-info-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.claim-detail-info-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+@media (max-width: 700px) {
+  .claim-detail-info-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+  }
+}
+
+.claim-detail-back-link {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+}
+
+.lifecycle-stepper-track {
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.85rem;
+}
+
+.lifecycle-stepper-fill {
+  height: 100%;
+  background: var(--color-primary);
+}
+
+.lifecycle-stepper-steps {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.25rem;
+}
+
+.lifecycle-stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.66rem;
+  color: var(--color-muted);
+  text-align: center;
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.lifecycle-stepper-arrow {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.35rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--color-muted);
+  transition: color 0.2s ease;
+}
+
+.lifecycle-stepper-arrow.complete {
+  color: var(--color-success);
+}
+
+
+
+.lifecycle-stepper-step:disabled {
+  cursor: default;
+}
+
+.lifecycle-stepper-step.active {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.lifecycle-stepper-dot {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  color: var(--color-muted);
+}
+
+.lifecycle-stepper-step.active .lifecycle-stepper-dot {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: #eaf1fc;
+}
+
+.lifecycle-stepper-step.complete .lifecycle-stepper-dot {
+  border-color: var(--color-success);
+  background: var(--color-success);
+  color: #fff;
+}
+
+.lifecycle-stepper-step.rejected .lifecycle-stepper-dot {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+
+.lifecycle-stepper-step.rejected {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
 .upload-card {
   border: 2px dashed var(--color-border);
   border-radius: 12px;
@@ -1148,6 +1654,13 @@ button:disabled {
   transform: translateY(-1px);
 }
 
+/* Applied to the whole card via className={`upload-card upload-card-${status}`}
+   when status === 'done'. Do not reuse this exact class name for
+   anything nested inside the card (e.g. the "✓ Uploaded" text) - it
+   previously collided with an inner span of the same name, which
+   caused this border to leak onto that inline span too, rendering an
+   unwanted second box around just the checkmark/text. See
+   .upload-card-done-label for the inner text's own styling. */
 .upload-card-done {
   border-color: var(--color-success);
   border-style: solid;
@@ -1194,10 +1707,43 @@ button:disabled {
   background: var(--color-primary);
 }
 
-.upload-card-done {
+.upload-card-done-label {
   font-size: 0.8rem;
   color: var(--color-success);
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.upload-card-done-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.upload-card-view-link {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0.15rem 0.3rem;
+  border-radius: 5px;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.upload-card-view-link:hover {
+  background: rgba(37, 99, 199, 0.1);
+}
+
+.upload-card-view-link:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .upload-grid {
@@ -1296,15 +1842,17 @@ button:disabled {
 
 @keyframes instant-claim-toggle-glow {
   0% {
-    box-shadow: 0 0 0 0 rgba(31, 95, 191, 0.35);
-    background-color: rgba(31, 95, 191, 0.08);
+    box-shadow: 0 0 0 0 rgba(37, 99, 199, 0.35);
+    background-color: rgba(37, 99, 199, 0.08);
   }
+
   60% {
-    box-shadow: 0 0 0 14px rgba(31, 95, 191, 0);
-    background-color: rgba(31, 95, 191, 0.08);
+    box-shadow: 0 0 0 14px rgba(37, 99, 199, 0);
+    background-color: rgba(37, 99, 199, 0.08);
   }
+
   100% {
-    box-shadow: 0 0 0 0 rgba(31, 95, 191, 0);
+    box-shadow: 0 0 0 0 rgba(37, 99, 199, 0);
     background-color: transparent;
   }
 }
@@ -1392,6 +1940,69 @@ button:disabled {
   font-weight: 600;
 }
 
+/* Checkpoint 4 - task-queue count tabs, same 999px pill language as
+   .radio-pill above, restyled as clickable filter buttons with a live
+   count badge instead of a radio input. */
+.queue-filter-tabs {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.25rem 0 1.1rem;
+}
+
+.queue-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.85rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text);
+  background: #fff;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.queue-filter-tab:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.queue-filter-tab:hover .queue-filter-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.queue-filter-tab.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.queue-filter-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--color-border);
+  color: var(--color-text);
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-filter-tab.active .queue-filter-tab-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
 .estimate-breakdown {
   width: 100%;
   border-collapse: collapse;
@@ -1431,7 +2042,7 @@ button:disabled {
 .spinner {
   width: 1.2rem;
   height: 1.2rem;
-  border: 2px solid rgba(31, 95, 191, 0.3);
+  border: 2px solid rgba(37, 99, 199, 0.3);
   border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spinner-spin 0.7s linear infinite;
@@ -1477,58 +2088,37 @@ button:disabled {
   position: relative;
   min-height: 100vh;
   display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  background: linear-gradient(180deg, #eef4fc 0%, #e3ecf9 100%);
+}
+
+.login-page-left {
+  flex: 1 1 420px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
-  overflow: hidden;
-  background: linear-gradient(
-    160deg,
-    var(--color-navy-deep) 0%,
-    var(--color-navy) 32%,
-    var(--color-primary-dark) 65%,
-    var(--color-teal-deep) 100%
-  );
+  padding: 2rem;
 }
 
-.login-page-pattern {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.6;
-  background-image:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 42px),
-    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 42px);
+.login-page-right {
+  flex: 1 1 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
 }
 
-.login-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(90px);
-  pointer-events: none;
+.login-illustration {
+  width: 100%;
+  max-width: 480px;
+  height: auto;
 }
 
-.login-blob-1 {
-  width: 480px;
-  height: 480px;
-  top: -140px;
-  left: -120px;
-  background: radial-gradient(circle, rgba(31, 95, 191, 0.55) 0%, rgba(31, 95, 191, 0) 70%);
-}
-
-.login-blob-2 {
-  width: 560px;
-  height: 560px;
-  bottom: -180px;
-  right: -160px;
-  background: radial-gradient(circle, rgba(15, 110, 99, 0.5) 0%, rgba(15, 110, 99, 0) 70%);
-}
-
-.login-blob-3 {
-  width: 380px;
-  height: 380px;
-  top: 38%;
-  left: 58%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 70%);
+@media (max-width: 900px) {
+  .login-page-left {
+    display: none;
+  }
 }
 
 .login-card {
@@ -1539,13 +2129,11 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 16px;
-  padding: 2.25rem 2rem;
-  box-shadow: 0 30px 80px rgba(4, 12, 30, 0.45), 0 10px 30px rgba(4, 12, 30, 0.25);
+  background: #dce9fb;
+  border: 1px solid #c7d9f4;
+  border-radius: 20px;
+  padding: 2.5rem 2.25rem;
+  box-shadow: 0 20px 50px rgba(37, 99, 199, 0.12);
 }
 
 .login-mark {
@@ -1566,13 +2154,29 @@ button:disabled {
 .login-card input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(31, 95, 191, 0.15);
+  box-shadow: 0 0 0 3px rgba(37, 99, 199, 0.15);
 }
 
 .login-card button {
   width: 100%;
   padding: 0.7rem 1rem;
   margin-top: 1rem;
+}
+
+.login-card .login-link-button {
+  all: unset;
+  display: block;
+  width: fit-content;
+  margin: 0.85rem auto 0;
+  padding: 0.2rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.login-card .login-link-button:hover {
+  text-decoration: underline;
 }
 
 /* Icon alignment for nav/header/buttons using lucide-react */
@@ -1696,6 +2300,70 @@ button:disabled {
   background: linear-gradient(160deg, #fff3cd 0%, #ffffff 68%);
 }
 
+.stat-card-icon-red {
+  background: #fbe2e0;
+  color: var(--color-error);
+}
+
+.stat-card-red {
+  background: linear-gradient(160deg, #fbe2e0 0%, #ffffff 68%);
+}
+
+/* Claims Handler dashboard work queue */
+
+.handler-queue-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.handler-queue-header h2 {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.handler-queue-header h2::after {
+  display: none;
+}
+
+.handler-queue-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.handler-queue-search {
+  margin: 0;
+  min-width: 220px;
+}
+
+.handler-queue-filter {
+  margin: 0;
+}
+
+.queue-table-wrap {
+  overflow-x: auto;
+}
+
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable-th svg {
+  vertical-align: -1px;
+  opacity: 0.55;
+}
+
+.sortable-th:hover {
+  color: var(--color-primary);
+}
+
 .inline-link {
   display: inline-flex;
   align-items: center;
@@ -1723,6 +2391,54 @@ button:disabled {
   cursor: pointer;
   margin: 0;
   box-shadow: 0 10px 28px rgba(8, 28, 56, 0.32);
+}
+
+.chat-greeting-bubble {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 5.5rem;
+  z-index: 1199;
+  /* Capped against the viewport width itself, not just a fixed 220px -
+     on a narrower browser window, 220px + the 1.5rem right offset can
+     exceed the actual viewport, pushing the bubble's own right edge
+     past the visible area and clipping its text instead of wrapping
+     it. */
+  max-width: min(220px, calc(100vw - 3rem));
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  border-bottom-right-radius: 4px;
+  padding: 0.65rem 1.6rem 0.65rem 0.85rem;
+  box-shadow: 0 10px 24px rgba(8, 28, 56, 0.18);
+  box-sizing: border-box;
+}
+
+.chat-greeting-bubble p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.chat-greeting-dismiss {
+  all: unset;
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.chat-greeting-dismiss:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .chat-panel {
@@ -1762,6 +2478,52 @@ button:disabled {
   flex-shrink: 0;
 }
 
+/* BotMascotIcon.tsx - blinking eyes + pulsing antenna, used at 20px+
+   only (see that file's comment). transform-box: fill-box is required
+   here - without it, transform-origin: center resolves against the
+   SVG viewport's 0,0 instead of each element's own bounding box,
+   producing a blink/glow that visibly drifts sideways instead of
+   scaling in place. */
+.bot-icon-eyes {
+  animation: botIconBlink 4.5s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes botIconBlink {
+
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+.bot-icon-antenna-glow {
+  animation: botIconGlow 1.8s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+  opacity: 0.4;
+}
+
+@keyframes botIconGlow {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.4);
+  }
+}
+
 .chat-header-status-dot {
   position: absolute;
   right: -1px;
@@ -1775,9 +2537,12 @@ button:disabled {
 }
 
 @keyframes chat-status-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.55);
   }
+
   50% {
     box-shadow: 0 0 0 4px rgba(61, 220, 132, 0);
   }
@@ -1849,7 +2614,7 @@ button:disabled {
 
 .chat-claim-picker-wrap:focus-within {
   border-color: var(--color-primary-light);
-  box-shadow: 0 0 0 3px rgba(31, 95, 191, 0.14);
+  box-shadow: 0 0 0 3px rgba(37, 99, 199, 0.14);
 }
 
 .chat-claim-picker-icon {
@@ -1911,7 +2676,7 @@ button:disabled {
   width: 2.6rem;
   height: 2.6rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(31, 95, 191, 0.12) 0%, rgba(13, 74, 68, 0.12) 100%);
+  background: linear-gradient(135deg, rgba(37, 99, 199, 0.12) 0%, rgba(13, 74, 68, 0.12) 100%);
   color: var(--color-primary);
 }
 
@@ -2033,10 +2798,14 @@ button:disabled {
 }
 
 @keyframes chat-typing-bounce {
-  0%, 60%, 100% {
+
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.5;
   }
+
   30% {
     transform: translateY(-3px);
     opacity: 1;
@@ -2072,7 +2841,7 @@ button:disabled {
   border-radius: 50%;
   margin: 0;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(31, 95, 191, 0.28);
+  box-shadow: 0 2px 8px rgba(37, 99, 199, 0.28);
 }
 
 .chat-mic-wrap {
@@ -2089,7 +2858,7 @@ button:disabled {
   position: relative;
   z-index: 1;
   background: linear-gradient(135deg, #eaf1fc 0%, #d9e6fb 100%);
-  box-shadow: 0 2px 8px rgba(31, 95, 191, 0.2), var(--shadow-card);
+  box-shadow: 0 2px 8px rgba(37, 99, 199, 0.2), var(--shadow-card);
 }
 
 .chat-mic-button:hover {
@@ -2097,9 +2866,9 @@ button:disabled {
 }
 
 .chat-mic-button.listening {
-  background: linear-gradient(135deg, var(--color-error) 0%, #d1453a 100%);
+  background: linear-gradient(135deg, var(--color-error) 0%, #c23a3a 100%);
   border-color: var(--color-error);
-  box-shadow: 0 2px 10px rgba(179, 38, 30, 0.4);
+  box-shadow: 0 2px 10px rgba(214, 69, 69, 0.4);
 }
 
 .chat-mic-pulse-ring {
@@ -2126,6 +2895,7 @@ button:disabled {
     transform: scale(1);
     opacity: 0.5;
   }
+
   100% {
     transform: scale(1.8);
     opacity: 0;
@@ -2144,10 +2914,6 @@ button:disabled {
   padding: 1.5rem;
 }
 
-.survey-stepper-card {
-  padding: 1.25rem 1.5rem;
-}
-
 .survey-section-title {
   display: flex;
   align-items: center;
@@ -2155,6 +2921,30 @@ button:disabled {
   padding-bottom: 0.6rem;
   margin-bottom: 1.1rem;
   border-bottom: 1px solid var(--color-border);
+}
+
+.survey-section-title-toggle {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+.survey-section-chevron {
+  color: var(--color-muted);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.survey-claim-summary {
+  margin: 0.65rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-muted);
 }
 
 .survey-section-title h2 {
@@ -2178,7 +2968,7 @@ button:disabled {
   flex-shrink: 0;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-teal-deep) 100%);
   color: #fff;
-  box-shadow: 0 3px 10px rgba(31, 95, 191, 0.28);
+  box-shadow: 0 3px 10px rgba(37, 99, 199, 0.28);
 }
 
 .survey-claim-header {
@@ -2264,13 +3054,15 @@ button:disabled {
 }
 
 .survey-damage-table-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
+  margin-top: 1.5rem;
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
 }
 
 .survey-damage-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
@@ -2283,12 +3075,15 @@ button:disabled {
   text-transform: uppercase;
   letter-spacing: 0.03em;
   text-align: left;
-  padding: 0.55rem 0.7rem;
+  padding: 0.55rem 0.5rem;
   border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .survey-damage-table td {
-  padding: 0.45rem 0.7rem;
+  padding: 0.45rem 0.5rem;
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
@@ -2300,8 +3095,44 @@ button:disabled {
 .survey-damage-table input,
 .survey-damage-table select {
   margin: 0;
-  min-width: 7rem;
+  width: 100%;
+  min-width: 0;
   font-size: 0.83rem;
+}
+
+/* Proportional column widths summing to 100%, so the table always
+   fits its container instead of relying on horizontal scroll - each
+   input/select above fills 100% of its own (now fixed-width) cell
+   rather than demanding a fixed minimum that doesn't fit. */
+.survey-damage-table th:nth-child(1),
+.survey-damage-table td:nth-child(1) {
+  width: 20%;
+}
+
+.survey-damage-table th:nth-child(2),
+.survey-damage-table td:nth-child(2),
+.survey-damage-table th:nth-child(3),
+.survey-damage-table td:nth-child(3) {
+  width: 13%;
+}
+
+.survey-damage-table th:nth-child(4),
+.survey-damage-table td:nth-child(4),
+.survey-damage-table th:nth-child(5),
+.survey-damage-table td:nth-child(5) {
+  width: 8%;
+}
+
+.survey-damage-table th:nth-child(6),
+.survey-damage-table td:nth-child(6),
+.survey-damage-table th:nth-child(7),
+.survey-damage-table td:nth-child(7) {
+  width: 15%;
+}
+
+.survey-damage-table th.survey-damage-remove-col,
+.survey-damage-table td.survey-damage-remove-col {
+  width: 3.5rem;
 }
 
 .survey-damage-checkbox-cell {
@@ -2353,7 +3184,8 @@ button:disabled {
 }
 
 .survey-add-row-button:hover {
-  background: #eaf1fc;
+  background: #eaf1fc !important;
+  color: var(--color-primary-dark);
   box-shadow: none;
 }
 
@@ -2367,6 +3199,32 @@ button:disabled {
   border-radius: var(--radius);
   background: #f4f9f7;
   border: 1px solid rgba(15, 110, 99, 0.18);
+}
+
+.survey-computation-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.survey-computation-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.survey-computation-subtotal {
+  border-top: 1px solid var(--color-border);
+  margin-top: 0.2rem;
+  padding-top: 0.6rem;
+  font-size: 0.92rem;
+  color: var(--color-text);
+}
+
+@media (max-width: 700px) {
+  .survey-computation-columns {
+    grid-template-columns: 1fr;
+  }
 }
 
 .survey-computation-line {
@@ -2386,13 +3244,13 @@ button:disabled {
   border-top: 1px solid rgba(15, 110, 99, 0.2);
   margin-top: 0.3rem;
   padding-top: 0.6rem;
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   color: var(--color-text);
 }
 
 .survey-computation-net strong {
   color: var(--color-teal-deep);
-  font-size: 1.15rem;
+  font-size: 0.95rem;
 }
 
 .survey-recommendation-checks {
@@ -2424,7 +3282,7 @@ button:disabled {
   margin: 1.1rem 0 0.5rem;
   padding: 0;
   border: none;
-  font-size: 0.85rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--color-muted);
   text-transform: uppercase;
@@ -2508,7 +3366,7 @@ button:disabled {
 
 .survey-action-primary {
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-teal-deep) 100%);
-  box-shadow: 0 6px 18px rgba(13, 74, 68, 0.28);
+  box-shadow: var(--shadow-card);
 }
 
 .survey-action-secondary {
@@ -2519,6 +3377,5302 @@ button:disabled {
 }
 
 .survey-action-secondary:hover {
-  background: #f0f4fa;
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
   box-shadow: none;
+}
+
+.survey-action-secondary:active {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+}
+
+/* =====================================================================
+   Decision Support Summary (Phase 16)
+   ===================================================================== */
+
+.decision-support-card {
+  background: linear-gradient(180deg, #f6f4ff 0%, #ffffff 68%);
+  border-color: #ded8fb;
+}
+
+.decision-support-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.decision-support-header h2 {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-size: 1.02rem;
+}
+
+.decision-support-header h2::after {
+  display: none;
+}
+
+.decision-support-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #7c5cd6 0%, #4a3a94 100%);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(90, 60, 180, 0.28);
+}
+
+.decision-support-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.76rem;
+  font-weight: 400;
+  color: var(--color-muted);
+  margin-top: 0.15rem;
+}
+
+.decision-support-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.decision-support-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.87rem;
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.decision-support-point-icon-ok {
+  color: #1a7a37;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.decision-support-point-icon-warn {
+  color: var(--color-error);
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.decision-support-flagged {
+  background: #fdecea;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  margin: -0.4rem -0.6rem;
+}
+
+/* =====================================================================
+   Claim Settlement card (Phase 16)
+   ===================================================================== */
+
+.settlement-card h2 {
+  display: flex;
+  align-items: center;
+}
+
+/* Assessment Summary compactness - scoped here, not on the shared
+   base .detail-panel-box/.detail-item classes (those are also used
+   elsewhere, e.g. Claim 360, which already has its own similarly
+   scoped override just above/below this file for the same reason). */
+.settlement-card {
+  padding: 1.75rem 2rem;
+}
+
+.settlement-card .claim360-card-header h2,
+.settlement-card>h2 {
+  font-size: 0.9rem;
+}
+
+.settlement-card .detail-panel-col {
+  padding: 0.6rem 0.75rem;
+  gap: 0.5rem;
+}
+
+.settlement-card .detail-label {
+  font-size: 0.66rem;
+}
+
+.settlement-card .detail-value {
+  font-size: 0.8rem;
+}
+
+.settlement-fact-grid {
+  margin-bottom: 0.9rem;
+}
+
+.settlement-editable-grid {
+  margin: 0.9rem 0 1.1rem;
+  padding: 0.9rem;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.settlement-final-amount-form {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.settlement-net-label {
+  font-weight: 700;
+  color: var(--color-text) !important;
+  font-size: 0.82rem !important;
+}
+
+.settlement-net-value {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--color-teal-deep);
+}
+
+.settlement-computed-at {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  margin: 0 0 0.75rem;
+}
+
+.settlement-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.settlement-actions-row button {
+  margin-top: 0;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+
+/* Left sidebar layout for Claims Handler / internal staff roles */
+
+.app-header-slim {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.app-header-slim nav {
+  display: none;
+}
+
+.header-right .header-user {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+}
+
+.app-body-with-sidebar {
+  display: flex;
+  height: calc(100vh - 64px);
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+  flex: 0 0 240px;
+  flex-shrink: 0;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  background: var(--color-navy);
+  border-right: 1px solid var(--color-border);
+  padding: 1.25rem 0.75rem;
+  overflow: hidden;
+}
+
+.app-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.app-sidebar nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  color: #b8c6dc;
+  font-weight: 600;
+  font-size: 0.92rem;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.app-sidebar nav a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.app-sidebar nav a.active {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(37, 99, 199, 0.25);
+}
+
+.app-shell-sidebar .app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-width: none;
+  width: auto;
+  margin: 0;
+  padding: 0 1.5rem 1.5rem;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  .app-sidebar {
+    width: 72px;
+  }
+
+  .app-sidebar nav a span {
+    display: none;
+  }
+}
+
+.app-header-slim {
+  justify-content: space-between;
+}
+
+.app-header-slim .header-right {
+  gap: 0.85rem;
+}
+
+/* Dashboard KPI ribbon - replaces the individual card-tile look
+   entirely with one continuous horizontal strip, all 8 categories in a
+   single line, separated by thin dividers instead of separate boxes. */
+
+
+/* =====================================================================
+   Claim summary - grouped, boxed detail panels (Claim/Policy/Vehicle
+   Details), each a 3-column card with stacked label-over-value pairs.
+   Mirrors the reference "Policy Details / Insured Details / Vehicle
+   Details" boxed layout instead of one long flat fact list.
+   ===================================================================== */
+
+.detail-panel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  margin-top: 1.25rem;
+}
+
+.detail-panel-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 0.6rem;
+}
+
+.detail-panel-box {
+  display: grid;
+  /* auto-fit (not a fixed repeat(3, 1fr)) so a card with fewer than 3
+     real .detail-panel-col children doesn't reserve empty grid cells
+     that show through as a bare gray block - the box now sizes to
+     however many columns are actually present, from 1 up to 3. */
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 1px;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.detail-panel-box-tint .detail-panel-col {
+  background: #eef7f6;
+}
+
+.detail-panel-col {
+  background: #fff;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.detail-label {
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.detail-value {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* Claim 360 compactness - scoped here specifically, not on the base
+   .detail-panel-box/.detail-item classes, since those are shared with
+   other pages (e.g. Liability's Assessment Summary) already tuned to
+   their own sizing. Each card is now half-page-width in the 2-column
+   grid, so the inner 3-column layout needs tighter padding/type to
+   avoid feeling cramped. */
+.claim360-page .card {
+  padding: 0.85rem 1rem;
+}
+
+.claim360-page .claim360-card-header h2 {
+  font-size: 0.85rem;
+}
+
+.claim360-page .detail-panel-col {
+  padding: 0.55rem 0.65rem;
+  gap: 0.5rem;
+}
+
+.claim360-page .detail-label {
+  font-size: 0.62rem;
+}
+
+.claim360-page .detail-value {
+  font-size: 0.78rem;
+}
+
+@media (max-width: 800px) {
+  .detail-panel-box {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Register Claim - extra spacing above the submit button */
+
+/* =====================================================================
+   Collapsible sidebar
+   ===================================================================== */
+
+.app-sidebar {
+  position: relative;
+  transition: width 0.2s ease, padding 0.2s ease;
+}
+
+.app-sidebar-toggle {
+  all: unset;
+  position: absolute;
+  top: 0.5rem;
+  right: -0.75rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  cursor: pointer;
+  z-index: 200;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.app-sidebar-toggle:hover {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.app-sidebar-collapsed {
+  width: 64px;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.app-sidebar-collapsed nav a {
+  justify-content: center;
+  padding: 0.65rem 0;
+}
+
+.app-sidebar-collapsed nav a span {
+  display: none;
+}
+
+/* =====================================================================
+   KPI tile grid - all 7 in one row, no horizontal scroll. Compact
+   sizing so 7 columns comfortably fit standard desktop widths even
+   with the sidebar taking space on the left.
+   ===================================================================== */
+
+.handler-stat-cards {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.handler-stat-cards button.stat-card {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.4rem;
+  padding: 1rem 0.6rem;
+  cursor: pointer;
+  position: relative;
+  border-right: 1px solid var(--color-border);
+  transition: background-color 0.15s ease;
+  min-width: 0;
+}
+
+.handler-stat-cards button.stat-card:last-child {
+  border-right: none;
+}
+
+.handler-stat-cards button.stat-card:hover {
+  background: #f7f9fd;
+}
+
+.handler-stat-cards button.stat-card::after {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-teal));
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
+}
+
+.handler-stat-cards button.stat-card:hover::after {
+  transform: scaleX(1);
+}
+
+.handler-stat-cards button.stat-card .stat-card-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 13px;
+  margin: 0;
+  order: -2;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(20, 24, 30, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.handler-stat-cards button.stat-card:hover .stat-card-icon {
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 0 4px 10px rgba(20, 24, 30, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.handler-stat-cards button.stat-card .stat-card-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.handler-stat-cards button.stat-card .stat-card-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  order: -1;
+}
+
+.handler-stat-cards button.stat-card .stat-card-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  color: var(--color-muted);
+  line-height: 1.25;
+  max-width: 100%;
+}
+
+@media (max-width: 1000px) {
+  .handler-stat-cards {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .handler-stat-cards button.stat-card:nth-child(4n) {
+    border-right: none;
+  }
+
+  .handler-stat-cards button.stat-card:nth-child(-n+4) {
+    border-bottom: 1px solid var(--color-border);
+  }
+}
+
+/* =====================================================================
+   My Claims filter tabs - locked to a 4x2 grid
+   ===================================================================== */
+
+.queue-filter-tabs-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.3rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.queue-filter-tabs-grid .queue-filter-tab {
+  justify-content: center;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1300px) {
+  .queue-filter-tabs-grid .queue-filter-tab {
+    padding: 0.3rem 0.4rem 0.3rem 0.7rem;
+    font-size: 0.72rem;
+    gap: 0.3rem;
+  }
+
+  .queue-filter-tabs-grid .queue-filter-tab-count {
+    min-width: 1.05rem;
+    height: 1.05rem;
+    font-size: 0.62rem;
+  }
+}
+
+/* =====================================================================
+   Search box with inline icon
+   ===================================================================== */
+
+.handler-search-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.handler-search-icon {
+  position: absolute;
+  left: 0.7rem;
+  color: var(--color-muted);
+  pointer-events: none;
+}
+
+.handler-search-wrap .handler-queue-search {
+  padding-left: 2.1rem;
+  min-width: 260px;
+  border-radius: 999px;
+  background: #f7f9fd;
+  border: 1px solid var(--color-border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.handler-search-wrap .handler-queue-search:focus {
+  background: #fff;
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(37, 99, 199, 0.14);
+}
+
+/* =====================================================================
+   Reports / queue table - richer, consistently aligned
+   ===================================================================== */
+
+.queue-table th,
+.queue-table td {
+  vertical-align: middle;
+}
+
+.queue-table th {
+  background: #f1f4f8;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.queue-table td {
+  font-size: 0.88rem;
+}
+
+.queue-table tbody tr:nth-child(even) {
+  background: #fafbfd;
+}
+
+.queue-table tbody tr:hover {
+  background: #f9f9ff !important;
+}
+
+.queue-table td:first-child,
+.queue-table th:first-child {
+  padding-left: 1.1rem;
+}
+
+/* =====================================================================
+   Reports table overflow fix - the 900px main-content cap (fine for the
+   Customer side) was too narrow for an 8-column data table on the
+   Claims Handler side, causing horizontal scroll and a cut-off last
+   column. Widen just this layout's content area instead.
+   ===================================================================== */
+
+.app-shell-sidebar .app-main {
+  max-width: 1400px;
+}
+
+/* Tighter table so it comfortably fits even on smaller windows without
+   the wide widen above. */
+.card .queue-table-wrap .queue-table th,
+.card .queue-table-wrap .queue-table td {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.card .queue-table-wrap .queue-table td:nth-child(2) {
+  white-space: normal;
+}
+
+/* Controls row (status dropdown + Export CSV) - clean right alignment,
+   matched heights, tighter gap. */
+.handler-queue-header {
+  align-items: center;
+}
+
+.handler-queue-controls {
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.handler-report-filter {
+  margin: 0;
+  height: 2.5rem;
+  border-radius: 8px;
+}
+
+.handler-queue-controls button {
+  margin: 0;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* =====================================================================
+   Register Claim (staff) form
+   ===================================================================== */
+
+.register-claim-form h2 {
+  display: flex;
+  align-items: center;
+  font-size: 1rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.register-claim-form h2:first-child {
+  margin-top: 0;
+}
+
+.register-claim-description-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.register-claim-description-row textarea {
+  flex: 1;
+  margin: 0;
+}
+
+.register-claim-form .survey-action-primary {
+  margin-top: 1.5rem;
+}
+
+/* =====================================================================
+   Register Claim - driver name, DOB, driver's license, and
+   registration certificate all on one single line together, as their
+   own fixed 4-column grid. The general-purpose .survey-grid used
+   elsewhere auto-fits columns based on available width
+   (repeat(auto-fit, minmax(220px, 1fr))), which wraps independently
+   per item - four 220px-minimum items don't reliably all fit on one
+   row at typical widths. This row uses narrower, deliberately-sized
+   columns instead so all four stay together on one line.
+   ===================================================================== */
+
+.register-claim-driver-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem 1rem;
+}
+
+/* Estimated loss / Workshop recommendation / Repair recommendation /
+   Repairer Type - same fixed 4-column approach as
+   .register-claim-driver-row above, for the same reason: the general
+   auto-fit .survey-grid (minmax(220px,1fr)) only fits 3 of these 4
+   fields per row at typical widths, pushing Repairer Type onto its
+   own line below. */
+.register-claim-repairer-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.register-claim-repairer-row select,
+.register-claim-repairer-row input {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.6rem;
+}
+
+@media (max-width: 900px) {
+  .register-claim-repairer-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .register-claim-repairer-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.register-claim-driver-row .register-claim-upload-slot {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.8rem;
+  gap: 0.4rem;
+}
+
+@media (max-width: 900px) {
+  .register-claim-driver-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .register-claim-driver-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =====================================================================
+   Register Claim - driver's license upload slot
+   ===================================================================== */
+
+.register-claim-upload-slot {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  max-width: 320px;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--color-muted);
+  background: var(--color-surface);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.register-claim-upload-slot:hover {
+  border-color: var(--color-primary);
+  background: #f7f9fd;
+}
+
+.register-claim-doc-view-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.register-claim-doc-view-link:hover {
+  text-decoration: underline;
+}
+
+/* =====================================================================
+   Register Claim - OCR results shown under the license/RC upload
+   slots, right after picking a file (see runOcr in
+   StaffRegisterClaimPage.tsx).
+   ===================================================================== */
+
+.register-claim-ocr-status {
+  margin: 0.4rem 0 0;
+  font-size: 0.76rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.register-claim-ocr-error {
+  margin: 0.4rem 0 0;
+  font-size: 0.76rem;
+  color: var(--color-error);
+}
+
+.register-claim-ocr-raw {
+  margin-top: 0.5rem;
+}
+
+.register-claim-ocr-raw summary {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.register-claim-ocr-raw pre {
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0.65rem;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-muted);
+}
+
+.register-claim-ocr-result {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: #f0f6ff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.register-claim-ocr-result p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.register-claim-ocr-result p+p {
+  margin-top: 0.15rem;
+}
+
+.register-claim-ocr-result strong {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+
+/* =====================================================================
+   Register Claim - title + inline "Find customer & policy" search,
+   side by side in one row (same pattern as Claim 360's topbar) rather
+   than the search sitting in its own separate full-width card below
+   the title.
+   ===================================================================== */
+
+.register-claim-topbar {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.register-claim-title {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.register-claim-title h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-navy);
+  white-space: nowrap;
+}
+
+.register-claim-accent {
+  width: 5px;
+  height: 2.5rem;
+  border-radius: 5px;
+  margin-right: 0.9rem;
+  background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-teal) 100%);
+}
+
+.register-claim-search-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.register-claim-search-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.register-claim-search-box {
+  position: relative;
+  height: 2.6rem;
+  flex: 1;
+  max-width: 30rem;
+  min-width: 15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.register-claim-search-box:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 199, 0.12);
+}
+
+.register-claim-search-box input {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  font-size: 0.9rem;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+}
+
+.register-claim-search-box input:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.register-claim-search-box .register-claim-suggestions {
+  top: calc(100% + 0.4rem);
+  left: 0;
+  right: 0;
+}
+
+@media (max-width: 800px) {
+  .register-claim-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .register-claim-search-box {
+    max-width: none;
+  }
+}
+
+/* =====================================================================
+   Register Claim - policy/customer lookup suggestions dropdown
+   ===================================================================== */
+
+.register-claim-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0.3rem 0 0;
+  padding: 0.35rem;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(20, 24, 30, 0.14);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.register-claim-suggestions li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+
+.register-claim-suggestions li:hover {
+  background: #eaf1fc;
+}
+
+.register-claim-suggestions li span {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.register-claim-suggestions-empty {
+  color: var(--color-muted);
+  cursor: default;
+}
+
+.register-claim-suggestions-empty:hover {
+  background: transparent;
+}
+
+/* =====================================================================
+   Register Claim - 2-column fact grid (reduces the policy/vehicle
+   detail card's height by laying out label/value pairs 2-across
+   instead of one long single-column list).
+   ===================================================================== */
+
+.fact-grid-2col {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content 1fr;
+  column-gap: 1.75rem;
+  row-gap: 0.6rem;
+}
+
+.fact-grid-2col dt {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 700px) {
+  .fact-grid-2col {
+    grid-template-columns: max-content 1fr;
+  }
+}
+
+/* =====================================================================
+   Register Claim - additional-checks toggle row
+   ===================================================================== */
+
+.register-claim-toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.register-claim-toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+}
+
+/* =====================================================================
+   Register Claim - fix checkbox alignment (the label wraps checkbox +
+   text but never got a flex display of its own).
+   ===================================================================== */
+
+.survey-field-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* Keeps Total Loss / Flag Suspicious / Pre-existing Damage checkboxes
+   together on one row instead of being interleaved into the same
+   auto-fit .survey-grid as the other fields above them (which was
+   causing the third checkbox to wrap onto its own line whenever the
+   row ran out of horizontal space). */
+/* Odometer Reading / Damage Type / Total Loss / Flag Suspicious /
+   Pre-existing Damage - all five on one row. The two inputs get a
+   sensible flexible min-width, the three checkboxes stay compact and
+   fixed-width, and the whole row scrolls horizontally on very narrow
+   viewports rather than wrapping (matching how the row above it,
+   .survey-checkbox-row, already behaves). */
+.survey-damage-top-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 1.1rem;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.survey-damage-top-row .survey-field:not(.survey-field-checkbox) {
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+
+.survey-damage-top-row .survey-field-checkbox {
+  flex: 0 0 auto;
+  max-width: 200px;
+  font-size: 0.78rem;
+  gap: 0.4rem;
+  line-height: 1.25;
+  margin-bottom: 0.6rem;
+}
+
+.survey-damage-top-row .survey-field-checkbox input[type='checkbox'] {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.survey-checkbox-row .survey-field-checkbox {
+  flex: 0 0 auto;
+  max-width: 210px;
+  font-size: 0.78rem;
+  gap: 0.4rem;
+  line-height: 1.25;
+}
+
+.survey-checkbox-row .survey-field-checkbox input[type='checkbox'] {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.survey-field-checkbox input[type='checkbox'] {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* =====================================================================
+   Register Claim - button spacing fix (the earlier rule targeted a
+   wrapper class that no longer exists after the layout redesign).
+   Scoped to .register-claim-form specifically - this used to be a bare
+   .survey-action-primary rule that leaked a top margin onto every
+   primary action button app-wide (e.g. pushed "Complete Assessment"
+   out of vertical alignment with its neighboring buttons on the
+   Survey Assessment page).
+   ===================================================================== */
+
+.register-claim-form .survey-action-primary {
+  margin-top: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* =====================================================================
+   Register Claim - extra spacing above the submit button
+   ===================================================================== */
+
+.register-claim-form .survey-action-primary,
+form .survey-action-primary {
+  margin-top: 2rem !important;
+}
+
+/* =====================================================================
+   Approval stage - Bank account details card, matching the reference
+   layout: icon + claim number header, underlined title, description
+   line naming the approved amount, then the field grid and a Back/
+   Submit action row.
+   ===================================================================== */
+
+/* No max-width here (removed) - .settlement-card and
+   .damage-items-table-card, the other two cards on this page, have no
+   width cap of their own and stretch to fill the container's full
+   width. A max-width here alone made this card visibly narrower than
+   its siblings whenever the container is wider than 900px (this page
+   can render inside .app-main up to 1400px wide on the sidebar
+   layout), independent of the padding fix already applied below. */
+/* Matches the compact scale already applied to .settlement-card and
+   .damage-items-table-card (the other two cards on the Liability
+   page) - without this, the three cards had visibly different sizing:
+   the payment form's header/title/icon were noticeably larger than
+   the Assessment Summary and Vehicle Damage Inspection cards above
+   it. */
+.bank-details-card.card {
+  padding: 1.75rem 2rem;
+}
+
+.bank-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.5rem;
+  row-gap: 0.55rem;
+}
+
+/* Compact text fields, scoped to this card only - the goal is a
+   shorter page overall (less scrolling to reach the buttons/next
+   card below), not a change to form fields anywhere else in the app. */
+.bank-details-grid .survey-field {
+  gap: 0.2rem;
+}
+
+.bank-details-grid .survey-field label,
+.bank-details-grid .payment-field-label {
+  font-size: 0.7rem;
+  margin-bottom: 0;
+}
+
+.bank-details-grid input,
+.bank-details-grid select {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  margin-bottom: 0;
+}
+
+.bank-details-grid .payment-choice-row {
+  min-height: auto;
+  gap: 0.9rem;
+}
+
+.bank-details-grid .payment-choice {
+  font-size: 0.8rem;
+  gap: 0.3rem;
+}
+
+.payment-field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+.payment-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  align-items: center;
+  min-height: 2.3rem;
+}
+
+.payment-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.payment-choice input {
+  margin: 0;
+  width: auto;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .bank-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bank-details-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.15rem;
+}
+
+.bank-details-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 50%;
+  background: #eaf1fb;
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.bank-details-claim-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.bank-details-claim-number {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.bank-details-title {
+  margin: 0 0 0.4rem;
+  /* Matches .damage-table-header h2 (Vehicle Damage Inspection, 16px)
+     and .settlement-net-value (Net Assessment, 0.98rem) - the other
+     two cards on this page - rather than a size picked in isolation. */
+  font-size: 1rem;
+}
+
+.bank-details-underline {
+  width: 2.5rem;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 2px;
+  margin-bottom: 0.7rem;
+}
+
+.bank-details-description {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  margin-bottom: 0.9rem;
+}
+
+.bank-details-net-assessment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.9rem;
+  background: #f0f6ff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+}
+
+.bank-details-net-assessment strong {
+  color: var(--color-primary);
+  font-size: 0.92rem;
+}
+
+.bank-details-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.bank-details-actions button {
+  margin-top: 0;
+  flex: 0 0 auto;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.76rem;
+}
+
+.bank-details-back-button {
+  background: #fff !important;
+  color: var(--color-text) !important;
+  border: 1px solid var(--color-border) !important;
+}
+
+.bank-details-deny-button {
+  background: #fff !important;
+  color: var(--color-error) !important;
+  border: 1px solid #f0c4c1 !important;
+}
+
+.bank-details-deny-button:hover {
+  background: #fbeceb !important;
+}
+
+/* =====================================================================
+   Inspection stage compactness pass - scoped to .survey-section (not
+   the base .card/.upload-card/.upload-grid classes, which are shared
+   app-wide) so this only tightens up the Inspection page, not every
+   other page using those same shared components.
+   ===================================================================== */
+
+.survey-section {
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.survey-section-title,
+.survey-section-title-toggle {
+  padding-bottom: 0.45rem;
+  margin-bottom: 0.75rem;
+}
+
+.survey-section-title h2 {
+  font-size: 0.9rem;
+}
+
+.survey-section-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+}
+
+.survey-section-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.survey-section label {
+  font-size: 0.78rem;
+}
+
+.survey-section input,
+.survey-section select,
+.survey-section textarea {
+  font-size: 0.85rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.survey-section .survey-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.7rem 1rem;
+}
+
+.survey-section .survey-field {
+  gap: 0.25rem;
+}
+
+.survey-section .upload-grid {
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+}
+
+.survey-section .upload-card {
+  padding: 0.6rem;
+  min-height: 4rem;
+  gap: 0.25rem;
+}
+
+.survey-section .upload-card-label {
+  font-size: 0.78rem;
+}
+
+.survey-section .upload-card-hint,
+.survey-section .upload-card-filename {
+  font-size: 0.72rem;
+}
+
+.survey-section table {
+  font-size: 0.82rem;
+}
+
+.survey-section table th,
+.survey-section table td {
+  padding: 0.4rem 0.5rem;
+}
+
+/* =====================================================================
+   Customer "My Claims" - Claim 360 dashboard (6 real-data boxes +
+   Track/Documents/Recent Activity action row), plus a compactness pass
+   scoped to .my-claim-360 and the My Claims list itself.
+   ===================================================================== */
+
+.claim360-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.claim360-action-row button {
+  margin-top: 0;
+}
+
+.claim360-box-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.claim360-box {
+  padding: 0.9rem 1rem;
+  margin-bottom: 0;
+}
+
+.claim360-box h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.claim360-box .detail-item {
+  gap: 0.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.claim360-box .detail-label {
+  font-size: 0.68rem;
+}
+
+.claim360-box .detail-value {
+  font-size: 0.82rem;
+}
+
+/* Compactness - smaller text, tighter cards, less scroll, throughout
+   the customer claims list and this new dashboard. */
+.my-claim-360 h1 {
+  font-size: 1.2rem;
+}
+
+.my-claim-360 .card,
+.my-claims-page .card {
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.my-claim-360 .card h2,
+.my-claims-page .card h2 {
+  font-size: 0.92rem;
+}
+
+.my-claim-360 .fact-grid dt,
+.my-claims-page .fact-grid dt {
+  font-size: 0.72rem;
+}
+
+.my-claim-360 .fact-grid dd,
+.my-claims-page .fact-grid dd {
+  font-size: 0.82rem;
+}
+
+.my-claims-page table {
+  font-size: 0.85rem;
+}
+
+.my-claims-page table th,
+.my-claims-page table td {
+  padding: 0.5rem 0.65rem;
+}
+
+/* =====================================================================
+   Decision Support Risk stage - compactness pass scoped to
+   .decision-support-risk-stage, mirroring the same approach used for
+   the Inspection stage's .survey-section scoping (not touching the
+   base .card/.stage-block/.timeline classes shared with other pages).
+   ===================================================================== */
+
+.decision-support-risk-stage .card {
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.decision-support-risk-stage .card h2 {
+  font-size: 0.92rem;
+}
+
+.decision-support-risk-stage .fact-grid dt {
+  font-size: 0.7rem;
+}
+
+.decision-support-risk-stage .fact-grid dd {
+  font-size: 0.82rem;
+}
+
+/* Risk scoring - Stage 1 / Stage 2 side by side instead of stacked. */
+.stage-blocks-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.decision-support-risk-stage .stage-block {
+  padding: 0.6rem 0.75rem;
+  margin-top: 0;
+}
+
+.decision-support-risk-stage .stage-block h3 {
+  font-size: 0.85rem;
+  margin: 0 0 0.4rem;
+}
+
+.decision-support-risk-stage .reasoning-text {
+  font-size: 0.78rem;
+}
+
+@media (max-width: 700px) {
+  .stage-blocks-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Request Additional Information / Decision Support Summary side by
+   side - grid so a single one present (common case) just takes the
+   full row naturally instead of leaving a stranded empty column. */
+.decision-two-col-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.decision-two-col-row .card {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+/* Record your decision / Decision history */
+.decision-support-risk-stage .decision-radio-group {
+  gap: 0.9rem;
+}
+
+.decision-support-risk-stage .decision-radio-option {
+  font-size: 0.82rem;
+}
+
+.decision-support-risk-stage .form-field {
+  margin-bottom: 0.7rem;
+}
+
+.decision-support-risk-stage .form-field label {
+  font-size: 0.78rem;
+}
+
+.decision-support-risk-stage textarea,
+.decision-support-risk-stage .decision-two-col-row textarea {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.65rem;
+}
+
+.decision-support-risk-stage button {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.decision-support-risk-stage .decision-support-header {
+  padding-bottom: 0.45rem;
+  margin-bottom: 0.7rem;
+  gap: 0.55rem;
+}
+
+.decision-support-risk-stage .decision-support-header h2 {
+  font-size: 0.9rem;
+}
+
+.decision-support-risk-stage .decision-support-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+}
+
+.decision-support-risk-stage .decision-support-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.decision-support-risk-stage .decision-support-subtitle {
+  font-size: 0.72rem;
+}
+
+.decision-support-risk-stage .decision-support-points {
+  gap: 0.4rem;
+}
+
+.decision-support-risk-stage .decision-support-points li {
+  font-size: 0.82rem;
+  align-items: flex-start;
+}
+
+
+.decision-support-risk-stage .timeline li {
+  padding: 0.45rem 0;
+  font-size: 0.78rem;
+}
+
+.decision-support-risk-stage .timeline li strong {
+  font-size: 0.85rem;
+}
+
+.decision-support-risk-stage .timeline li p {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+/* =====================================================================
+   Repair Authorization stage - Status/Date side by side, reduced tile
+   size, and a plain-text-link style for "View quotation" inline in
+   the Repair estimates timeline.
+   ===================================================================== */
+
+/* Kept as its own class rather than reusing .decision-two-col-row so
+   this row's specific needs (top margin to clear the sticky stepper
+   header, equal-height stretch per the person's explicit request)
+   can change independently of Decision Support Risk's row. */
+.repair-auth-two-col-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+  margin-top: 1.25rem;
+}
+
+.repair-auth-two-col-row .card {
+  margin-bottom: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.repair-auth-status-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.repair-auth-status-date-row .form-field {
+  flex: 1;
+  min-width: 160px;
+}
+
+.link-inline-button {
+  all: unset;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.link-inline-button:hover {
+  color: var(--color-primary-dark);
+}
+
+/* RepairAuthorizationCard - reduce its overall footprint, matching
+   the compactness already applied to Decision Support Risk. */
+.repair-authorization-card {
+  padding: 0.9rem 1.1rem;
+}
+
+.repair-authorization-card .fact-grid {
+  margin-bottom: 1rem;
+}
+
+.repair-authorization-card h2 {
+  font-size: 0.92rem;
+}
+
+.repair-authorization-card .fact-grid dt {
+  font-size: 0.7rem;
+}
+
+.repair-authorization-card .fact-grid dd {
+  font-size: 0.82rem;
+}
+
+.repair-authorization-card .form-field label {
+  font-size: 0.78rem;
+}
+
+.repair-authorization-card select,
+.repair-authorization-card input {
+  font-size: 0.85rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.repair-authorization-card button {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.repair-authorization-card .timeline li {
+  padding: 0.5rem 0;
+  font-size: 0.82rem;
+}
+
+.repair-authorization-card .timeline li strong {
+  font-size: 0.85rem;
+}
+
+.repair-authorization-card .timeline li p {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.repair-authorization-card p {
+  font-size: 0.85rem;
+}
+
+/* =====================================================================
+   Liability - per-component damage table (Depn/R&R/T&D/Painting/
+   Others editable), matching the reference Repair Assessment Order
+   layout. Compact, aligned, horizontally scrollable only if the
+   viewport genuinely can't fit it (not routinely).
+   ===================================================================== */
+
+.damage-items-table-card {
+  padding: 0.9rem 1.1rem;
+}
+
+.damage-items-table-card h2 {
+  font-size: 0.92rem;
+  margin: 0 0 0.75rem;
+}
+
+.table-scroll {
+  overflow-x: visible;
+}
+
+.damage-items-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.damage-items-table th,
+.damage-items-table td {
+  padding: 0.4rem 0.35rem;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: break-word;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.damage-items-table th {
+  font-weight: 700;
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.damage-items-table tfoot td {
+  font-weight: 700;
+  border-bottom: none;
+  border-top: 2px solid var(--color-border);
+}
+
+.damage-items-table input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font-size: 0.76rem;
+  padding: 0.3rem 0.35rem;
+}
+
+.damage-items-table-card button {
+  margin-top: 0.9rem;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+/* =====================================================================
+   Inspection stage - Survey Information / Photos & Documents parallel,
+   and Vehicle Damage Inspection / Assessment Computation parallel.
+   align-items: start (not stretch) since Vehicle Damage Inspection's
+   table can run much taller than Assessment Computation's summary -
+   stretching would leave a large awkward empty gap in the shorter one.
+   ===================================================================== */
+
+.inspection-two-col-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  align-items: stretch;
+}
+
+.inspection-two-col-row .survey-section {
+  margin-bottom: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Damage Components table is too wide to squeeze into a half-width
+   column comfortably, so it spans the full row and is visually
+   reordered above Vehicle Damage Inspection/Assessment Computation
+   (which stay paired side by side) - without needing to move its
+   large block of JSX in the component itself. */
+.survey-damage-components-section {
+  grid-column: 1 / -1;
+  order: -1;
+}
+
+@media (max-width: 900px) {
+  .inspection-two-col-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =====================================================================
+   Liability - visually reorder "Vehicle Damage Inspection" above
+   "Assessment Summary" without moving the underlying JSX (each stays
+   exactly where it already was in the component, only the flex order
+   changes) - a large physical content move here has broken this file
+   twice already, so this is deliberately the safer option.
+   ===================================================================== */
+
+.settlement-reorder-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.settlement-order-1 {
+  order: 1;
+}
+
+.settlement-order-2 {
+  order: 2;
+}
+
+/* Claims list - Age column color-coding: 7 days or less is fine
+   (green), 8-15 is starting to age (amber), over 15 needs attention
+   (red). */
+.claim-age-green {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.claim-age-amber {
+  color: #b8860b;
+  font-weight: 600;
+}
+
+.claim-age-red {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+/* =====================================================================
+   CLAIM DETAIL FINAL LAYOUT
+   Keep the top header, sidebar and claim-detail area attached.
+   This block is intentionally last so it wins over legacy rules above.
+   ===================================================================== */
+
+.app-shell-sidebar {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+}
+
+.app-shell-sidebar>.app-header {
+  flex: 0 0 64px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  max-height: 64px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  position: relative !important;
+  z-index: 100 !important;
+}
+
+.app-shell-sidebar>.app-body-with-sidebar {
+  flex: 1 1 auto !important;
+  height: calc(100vh - 64px) !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.app-shell-sidebar>.app-body-with-sidebar>.app-sidebar {
+  flex: 0 0 240px !important;
+  width: 240px !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.app-shell-sidebar>.app-body-with-sidebar>.app-sidebar.app-sidebar-collapsed {
+  flex-basis: 64px !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 64px !important;
+  overflow: hidden !important;
+}
+
+.app-shell-sidebar>.app-body-with-sidebar>.app-main {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 1.5rem 1.5rem !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+.app-shell-sidebar .claim-detail {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.app-shell-sidebar .claim-detail-sticky-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 90 !important;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 -1.5rem !important;
+  padding: 0.55rem 1.5rem 0.7rem !important;
+  box-sizing: border-box !important;
+  background: var(--color-bg) !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  box-shadow: 0 6px 12px -8px rgba(20, 24, 30, 0.15) !important;
+}
+
+.app-shell-sidebar .claim-detail-back-link {
+  position: static !important;
+  top: auto !important;
+  margin: 0 0 0.45rem !important;
+  padding: 0 !important;
+  transform: none !important;
+}
+
+.app-shell-sidebar .claim-detail-info-row {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-auto-flow: row !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 0 0.4rem !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  align-items: center !important;
+  justify-items: center !important;
+  box-sizing: border-box !important;
+}
+
+.app-shell-sidebar .claim-detail-info-item {
+  display: flex !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.35rem !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.app-shell-sidebar .claim-detail-sticky-header .lifecycle-stepper {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.app-shell-sidebar .claim-detail>*:not(.claim-detail-sticky-header) {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 900px) {
+  .app-shell-sidebar>.app-body-with-sidebar>.app-sidebar:not(.app-sidebar-collapsed) {
+    flex-basis: 72px !important;
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .app-shell-sidebar .claim-detail-info-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    row-gap: 0.4rem !important;
+  }
+
+  .app-shell-sidebar>.app-body-with-sidebar>.app-main {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  .app-shell-sidebar .claim-detail-sticky-header {
+    margin-left: -0.75rem !important;
+    margin-right: -0.75rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
+
+/* ================================================================
+   CLAIM LIFECYCLE STEPPER
+   Enhanced UI
+   ================================================================ */
+
+.lifecycle-stepper {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.15rem 0 0;
+  box-sizing: border-box;
+}
+
+/* ================================================================
+   PROGRESS TRACK
+   ================================================================ */
+
+.lifecycle-stepper-track {
+  width: 100%;
+  height: 5px;
+  margin: 0 0 1.15rem;
+  padding: 0;
+
+  background: var(--color-border);
+  border-radius: 999px;
+
+  overflow: hidden;
+  box-sizing: border-box;
+
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.lifecycle-stepper-fill {
+  height: 100%;
+
+  background: linear-gradient(90deg,
+      var(--color-success),
+      var(--color-primary));
+
+  border-radius: 999px;
+}
+
+/* ================================================================
+   STEPPER GRID
+
+   6 stages
+   5 arrows
+
+   Stage | Arrow | Stage | Arrow | Stage...
+   ================================================================ */
+
+.lifecycle-stepper-steps {
+  display: grid !important;
+
+  grid-template-columns:
+    minmax(0, 1fr) 34px minmax(0, 1fr) 34px minmax(0, 1fr) 34px minmax(0, 1fr) 34px minmax(0, 1fr) 34px minmax(0, 1fr);
+
+  align-items: start;
+
+  width: 100%;
+  min-width: 0;
+
+  margin: 0;
+  padding: 0;
+
+  gap: 0;
+
+  overflow: visible !important;
+
+  box-sizing: border-box;
+}
+
+/* ================================================================
+   ALL STAGE BUTTONS
+   ================================================================ */
+
+.lifecycle-stepper-step,
+.lifecycle-stepper-step:hover,
+.lifecycle-stepper-step:focus,
+.lifecycle-stepper-step:focus-visible,
+.lifecycle-stepper-step:active {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+
+  display: flex !important;
+
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+
+  width: 100% !important;
+  min-width: 0 !important;
+
+  height: auto !important;
+  min-height: 0 !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: none !important;
+
+  background: transparent !important;
+  background-color: transparent !important;
+
+  box-shadow: none !important;
+
+  color: var(--color-muted) !important;
+
+  font-family: inherit !important;
+  font-size: 0.74rem !important;
+  font-weight: 500 !important;
+
+  line-height: 1.25 !important;
+
+  text-align: center !important;
+
+  text-decoration: none !important;
+
+  cursor: pointer !important;
+
+  overflow: visible !important;
+
+  transition:
+    transform 160ms ease,
+    color 160ms ease !important;
+}
+
+/* ================================================================
+   HOVER
+
+   IMPORTANT:
+   No blue rectangle.
+   No underline.
+   ================================================================ */
+
+.lifecycle-stepper-step:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+
+  background: transparent !important;
+  background-color: transparent !important;
+
+  box-shadow: none !important;
+
+  text-decoration: none !important;
+}
+
+.lifecycle-stepper-step:disabled {
+  cursor: default !important;
+}
+
+/* ================================================================
+   CIRCLE
+   ================================================================ */
+
+.lifecycle-stepper-dot,
+.lifecycle-stepper-step .lifecycle-stepper-dot {
+  position: relative;
+
+  display: flex !important;
+
+  align-items: center !important;
+  justify-content: center !important;
+
+  width: 42px !important;
+  height: 42px !important;
+
+  min-width: 42px !important;
+  min-height: 42px !important;
+
+  max-width: 42px !important;
+  max-height: 42px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  box-sizing: border-box !important;
+
+  border-radius: 50% !important;
+
+  background: var(--color-bg) !important;
+
+  border: 2px solid var(--color-border) !important;
+
+  color: var(--color-muted) !important;
+
+  box-shadow:
+    0 2px 5px rgba(15, 23, 42, 0.08),
+    0 1px 2px rgba(15, 23, 42, 0.06) !important;
+
+  overflow: visible !important;
+
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease !important;
+}
+
+/* ================================================================
+   COMPLETED STAGE
+   GREEN CIRCLE + GREEN CHECK
+   ================================================================ */
+
+.lifecycle-stepper-step-complete {
+  color: var(--color-muted) !important;
+}
+
+.lifecycle-stepper-step-complete .lifecycle-stepper-dot {
+  background: #ffffff !important;
+
+  border: 2px solid var(--color-success) !important;
+
+  color: var(--color-success) !important;
+
+  box-shadow:
+    0 0 0 4px rgba(25, 135, 84, 0.08),
+    0 3px 8px rgba(15, 23, 42, 0.10) !important;
+}
+
+/* Green tick itself */
+.lifecycle-stepper-step-complete .lifecycle-stepper-dot svg {
+  color: var(--color-success) !important;
+
+  stroke: var(--color-success) !important;
+}
+
+/* Completed hover */
+
+.lifecycle-stepper-step-complete:hover:not(:disabled) .lifecycle-stepper-dot {
+  box-shadow:
+    0 0 0 5px rgba(25, 135, 84, 0.10),
+    0 5px 12px rgba(15, 23, 42, 0.13) !important;
+}
+
+/* ================================================================
+   ACTIVE STAGE
+   BLUE CIRCLE ONLY
+   ================================================================ */
+
+.lifecycle-stepper-step-active {
+  color: var(--color-text) !important;
+
+  font-weight: 650 !important;
+}
+
+.lifecycle-stepper-step-active .lifecycle-stepper-dot {
+  background: #ffffff !important;
+
+  border: 3px solid var(--color-primary) !important;
+
+  color: var(--color-primary) !important;
+
+  box-shadow:
+    0 0 0 5px rgba(23, 105, 210, 0.10),
+    0 4px 12px rgba(23, 105, 210, 0.16) !important;
+}
+
+.lifecycle-stepper-step-active .lifecycle-stepper-label {
+  color: var(--color-text) !important;
+
+  font-weight: 650 !important;
+}
+
+/* ================================================================
+   UPCOMING STAGE
+   ================================================================ */
+
+.lifecycle-stepper-step-upcoming {
+  color: var(--color-muted) !important;
+
+  font-weight: 500 !important;
+
+  opacity: 0.92;
+}
+
+.lifecycle-stepper-step-upcoming .lifecycle-stepper-dot {
+  background: #f8fafc !important;
+
+  border: 2px solid #d9dee7 !important;
+
+  color: #a0a7b2 !important;
+
+  box-shadow: none !important;
+}
+
+/* ================================================================
+   REJECTED STAGE
+   ================================================================ */
+
+.lifecycle-stepper-step-rejected {
+  color: var(--color-error) !important;
+
+  font-weight: 650 !important;
+}
+
+.lifecycle-stepper-step-rejected .lifecycle-stepper-dot {
+  background: #ffffff !important;
+
+  border: 2px solid var(--color-error) !important;
+
+  color: var(--color-error) !important;
+
+  box-shadow:
+    0 0 0 4px rgba(220, 53, 69, 0.08),
+    0 3px 8px rgba(15, 23, 42, 0.09) !important;
+}
+
+/* ================================================================
+   LABELS
+   ================================================================ */
+
+.lifecycle-stepper-label,
+.lifecycle-stepper-step:hover .lifecycle-stepper-label,
+.lifecycle-stepper-step:focus .lifecycle-stepper-label,
+.lifecycle-stepper-step:active .lifecycle-stepper-label {
+  display: block !important;
+
+  width: 100% !important;
+
+  margin: 0.55rem 0 0 !important;
+
+  padding: 0 0.2rem !important;
+
+  box-sizing: border-box !important;
+
+  color: inherit !important;
+
+  font-family: inherit !important;
+
+  font-size: inherit !important;
+
+  line-height: 1.3 !important;
+
+  font-weight: inherit !important;
+
+  text-align: center !important;
+
+  text-decoration: none !important;
+
+  white-space: normal !important;
+
+  overflow-wrap: normal !important;
+}
+
+/* ================================================================
+   ARROWS
+   ================================================================ */
+
+.lifecycle-stepper-arrow {
+  display: flex !important;
+
+  align-items: flex-start !important;
+  justify-content: center !important;
+
+  width: 34px !important;
+  min-width: 34px !important;
+
+  height: 42px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  box-sizing: border-box !important;
+
+  color: #a0a7b2 !important;
+
+  font-size: 24px !important;
+
+  font-weight: 600 !important;
+
+  line-height: 42px !important;
+
+  text-align: center !important;
+
+  background: transparent !important;
+
+  border: 0 !important;
+}
+
+.lifecycle-stepper-arrow.complete {
+  color: var(--color-success) !important;
+}
+
+/* ================================================================
+   MOBILE / SMALL SCREEN
+   ================================================================ */
+
+@media (max-width: 1000px) {
+
+  .lifecycle-stepper-steps {
+    grid-template-columns:
+      minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr);
+  }
+
+  .lifecycle-stepper-arrow {
+    width: 26px !important;
+
+    min-width: 26px !important;
+  }
+
+  .lifecycle-stepper-step {
+    font-size: 0.68rem !important;
+  }
+
+  .lifecycle-stepper-dot,
+  .lifecycle-stepper-step .lifecycle-stepper-dot {
+    width: 38px !important;
+    height: 38px !important;
+
+    min-width: 38px !important;
+    min-height: 38px !important;
+
+    max-width: 38px !important;
+    max-height: 38px !important;
+  }
+}
+
+
+/* ================================================================
+   SURVEYOR DASHBOARD - RICH FIVE-ANALYTICS LAYOUT
+   Append this to src/index.css
+   ================================================================ */
+
+.surveyor-dashboard {
+  width: 100%;
+  min-width: 0;
+  padding: 18px 20px 28px;
+  color: var(--color-text);
+}
+
+.surveyor-dashboard-hero {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 22px;
+  min-height: 150px;
+  padding: 24px 26px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(37, 99, 199, .16);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 90% 20%, rgba(255, 255, 255, .18), transparent 26%),
+    radial-gradient(circle at 75% 110%, rgba(15, 110, 99, .28), transparent 34%),
+    linear-gradient(115deg, #174f9f 0%, var(--color-primary-light) 48%, #0d5e58 100%);
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(20, 52, 94, .16);
+}
+
+.surveyor-dashboard-hero::after {
+  content: '';
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  right: -90px;
+  bottom: -210px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 34px rgba(255, 255, 255, .035),
+    0 0 0 68px rgba(255, 255, 255, .025);
+}
+
+.surveyor-hero-copy,
+.surveyor-hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.surveyor-hero-copy {
+  min-width: 0;
+}
+
+.surveyor-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, .76);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.surveyor-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #7df2ae;
+  box-shadow: 0 0 0 4px rgba(125, 242, 174, .14);
+}
+
+.surveyor-dashboard-hero h1 {
+  margin: 0 0 7px !important;
+  padding: 0 !important;
+  background: none !important;
+  color: #fff !important;
+  font-size: clamp(22px, 2.3vw, 30px) !important;
+  line-height: 1.1 !important;
+  letter-spacing: -.035em;
+}
+
+.surveyor-dashboard-hero h1::before {
+  display: none !important;
+}
+
+.surveyor-hero-copy>p {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(255, 255, 255, .82);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.surveyor-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.surveyor-hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, .15);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .09);
+  color: rgba(255, 255, 255, .9);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.surveyor-hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-width: 180px;
+}
+
+.surveyor-hero-date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+}
+
+.surveyor-hero-date span {
+  color: rgba(255, 255, 255, .62);
+  font-size: 10px;
+}
+
+.surveyor-hero-date strong {
+  color: #fff;
+  font-size: 12px;
+}
+
+.surveyor-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 13px;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 9px !important;
+  background: #fff !important;
+  color: var(--color-text) !important;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.surveyor-refresh-light {
+  border-color: rgba(255, 255, 255, .22) !important;
+  background: rgba(255, 255, 255, .12) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px);
+}
+
+.surveyor-spin {
+  animation: surveyor-spin .8s linear infinite;
+}
+
+@keyframes surveyor-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* KPI row */
+
+.surveyor-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.surveyor-kpi-card {
+  position: relative;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  min-width: 0;
+  min-height: 145px;
+  padding: 15px !important;
+  margin: 0 !important;
+  overflow: hidden;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 15px !important;
+  background: #fff !important;
+  color: var(--color-text) !important;
+  text-align: left !important;
+  box-shadow: 0 5px 20px rgba(20, 24, 30, .055) !important;
+  cursor: pointer !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;
+}
+
+.surveyor-kpi-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 14px 30px rgba(20, 24, 30, .1) !important;
+}
+
+.surveyor-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.surveyor-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  box-shadow: 0 4px 12px rgba(20, 24, 30, .08);
+}
+
+.surveyor-kpi-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f5f7fb;
+  color: #8a94a4;
+}
+
+.surveyor-kpi-value {
+  font-size: 29px;
+  line-height: 1;
+  font-weight: 850;
+  letter-spacing: -.035em;
+}
+
+.surveyor-kpi-title {
+  margin-top: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.surveyor-kpi-subtitle {
+  margin-top: 4px;
+  color: var(--color-muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.surveyor-kpi-blue .surveyor-kpi-icon {
+  background: var(--color-info-light);
+  color: var(--color-info);
+}
+
+.surveyor-kpi-amber .surveyor-kpi-icon {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.surveyor-kpi-purple .surveyor-kpi-icon {
+  background: #f1eaff;
+  color: #7040d8;
+}
+
+.surveyor-kpi-teal .surveyor-kpi-icon {
+  background: #e5f6f3;
+  color: var(--color-teal);
+}
+
+.surveyor-kpi-red .surveyor-kpi-icon {
+  background: var(--color-error-light);
+  color: var(--color-error);
+}
+
+.surveyor-kpi-green .surveyor-kpi-icon {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.surveyor-dashboard-inline-error,
+.surveyor-dashboard-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  margin-bottom: 14px;
+  border: 1px solid #ffd3d3;
+  border-radius: 10px;
+  background: #fff7f7;
+  color: #9d2323;
+  font-size: 12px;
+}
+
+.surveyor-dashboard-error {
+  min-height: 120px;
+}
+
+.surveyor-dashboard-error div {
+  flex: 1;
+}
+
+.surveyor-dashboard-error p {
+  margin: 4px 0 0;
+}
+
+/* ================================================================
+   FIVE REQUESTED PANELS
+   Dense 3-column desktop layout:
+   Workload 2 columns
+   Age 1 column
+   SLA 1 column
+   Trend 1 column
+   Alerts 1 column
+   This uses the entire content width without creating giant empty gaps.
+   ================================================================ */
+
+.surveyor-five-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(0, 1fr) minmax(0, .92fr);
+  grid-template-areas:
+    "workload workload age"
+    "sla trend alerts";
+  gap: 14px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+.surveyor-workload-panel {
+  grid-area: workload;
+  min-height: 365px;
+}
+
+.surveyor-age-panel {
+  grid-area: age;
+  min-height: 365px;
+}
+
+.surveyor-sla-panel {
+  grid-area: sla;
+  min-height: 330px;
+}
+
+.surveyor-trend-panel {
+  grid-area: trend;
+  min-height: 330px;
+}
+
+.surveyor-alert-panel {
+  grid-area: alerts;
+  min-height: 330px;
+}
+
+.surveyor-panel {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 5px 20px rgba(20, 24, 30, .055);
+}
+
+.surveyor-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 12px;
+  margin-bottom: 13px;
+  border-bottom: 1px solid #e9edf3;
+}
+
+.surveyor-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.surveyor-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #eaf3ff, #e7f6f3);
+  color: #145aa8;
+}
+
+.surveyor-section-header h2 {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  color: #111827 !important;
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+  letter-spacing: -.015em;
+}
+
+.surveyor-section-header h2::before {
+  display: none !important;
+}
+
+.surveyor-section-header p {
+  margin: 4px 0 0;
+  color: #7b8494;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.surveyor-text-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 10px;
+  font-weight: 750;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.surveyor-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 1px solid #cfeeda;
+  border-radius: 999px;
+  background: #f0fbf4;
+  color: #19763a;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.surveyor-live-badge span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #21a453;
+  box-shadow: 0 0 0 3px rgba(33, 164, 83, .1);
+}
+
+.surveyor-chart-shell {
+  min-height: 210px;
+  padding: 4px 4px 0;
+}
+
+.surveyor-workload-chart {
+  display: flex;
+  align-items: center;
+}
+
+.surveyor-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.surveyor-metric-strip>div {
+  padding: 10px;
+  border: 1px solid #edf0f4;
+  border-radius: 10px;
+  background: #fafbfd;
+}
+
+.surveyor-metric-strip strong {
+  display: block;
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.surveyor-metric-strip span {
+  display: block;
+  margin-top: 4px;
+  color: #7b8494;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+/* age */
+
+.surveyor-age-overview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.surveyor-age-total,
+.surveyor-age-warning {
+  padding: 12px;
+  border-radius: 11px;
+  background: #f7f9fc;
+  border: 1px solid #edf0f4;
+}
+
+.surveyor-age-total strong,
+.surveyor-age-warning strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.surveyor-age-total span,
+.surveyor-age-warning span {
+  display: block;
+  margin-top: 5px;
+  color: #7b8494;
+  font-size: 9px;
+}
+
+.surveyor-age-warning {
+  background: #fff8eb;
+  border-color: #ffe6b5;
+}
+
+.surveyor-age-warning strong {
+  color: #c36d00;
+}
+
+.surveyor-age-list {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.surveyor-age-row {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr) 26px;
+  align-items: center;
+  gap: 8px;
+}
+
+.surveyor-age-label {
+  color: #596273;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.surveyor-age-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf1f6;
+}
+
+.surveyor-age-fill {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  transition: width .35s ease;
+}
+
+.surveyor-age-row strong {
+  text-align: right;
+  font-size: 10px;
+}
+
+.surveyor-panel-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 17px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.surveyor-panel-callout.warning {
+  border: 1px solid #ffe0a6;
+  background: #fff9ed;
+  color: #9a6400;
+}
+
+/* SLA */
+
+.surveyor-sla-main {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: center;
+  gap: 15px;
+}
+
+.surveyor-sla-ring {
+  position: relative;
+  width: 145px;
+  height: 145px;
+  margin: 0 auto;
+}
+
+.surveyor-sla-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.surveyor-sla-ring-bg {
+  fill: none;
+  stroke: #edf1f5;
+  stroke-width: 9;
+}
+
+.surveyor-sla-ring-progress {
+  fill: none;
+  stroke: #16934d;
+  stroke-width: 9;
+  stroke-linecap: round;
+  filter: drop-shadow(0 3px 5px rgba(22, 147, 77, .18));
+  transition: stroke-dasharray .45s ease;
+}
+
+.surveyor-sla-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.surveyor-sla-ring-label strong {
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.surveyor-sla-ring-label span {
+  margin-top: 5px;
+  color: #738093;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.surveyor-sla-stat-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.surveyor-sla-stat {
+  position: relative;
+  display: grid;
+  grid-template-columns: 7px 1fr auto;
+  align-items: center;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid #edf0f4;
+  border-radius: 9px;
+  background: #fafbfd;
+}
+
+.surveyor-sla-stat>span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.surveyor-sla-stat.red>span {
+  background: #dc3545;
+}
+
+.surveyor-sla-stat.amber>span {
+  background: #f59e0b;
+}
+
+.surveyor-sla-stat.green>span {
+  background: #16934d;
+}
+
+.surveyor-sla-stat strong {
+  font-size: 16px;
+}
+
+.surveyor-sla-stat small {
+  color: #778194;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.surveyor-sla-progress {
+  margin-top: 16px;
+}
+
+.surveyor-sla-progress>div:first-child {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.surveyor-sla-progress span,
+.surveyor-sla-progress strong {
+  font-size: 9px;
+}
+
+.surveyor-sla-progress span {
+  color: #7a8494;
+}
+
+.surveyor-sla-progress-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf1f5;
+}
+
+.surveyor-sla-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #16934d, #46b86f);
+}
+
+.surveyor-sla-thresholds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.surveyor-sla-thresholds span {
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: #f5f7fa;
+  color: #737d8e;
+  font-size: 8px;
+  font-weight: 650;
+}
+
+/* trend */
+
+.surveyor-trend-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.surveyor-trend-summary>div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.surveyor-trend-summary strong {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.surveyor-trend-summary span {
+  margin-top: 4px;
+  color: #7a8494;
+  font-size: 9px;
+}
+
+.surveyor-trend-direction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid #d7eee5;
+  border-radius: 999px;
+  background: #f2fbf7;
+  color: #17804a;
+  font-size: 8px !important;
+  font-weight: 750;
+}
+
+.surveyor-trend-chart {
+  min-height: 175px;
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.surveyor-trend-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 3px;
+  color: #929aaa;
+  font-size: 8px;
+}
+
+/* alerts */
+
+.surveyor-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.surveyor-alert-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto 16px;
+  align-items: center;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid #edf0f4;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+
+.surveyor-alert-item:hover {
+  transform: translateX(2px);
+  border-color: #d8e1ed;
+  box-shadow: 0 6px 15px rgba(20, 24, 30, .07);
+}
+
+.surveyor-alert-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+
+.surveyor-alert-icon.danger {
+  background: var(--color-error-light);
+  color: var(--color-error);
+}
+
+.surveyor-alert-icon.warning {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.surveyor-alert-icon.info {
+  background: var(--color-info-light);
+  color: var(--color-info);
+}
+
+.surveyor-alert-icon.success {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.surveyor-alert-copy {
+  min-width: 0;
+}
+
+.surveyor-alert-copy strong,
+.surveyor-alert-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.surveyor-alert-copy strong {
+  color: #252b35;
+  font-size: 10px;
+}
+
+.surveyor-alert-copy small {
+  margin-top: 3px;
+  color: #8790a0;
+  font-size: 8px;
+}
+
+.surveyor-alert-count {
+  min-width: 24px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: #f4f6f9;
+  color: #4e596a;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.surveyor-alert-arrow {
+  color: #9aa3b1;
+}
+
+.surveyor-attention-footer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 11px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #f7f9fc, #f2f7fb);
+  color: #687487;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+/* Existing recent claims section */
+
+.surveyor-recent-panel {
+  margin-bottom: 16px;
+}
+
+.surveyor-recent-table-wrap {
+  overflow-x: auto;
+}
+
+.surveyor-recent-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.surveyor-recent-table th {
+  padding: 9px 10px;
+  border-bottom: 1px solid #e8ecf2;
+  color: #7d8797;
+  font-size: 9px;
+  font-weight: 800;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.surveyor-recent-table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid #f0f2f5;
+  font-size: 10px;
+}
+
+.surveyor-recent-table tbody tr {
+  cursor: pointer;
+  transition: background .15s ease;
+}
+
+.surveyor-recent-table tbody tr:hover {
+  background: #f8fafd;
+}
+
+.surveyor-claim-number {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.surveyor-claim-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+  background: #eaf2ff;
+  color: var(--color-primary-light);
+  font-size: 8px;
+  font-weight: 850;
+}
+
+.surveyor-claim-number div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.surveyor-claim-number strong {
+  font-size: 10px;
+}
+
+.surveyor-claim-number span:last-child {
+  color: #8a94a4;
+  font-size: 8px;
+}
+
+.surveyor-customer-name {
+  font-weight: 650;
+}
+
+.surveyor-status-pill {
+  display: inline-flex;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.surveyor-status-pill.success {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.surveyor-status-pill.warning {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
+
+.surveyor-status-pill.danger {
+  background: var(--color-error-light);
+  color: var(--color-error);
+}
+
+.surveyor-status-pill.info {
+  background: var(--color-info-light);
+  color: var(--color-info);
+}
+
+.surveyor-status-pill.neutral {
+  background: var(--color-border);
+  color: var(--color-muted);
+}
+
+.surveyor-age,
+.surveyor-date {
+  color: #697486;
+  font-weight: 650;
+}
+
+.surveyor-row-arrow {
+  color: #9aa3b1;
+}
+
+.surveyor-empty-state {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #7a8494;
+  text-align: center;
+}
+
+.surveyor-empty-state strong {
+  color: #303744;
+  font-size: 12px;
+}
+
+.surveyor-empty-state span {
+  font-size: 9px;
+}
+
+/* Responsive */
+
+@media (max-width: 1250px) {
+  .surveyor-five-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "workload workload"
+      "age sla"
+      "trend alerts";
+  }
+
+  .surveyor-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .surveyor-dashboard {
+    padding: 12px;
+  }
+
+  .surveyor-dashboard-hero {
+    flex-direction: column;
+  }
+
+  .surveyor-hero-actions {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .surveyor-hero-date {
+    text-align: left;
+  }
+
+  .surveyor-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .surveyor-five-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "workload"
+      "age"
+      "sla"
+      "trend"
+      "alerts";
+  }
+
+  .surveyor-sla-main {
+    grid-template-columns: 135px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .surveyor-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .surveyor-sla-main {
+    grid-template-columns: 1fr;
+  }
+
+  .surveyor-sla-ring {
+    width: 135px;
+    height: 135px;
+  }
+
+  .surveyor-metric-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* =========================================================
+   CLAIM SUMMARY - COMPACT HORIZONTAL ALIGNMENT
+   ========================================================= */
+
+.claim-summary-card {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 18px !important;
+  overflow: hidden;
+}
+
+.claim-summary-card-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 18px !important;
+}
+
+/* Individual claim information fields */
+.claim-summary-field {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Reduce the gap between the label and its value */
+.claim-summary-field-label {
+  margin-bottom: 2px !important;
+  font-size: 11px !important;
+  line-height: 1.1;
+}
+
+.claim-summary-field-value {
+  font-size: 16px !important;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Give the fields controlled widths */
+.claim-summary-field.claim-number {
+  width: 205px;
+}
+
+.claim-summary-field.status {
+  width: 165px;
+}
+
+.claim-summary-field.customer {
+  width: 175px;
+}
+
+.claim-summary-field.incident-date {
+  width: 150px;
+}
+
+/* Action buttons stay together */
+.claim-summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px !important;
+  margin-left: auto !important;
+  flex-shrink: 0;
+}
+
+/* Compact action buttons */
+.claim-summary-actions button {
+  height: 42px !important;
+  padding: 0 14px !important;
+  white-space: nowrap;
+}
+
+/* Documents / Activity etc. */
+.claim-summary-actions .badge,
+.claim-summary-actions span {
+  white-space: nowrap;
+}
+
+/* Prevent the card from creating horizontal scrolling */
+.claim-summary-card,
+.claim-summary-card-inner {
+  max-width: 100%;
+}
+
+/* =========================================================
+   SMALLER DESKTOP WIDTHS
+   ========================================================= */
+
+@media (max-width: 1300px) {
+  .claim-summary-card-inner {
+    gap: 12px !important;
+  }
+
+  .claim-summary-field.claim-number {
+    width: 175px;
+  }
+
+  .claim-summary-field.status {
+    width: 140px;
+  }
+
+  .claim-summary-field.customer {
+    width: 150px;
+  }
+
+  .claim-summary-field.incident-date {
+    width: 130px;
+  }
+
+  .claim-summary-actions {
+    gap: 6px !important;
+  }
+
+  .claim-summary-actions button {
+    padding: 0 10px !important;
+  }
+}
+
+/* ================================================================
+   FINAL MODAL LAYER FIX
+   Put this at the VERY BOTTOM of src/index.css
+   ================================================================ */
+
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+
+  width: 100vw !important;
+  height: 100vh !important;
+
+  box-sizing: border-box !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 24px !important;
+
+  background: rgba(15, 18, 22, 0.62) !important;
+
+  z-index: 2147483647 !important;
+
+  isolation: isolate !important;
+
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+
+  overscroll-behavior: contain !important;
+}
+
+.modal-panel {
+  position: relative !important;
+
+  z-index: 2147483647 !important;
+
+  width: min(560px, calc(100vw - 48px)) !important;
+  max-width: 560px !important;
+
+  max-height: calc(100vh - 48px) !important;
+
+  margin: auto !important;
+
+  padding: 28px !important;
+
+  box-sizing: border-box !important;
+
+  background: var(--color-surface, #ffffff) !important;
+
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+
+  border-radius: 20px !important;
+
+  box-shadow:
+    0 35px 90px rgba(15, 23, 42, 0.32),
+    0 12px 35px rgba(15, 23, 42, 0.18) !important;
+
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+
+  flex: 0 1 auto !important;
+  flex-shrink: 0 !important;
+
+  transform: none !important;
+}
+
+/* Modal content */
+.modal-panel h1,
+.modal-panel h2,
+.modal-panel h3,
+.modal-panel h4 {
+  margin-top: 0;
+}
+
+.modal-panel p {
+  line-height: 1.55;
+}
+
+/* Modal buttons */
+.modal-panel button {
+  position: relative;
+  z-index: 2;
+}
+
+/* Confirmation content */
+.payment-confirmation {
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  width: 100%;
+
+  text-align: center;
+
+  gap: 14px;
+}
+
+.payment-confirmation-icon {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  color: var(--color-success) !important;
+}
+
+.payment-confirmation-details {
+  display: grid;
+
+  grid-template-columns: max-content minmax(0, 1fr);
+
+  column-gap: 16px;
+
+  row-gap: 8px;
+
+  width: 100%;
+
+  box-sizing: border-box;
+
+  padding: 14px 16px;
+
+  text-align: left;
+
+  background: #f7f9fc;
+
+  border: 1px solid var(--color-border);
+
+  border-radius: var(--radius, 10px);
+}
+
+.payment-confirmation-details dt {
+  font-size: 0.78rem;
+
+  color: var(--color-muted);
+
+  font-weight: 600;
+}
+
+.payment-confirmation-details dd {
+  margin: 0;
+
+  min-width: 0;
+
+  font-size: 0.9rem;
+
+  font-weight: 600;
+
+  color: var(--color-text);
+
+  overflow-wrap: anywhere;
+}
+
+.payment-confirmation-description {
+  margin: 0;
+
+  color: var(--color-text);
+
+  line-height: 1.55;
+}
+
+/* Modal action buttons */
+.modal-panel .modal-actions,
+.modal-panel .payment-confirmation-actions {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 12px;
+
+  width: 100%;
+
+  margin-top: 20px;
+
+  flex-wrap: wrap;
+}
+
+/* OTP */
+.otp-input-row {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 12px;
+
+  margin: 20px 0;
+}
+
+.otp-input-boxes {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 8px;
+
+  flex-wrap: wrap;
+}
+
+/* ================================================================
+   Make sure Claim Detail elements NEVER appear above modal
+   ================================================================ */
+
+.claim-detail-sticky-header {
+  z-index: 90 !important;
+}
+
+.lifecycle-stepper {
+  position: relative;
+  z-index: 1 !important;
+}
+
+/* ================================================================
+   Responsive modal
+   ================================================================ */
+
+@media (max-width: 700px) {
+  .modal-backdrop {
+    align-items: flex-start !important;
+
+    padding: 16px !important;
+  }
+
+  .modal-panel {
+    width: calc(100vw - 32px) !important;
+
+    max-width: none !important;
+
+    max-height: calc(100vh - 32px) !important;
+
+    margin: auto 0 !important;
+
+    padding: 20px !important;
+
+    border-radius: 16px !important;
+  }
+
+  .payment-confirmation-details {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-panel .modal-actions,
+  .modal-panel .payment-confirmation-actions {
+    flex-direction: column;
+  }
+
+  .modal-panel .modal-actions button,
+  .modal-panel .payment-confirmation-actions button {
+    width: 100%;
+  }
+}
+
+.modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 24px !important;
+  box-sizing: border-box !important;
+
+  background: rgba(15, 23, 42, 0.62) !important;
+
+  z-index: 2147483647 !important;
+
+  isolation: isolate !important;
+
+  overflow: auto !important;
+}
+
+.modal-panel {
+  position: relative !important;
+
+  z-index: 2147483647 !important;
+
+  width: min(600px, calc(100vw - 48px)) !important;
+  max-width: 600px !important;
+
+  max-height: calc(100vh - 48px) !important;
+
+  margin: auto !important;
+
+  box-sizing: border-box !important;
+
+  background: #fff !important;
+
+  border-radius: 20px !important;
+
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+
+  box-shadow:
+    0 30px 80px rgba(15, 23, 42, 0.30),
+    0 10px 30px rgba(15, 23, 42, 0.18) !important;
+
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+/* ============================================================
+   LIFECYCLE - COMPLETELY LOCK POSITION ON HOVER / CLICK
+   ============================================================ */
+
+/* Lock the entire step */
+.lifecycle-stepper-step,
+.lifecycle-stepper-step:hover,
+.lifecycle-stepper-step:active,
+.lifecycle-stepper-step:focus,
+.lifecycle-stepper-step:focus-visible {
+  position: relative !important;
+
+  top: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  transform: none !important;
+
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+
+  translate: none !important;
+
+  transition:
+    color 150ms ease,
+    background-color 150ms ease !important;
+}
+
+
+/* Lock the circle itself */
+.lifecycle-stepper-dot,
+.lifecycle-stepper-step:hover .lifecycle-stepper-dot,
+.lifecycle-stepper-step:active .lifecycle-stepper-dot,
+.lifecycle-stepper-step:focus .lifecycle-stepper-dot,
+.lifecycle-stepper-step:focus-visible .lifecycle-stepper-dot {
+  position: relative !important;
+
+  top: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  transform: none !important;
+
+  translate: none !important;
+
+  width: 38px !important;
+  height: 38px !important;
+
+  min-width: 38px !important;
+  min-height: 38px !important;
+
+  max-width: 38px !important;
+  max-height: 38px !important;
+
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+
+  box-sizing: border-box !important;
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease !important;
+}
+
+
+/* Lock the SVG too */
+.lifecycle-stepper-dot svg,
+.lifecycle-stepper-step:hover .lifecycle-stepper-dot svg,
+.lifecycle-stepper-step:active .lifecycle-stepper-dot svg,
+.lifecycle-stepper-step:focus .lifecycle-stepper-dot svg,
+.lifecycle-stepper-step:focus-visible .lifecycle-stepper-dot svg {
+  position: relative !important;
+
+  top: 0 !important;
+  left: 0 !important;
+
+  transform: none !important;
+
+  translate: none !important;
+
+  width: 17px !important;
+  height: 17px !important;
+
+  margin: 0 !important;
+}
+
+
+/* Lock the label */
+.lifecycle-stepper-label,
+.lifecycle-stepper-step:hover .lifecycle-stepper-label,
+.lifecycle-stepper-step:active .lifecycle-stepper-label,
+.lifecycle-stepper-step:focus .lifecycle-stepper-label {
+  position: relative !important;
+
+  top: 0 !important;
+  left: 0 !important;
+
+  transform: none !important;
+
+  translate: none !important;
+
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+
+/* ============================================================
+   HOVER ONLY CHANGES COLOR
+   ============================================================ */
+
+
+
+
+/* ============================================================
+   COMPLETED CHECK
+   ============================================================ */
+
+.lifecycle-stepper-step-complete .lifecycle-stepper-dot {
+  background: var(--color-success) !important;
+
+  border-color: var(--color-success) !important;
+
+  color: #ffffff !important;
+}
+
+/* Universal tick fix - the equivalent rule further down in this file
+   (search "COMPLETED TICK") only applies inside .claim-detail-sticky-
+   header, which is why the checkmark shows correctly on the claim
+   detail page's own stepper but was invisible/unstyled anywhere else
+   this same ClaimLifecycleStepper component is used (e.g. Track
+   Claim's TrackClaimCard) - there was no unscoped equivalent setting
+   the SVG's own stroke color, so it never inherited white here. */
+.lifecycle-stepper-step-complete .lifecycle-stepper-dot svg {
+  color: #ffffff !important;
+
+  stroke: #ffffff !important;
+
+  width: 18px !important;
+  height: 18px !important;
+
+  stroke-width: 3 !important;
+
+  transform: none !important;
+}
+
+
+/* ============================================================
+   ACTIVE
+   ============================================================ */
+
+.lifecycle-stepper-step-active .lifecycle-stepper-dot {
+  transform: none !important;
+
+  translate: none !important;
+
+  background: #ffffff !important;
+
+  border-color: var(--color-primary) !important;
+
+  color: var(--color-primary) !important;
+
+  box-shadow:
+    0 0 0 5px rgba(37, 99, 199, 0.12) !important;
+}
+
+
+/* ============================================================
+   IMPORTANT:
+   REMOVE ANY SCALE / TRANSLATE ANIMATION
+   ============================================================ */
+
+.lifecycle-stepper-step:hover,
+.lifecycle-stepper-step:active,
+.lifecycle-stepper-step:focus,
+.lifecycle-stepper-step:focus-visible,
+.lifecycle-stepper-dot:hover,
+.lifecycle-stepper-dot:active,
+.lifecycle-stepper-dot:focus {
+  scale: none !important;
+
+  translate: none !important;
+
+  transform: none !important;
+}
+
+/* ============================================================
+   CLAIM LIFECYCLE
+   SINGLE HORIZONTAL ROW
+   NAME -> CIRCLE -> ARROW
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
+/* Progress line */
+.claim-detail-sticky-header .lifecycle-stepper-track {
+  width: 100%;
+  height: 3px;
+  margin: 0 0 14px;
+
+  background: #dfe4e8;
+  border-radius: 999px;
+
+  overflow: hidden;
+}
+
+.claim-detail-sticky-header .lifecycle-stepper-fill {
+  height: 100%;
+
+  background: var(--color-success);
+
+  border-radius: 999px;
+}
+
+
+/* ============================================================
+   ALL SIX STAGES = ONE ROW
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-steps {
+  display: flex !important;
+
+  flex-direction: row !important;
+
+  flex-wrap: nowrap !important;
+
+  align-items: center !important;
+
+  justify-content: space-between !important;
+
+  width: 100%;
+
+  min-width: 0;
+
+  margin: 0;
+  padding: 0;
+
+  box-sizing: border-box;
+}
+
+
+/* ============================================================
+   EACH STAGE
+
+   NAME + CIRCLE + ARROW
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-item {
+  display: flex !important;
+
+  flex-direction: row !important;
+
+  align-items: center !important;
+
+  flex: 1 1 0;
+
+  min-width: 0;
+
+  height: 48px;
+
+  margin: 0;
+  padding: 0;
+
+  box-sizing: border-box;
+}
+
+
+/* ============================================================
+   BUTTON
+
+   NAME FIRST
+   CIRCLE SECOND
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step {
+  display: flex !important;
+
+  flex-direction: row !important;
+
+  align-items: center !important;
+
+  justify-content: flex-end !important;
+
+  flex: 1 1 auto;
+
+  min-width: 0;
+
+  height: 48px;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  gap: 10px;
+
+  border: 0;
+
+  background: transparent;
+
+  color: #59636e;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  box-sizing: border-box;
+
+  position: relative;
+
+  top: 0 !important;
+  left: 0 !important;
+
+  transform: none !important;
+  translate: none !important;
+}
+
+
+/* ============================================================
+   LABEL
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-label {
+  display: block;
+
+  flex: 0 1 auto;
+
+  min-width: 0;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  font-size: 13px;
+
+  line-height: 1;
+
+  font-weight: 600;
+
+  color: inherit;
+
+  white-space: nowrap;
+
+  text-align: right;
+
+  position: relative;
+
+  top: 0 !important;
+
+  transform: none !important;
+}
+
+
+/* ============================================================
+   CIRCLE
+
+   ALWAYS 38 x 38
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-dot {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  flex: 0 0 38px;
+
+  width: 38px !important;
+  height: 38px !important;
+
+  min-width: 38px !important;
+  min-height: 38px !important;
+
+  max-width: 38px !important;
+  max-height: 38px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  box-sizing: border-box;
+
+  border: 2px solid var(--color-disabled-text);
+
+  border-radius: 50%;
+
+  background: #fff;
+
+  color: var(--color-disabled-text);
+
+  position: relative;
+
+  top: 0 !important;
+  left: 0 !important;
+
+  transform: none !important;
+  translate: none !important;
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+
+/* ============================================================
+   ICON
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-dot svg {
+  width: 17px !important;
+  height: 17px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  transform: none !important;
+}
+
+
+/* ============================================================
+   ARROW
+
+   FIXED BETWEEN STAGES
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-arrow {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 32px;
+
+  width: 32px;
+  height: 48px;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  color: #8c98a4;
+
+  font-size: 22px;
+
+  line-height: 1;
+
+  box-sizing: border-box;
+
+  position: relative;
+
+  top: 0 !important;
+
+  transform: none !important;
+  translate: none !important;
+}
+
+
+/* Completed arrow */
+.claim-detail-sticky-header .lifecycle-stepper-arrow.complete {
+  color: var(--color-success);
+}
+
+
+/* ============================================================
+   COMPLETED
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step-complete .lifecycle-stepper-dot {
+  background: var(--color-success);
+
+  border-color: var(--color-success);
+
+  color: white;
+}
+
+
+/* Tick */
+.claim-detail-sticky-header .lifecycle-stepper-step-complete .lifecycle-stepper-dot svg {
+  width: 18px !important;
+  height: 18px !important;
+
+  stroke-width: 3 !important;
+}
+
+
+/* Completed label */
+.claim-detail-sticky-header .lifecycle-stepper-step-complete .lifecycle-stepper-label {
+  color: var(--color-success);
+
+  font-weight: 700;
+}
+
+
+/* ============================================================
+   ACTIVE
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step-active .lifecycle-stepper-dot {
+  background: white;
+
+  border-color: var(--color-primary);
+
+  color: var(--color-primary);
+
+  box-shadow:
+    0 0 0 5px rgba(37, 99, 199, 0.12);
+
+  transform: none !important;
+}
+
+
+/* ============================================================
+   HOVER
+
+   ONLY COLOR CHANGES
+   ============================================================ */
+
+.claim-detail-sticky-header
+/* ============================================================
+   CLOSURE
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step-closure .lifecycle-stepper-dot {
+  border-color: var(--color-primary);
+
+  color: var(--color-primary);
+
+  background: white;
+}
+
+
+/* Closure hover */
+.claim-detail-sticky-header .lifecycle-stepper-step-closure:hover .lifecycle-stepper-dot {
+  background: var(--color-primary);
+
+  border-color: var(--color-primary);
+
+  color: white;
+}
+
+
+/* ============================================================
+   NEVER MOVE ANYTHING
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step:hover,
+.claim-detail-sticky-header .lifecycle-stepper-step:active,
+.claim-detail-sticky-header .lifecycle-stepper-step:focus,
+.claim-detail-sticky-header .lifecycle-stepper-step:focus-visible,
+.claim-detail-sticky-header .lifecycle-stepper-dot,
+.claim-detail-sticky-header .lifecycle-stepper-dot:hover,
+.claim-detail-sticky-header .lifecycle-stepper-dot:active {
+  transform: none !important;
+
+  translate: none !important;
+
+  top: 0 !important;
+
+  left: 0 !important;
+}
+
+
+/* ============================================================
+   DESKTOP
+   ============================================================ */
+
+@media (min-width: 1200px) {
+
+  .claim-detail-sticky-header .lifecycle-stepper-label {
+    font-size: 13px;
+  }
+
+  .claim-detail-sticky-header .lifecycle-stepper-dot {
+    width: 38px !important;
+    height: 38px !important;
+  }
+}
+
+
+/* ============================================================
+   SMALLER SCREENS
+
+   Still ONE horizontal row.
+   It scrolls horizontally instead of wrapping.
+   ============================================================ */
+
+@media (max-width: 1100px) {
+
+  .claim-detail-sticky-header .lifecycle-stepper {
+    overflow-x: auto;
+
+    overflow-y: hidden;
+  }
+
+  .claim-detail-sticky-header .lifecycle-stepper-steps {
+    width: 1050px;
+
+    min-width: 1050px;
+
+    justify-content: flex-start !important;
+  }
+}
+
+/* ============================================================
+   HOVER: WHITE INSIDE, GREEN BORDER
+   ============================================================ */
+
+.claim-detail-sticky-header
+
+/* Closure hover stays white with blue border */
+.claim-detail-sticky-header .lifecycle-stepper-step-closure:hover .lifecycle-stepper-dot {
+  background: #ffffff !important;
+
+  border-color: var(--color-primary) !important;
+
+  color: var(--color-primary) !important;
+
+  box-shadow:
+    0 0 0 5px rgba(37, 99, 199, 0.12) !important;
+
+  transform: none !important;
+}
+
+/* ============================================================
+   FINAL HOVER OVERRIDE
+   WHITE INSIDE THE CIRCLE
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step:hover .lifecycle-stepper-dot,
+.claim-detail-sticky-header .lifecycle-stepper-step:active .lifecycle-stepper-dot,
+.claim-detail-sticky-header .lifecycle-stepper-step:focus .lifecycle-stepper-dot {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+
+  color: var(--color-primary) !important;
+
+  border: 2px solid var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+
+  box-shadow: 0 0 0 5px rgba(37, 99, 199, 0.12) !important;
+
+  transform: none !important;
+  translate: none !important;
+}
+
+
+/* ============================================================
+   CLOSURE HOVER
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step-closure:hover .lifecycle-stepper-dot,
+.claim-detail-sticky-header .lifecycle-stepper-step-closure:active .lifecycle-stepper-dot,
+.claim-detail-sticky-header .lifecycle-stepper-step-closure:focus .lifecycle-stepper-dot {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+
+  color: var(--color-primary) !important;
+
+  border: 2px solid var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+
+  box-shadow: 0 0 0 5px rgba(37, 99, 199, 0.12) !important;
+
+  transform: none !important;
+  translate: none !important;
+}
+
+/* ============================================================
+   INCOMPLETE STAGE HOVER
+   White inside, green border
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step:not(.lifecycle-stepper-step-complete):hover .lifecycle-stepper-dot {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+
+  border-color: var(--color-primary) !important;
+
+  color: var(--color-primary) !important;
+
+  box-shadow:
+    0 0 0 5px rgba(37, 99, 199, 0.12) !important;
+
+  transform: none !important;
+  translate: none !important;
+}
+
+
+/* ============================================================
+   COMPLETED STAGE
+   Always green + white tick
+   EVEN WHEN MOUSE IS OVER IT
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step-complete .lifecycle-stepper-dot,
+.claim-detail-sticky-header .lifecycle-stepper-step-complete:hover .lifecycle-stepper-dot,
+.claim-detail-sticky-header .lifecycle-stepper-step-complete:active .lifecycle-stepper-dot,
+.claim-detail-sticky-header .lifecycle-stepper-step-complete:focus .lifecycle-stepper-dot {
+  background: var(--color-success) !important;
+  background-color: var(--color-success) !important;
+
+  border-color: var(--color-success) !important;
+
+  color: #ffffff !important;
+
+  box-shadow: none !important;
+
+  transform: none !important;
+  translate: none !important;
+}
+
+
+/* ============================================================
+   COMPLETED TICK
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step-complete .lifecycle-stepper-dot svg,
+.claim-detail-sticky-header .lifecycle-stepper-step-complete:hover .lifecycle-stepper-dot svg {
+  color: #ffffff !important;
+
+  stroke: #ffffff !important;
+
+  width: 18px !important;
+  height: 18px !important;
+
+  stroke-width: 3 !important;
+
+  transform: none !important;
+}
+
+
+/* ============================================================
+   CLOSURE HOVER
+   ============================================================ */
+
+.claim-detail-sticky-header .lifecycle-stepper-step-closure:not(.lifecycle-stepper-step-complete):hover .lifecycle-stepper-dot {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+
+  border-color: var(--color-primary) !important;
+
+  color: var(--color-primary) !important;
+
+  box-shadow:
+    0 0 0 5px rgba(37, 99, 199, 0.12) !important;
+}
+
+/* ============================================================
+   COMPLETED TICK - FINAL, UNCONDITIONAL OVERRIDE
+   ============================================================
+   Appended at the very end of this file on purpose. This exact
+   checkmark-visibility fix was already added higher up (search
+   "Universal tick fix") and should have been sufficient on its own,
+   but it was reported as still not visible after a confirmed save +
+   hard refresh. Rather than keep hunting through the many overlapping
+   .lifecycle-stepper-dot rules earlier in this file for whatever is
+   still winning, this rule is placed last (wins any source-order tie)
+   and repeats its own class twice (boosts specificity above any
+   single-class-repeated selector earlier in the file) so it cannot be
+   beaten by anything above it, whatever that turns out to be. */
+.lifecycle-stepper-step-complete.lifecycle-stepper-step-complete .lifecycle-stepper-dot.lifecycle-stepper-dot svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+  fill: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+  stroke-width: 3 !important;
+  transform: none !important;
+}
+
+/* =====================================================================
+   My Claims - compact Previous/Next pagination (replaces the earlier
+   "View more" accumulate-style button with real fixed-size pages).
+   ===================================================================== */
+
+.claims-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.claims-pagination-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+}
+
+.claims-pagination-button:hover:not(:disabled) {
+  background: #eaf1fc;
+  border-color: var(--color-primary-light);
+  box-shadow: none;
+  color: var(--color-primary-dark);
+}
+
+.claims-pagination-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.claims-pagination-status {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* =====================================================================
+   Reports page - preview table wraps text instead of forcing single-
+   line cells (the .card .queue-table-wrap .queue-table white-space:
+   nowrap rule is shared with other pages like My Claims, which have
+   fewer/shorter columns and don't need this - scoped here rather than
+   changed globally).
+   ===================================================================== */
+
+.reports-table-wrap {
+  overflow-x: visible;
+}
+
+.reports-table-wrap .queue-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.reports-table-wrap .queue-table th,
+.reports-table-wrap .queue-table td,
+.card .reports-table-wrap .queue-table th,
+.card .reports-table-wrap .queue-table td {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* =====================================================================
+   "Add component" button (.survey-add-row-button) - FINAL,
+   UNCONDITIONAL OVERRIDE.
+
+   Every prior attempt to fix this button's hover appearance (default
+   background: transparent/dashed-border rule, then a :hover rule,
+   then that same :hover rule with !important) was confirmed correct
+   in the source files and confirmed correctly applied to the actual
+   DOM element (class="survey-add-row-button" verified present) - yet
+   the reported symptom persisted through a hard refresh. Rather than
+   keep hunting for whatever specific rule is still winning, this
+   follows the exact same last-resort pattern already used for the
+   lifecycle stepper's checkmark visibility fix (search "COMPLETED
+   TICK - FINAL, UNCONDITIONAL OVERRIDE" above): placed at the very
+   end of the file (wins any source-order tie), with !important on
+   every property, and the class name repeated to boost specificity
+   above any single-class selector anywhere else in this file.
+   ===================================================================== */
+
+.survey-add-row-button.survey-add-row-button {
+  background: transparent !important;
+  color: var(--color-primary) !important;
+  border: 1.5px dashed var(--color-primary-light) !important;
+  box-shadow: none !important;
+}
+
+.survey-add-row-button.survey-add-row-button:hover {
+  background: #eaf1fc !important;
+  color: var(--color-primary-dark) !important;
+  border-color: var(--color-primary-light) !important;
+  box-shadow: none !important;
+}
+
+.survey-add-row-button.survey-add-row-button:active,
+.survey-add-row-button.survey-add-row-button:focus {
+  background: #eaf1fc !important;
+  color: var(--color-primary-dark) !important;
+  border-color: var(--color-primary-light) !important;
+  box-shadow: none !important;
+}
+
+/* =====================================================================
+   Repair Authorization - Closure / Denial (ends the claim right here,
+   bypassing Liability entirely, instead of the normal Authorized ->
+   Liability path).
+   ===================================================================== */
+
+.repair-auth-close-deny {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--color-border);
+}
+
+.repair-auth-close-deny-label {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.repair-auth-close-deny-toggle {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.repair-auth-close-deny-btn {
+  margin: 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1.5px solid var(--color-border);
+  box-shadow: none;
+}
+
+.repair-auth-close-deny-btn:hover {
+  background: #f5f7fb;
+  box-shadow: none;
+}
+
+.repair-auth-close-deny-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.repair-auth-close-deny-btn-danger.active {
+  background: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.repair-auth-close-deny-form {
+  padding: 0.9rem 1rem;
+  background: #fbfcfe;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.repair-auth-close-deny-form textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+button.repair-auth-close-deny-btn-danger {
+  background: var(--color-error);
+}
+
+button.repair-auth-close-deny-btn-danger:hover {
+  background: #b53a3a;
+}
+
+/* =====================================================================
+   Surveyor Portal - premium polish pass (page headers, empty states,
+   sticky assessment actions, focus-visible, reduced motion, small-
+   screen safety net). Additive only - existing rules above are left
+   untouched; this section only styles new markup/classes or adds
+   states (:focus-visible, prefers-reduced-motion) that had no coverage
+   anywhere else in this file.
+   ===================================================================== */
+
+/* Reusable empty-state block - icon + message, used wherever a list or
+   table can genuinely be empty (Claims, Reports, Notifications). */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  color: var(--color-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #fbfcfe;
+}
+
+.empty-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--color-info-light);
+  color: var(--color-primary);
+}
+
+.empty-state-title {
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.85rem;
+  max-width: 32rem;
+}
+
+/* Non-interactive icon badge in front of a list row (e.g. each
+   notification in the Notifications timeline) - distinct from
+   .icon-button above, which is a clickable control meant for a dark
+   header background. */
+.notification-bell-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  margin-right: 0.6rem;
+  border-radius: 50%;
+  background: var(--color-info-light);
+  color: var(--color-primary);
+}
+
+/* Sticky action bar for the Survey & Assessment workflow - stays
+   reachable at the bottom of the scroll region while the form itself
+   runs long, mirroring .claim-detail-sticky-header's sticky-top
+   treatment elsewhere in this file, anchored to the bottom instead. */
+.survey-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -8px 20px -12px rgba(20, 24, 30, 0.18);
+}
+
+/* Utility-vs-primary hierarchy for the Claim 360 title-row actions -
+   Track Claim / Documents / Recent Activity read as secondary/outline
+   actions, "Continue to Claim Workflow" stays the one primary action
+   a Surveyor takes from this row. */
+.claim360-title-row button {
+  background: var(--color-surface);
+  color: var(--color-primary-dark);
+  border: 1.5px solid var(--color-border);
+  box-shadow: none;
+}
+
+.claim360-title-row button:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: none;
+}
+
+.claim360-title-row button:last-of-type {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: var(--shadow-card);
+}
+
+.claim360-title-row button:last-of-type:hover {
+  background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+  box-shadow: 0 4px 12px rgba(37, 99, 199, 0.25);
+}
+
+/* Accessible focus rings for interactive elements that previously only
+   had a :hover affordance - keyboard users get the same visual cue
+   mouse users already get on hover. */
+.queue-table tbody tr.clickable-row:focus-visible,
+.claim-row:focus-visible,
+.stat-card:focus-visible,
+.queue-filter-tab:focus-visible,
+.sortable-th:focus-visible,
+.app-sidebar nav a:focus-visible,
+.app-header nav a:focus-visible,
+.icon-button:focus-visible,
+.upload-card:focus-visible,
+.claims-pagination-button:focus-visible,
+.survey-icon-button:focus-visible,
+.claim360-edit-link:focus-visible {
+  outline: 2.5px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Respect the OS-level "reduce motion" preference across the whole
+   app. Every animation/transition collapses to an effectively-instant
+   state change (0.01ms rather than "none", so JS that listens for
+   transitionend still fires) - except genuine loading indicators
+   (spinners/skeletons), which keep running at their normal speed since
+   they communicate real, ongoing state rather than decorative motion. */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .spinner {
+    animation-duration: 0.7s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .skeleton {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+
+  .csd-spin,
+  .surveyor-spin {
+    animation-duration: 0.8s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* Small-screen safety net for pages built on the shared
+   .card/.queue-table/.handler-queue-header primitives (Claims,
+   Reports, Notifications, Help, Track Claim) that don't already define
+   their own bespoke breakpoints. */
+@media (max-width: 640px) {
+  .handler-queue-header {
+    align-items: stretch;
+  }
+
+  .handler-queue-controls {
+    width: 100%;
+  }
+
+  .handler-search-wrap,
+  .handler-queue-search {
+    width: 100%;
+  }
+
+  .queue-filter-tabs-grid {
+    justify-content: flex-start;
+  }
+
+  .survey-actions {
+    padding: 0.9rem 1rem;
+  }
+
+  .survey-actions .survey-action-primary,
+  .survey-actions .survey-action-secondary {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
 }

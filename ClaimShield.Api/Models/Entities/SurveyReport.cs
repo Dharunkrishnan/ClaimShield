@@ -53,11 +53,23 @@ namespace ClaimShield.Api.Models.Entities
 
         public string? PreExistingDamageNotes { get; set; }
 
+        // Explicit surveyor checkboxes for fraud-scoring rules S2-R01
+        // and S2-R05 - deliberately separate from the free-text
+        // SurveyRemarks/PreExistingDamageNotes fields above, since
+        // free text can't be safely thresholded by the scoring engine.
+        public bool? SurveyorFlaggedSuspicious { get; set; }
+
+        public bool? PreExistingDamageSuspected { get; set; }
+
         public int? RepairabilityStatusId { get; set; }
 
         // ---- Repair Estimate Details ----
 
         public string? EstimatedRepairerName { get; set; }
+
+        // Shown in the Survey Information section (not grouped with the
+        // Repair Estimate fields above) - see RepairerTypeConstants.
+        public int? RepairerTypeId { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal? LabourCost { get; set; }

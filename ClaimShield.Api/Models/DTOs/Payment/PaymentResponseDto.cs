@@ -18,6 +18,28 @@ namespace ClaimShield.Api.Models.DTOs.Payments
 
         public string? Remarks { get; set; }
 
+        public int? PaymentMethodId { get; set; }
+
+        public string? PaymentMethod { get; set; }
+
+        public int? PayeeType { get; set; }
+
+        public string? PayeeTypeName { get; set; }
+
+        public string? PayeeCode { get; set; }
+
+        public string? BeneficiaryName { get; set; }
+
+        public string? BankAccountNumber { get; set; }
+
+        public string? IfscCode { get; set; }
+
+        public string? BankName { get; set; }
+
+        public string? BranchName { get; set; }
+
+        public string? MobileNumber { get; set; }
+
         public DateTime? CreatedDate { get; set; }
     }
 }

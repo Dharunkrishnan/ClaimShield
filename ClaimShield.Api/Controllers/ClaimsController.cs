@@ -126,7 +126,14 @@ namespace ClaimShield.Api.Controllers
                     await _surveyAssignmentRepository.GetByClaimAsync(
                         claim.ClaimId);
 
-                return assignments.Any(x => x.SurveyorId == userId);
+                // Checkpoint 5 (Module 3) - a Claims Handler who
+                // registers a claim via staff-assisted intake needs to
+                // be able to view it before any SurveyAssignment exists,
+                // otherwise the claim they just registered would be
+                // invisible to them.
+                return
+                    assignments.Any(x => x.SurveyorId == userId) ||
+                    claim.RegisteredByUserId == userId;
             }
 
             if (roleId == RoleConstants.RepairerId)
@@ -416,6 +423,274 @@ namespace ClaimShield.Api.Controllers
         }
 
         // =========================================================
+        // CLAIM 360 - UPDATE DETAILS ONLY
+        // PATCH: api/Claims/{claimId}/details
+        // Deliberately open to Surveyor/Approver too, unlike the
+        // broader Update above - see UpdateClaimDetailsRequest for
+        // why this can't just reuse that endpoint's authorization.
+        // =========================================================
+
+        [HttpPatch("{claimId:guid}/details")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
+        public async Task<IActionResult> UpdateDetails(
+            Guid claimId,
+            UpdateClaimDetailsRequest request)
+        {
+            if (claimId != request.ClaimId)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Claim ID in the URL and body must match."
+                });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var updated =
+                await _claimService
+                    .UpdateClaimDetailsAsync(request);
+
+            if (!updated)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "Claim not found."
+                });
+            }
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Claim details updated successfully."
+            });
+        }
+
+        // =========================================================
+        // REPAIR AUTHORIZATION - UPDATE STATUS/DATE
+        // PATCH: api/Claims/{claimId}/repair-authorization
+        // =========================================================
+
+        [HttpPatch("{claimId:guid}/repair-authorization")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
+        public async Task<IActionResult> UpdateRepairAuthorization(
+            Guid claimId,
+            UpdateRepairAuthorizationRequest request)
+        {
+            if (claimId != request.ClaimId)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Claim ID in the URL and body must match."
+                });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var updated =
+                await _claimService
+                    .UpdateRepairAuthorizationAsync(request);
+
+            if (!updated)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "Claim not found."
+                });
+            }
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Repair authorization updated successfully."
+            });
+        }
+
+        // =========================================================
+        // LIABILITY - UPDATE APPROVED (FINAL) AMOUNT
+        // PATCH: api/Claims/{claimId}/approved-amount
+        // Extended to Surveyor at the person's own request - initially
+        // scoped to Approver/Admin only to match the rest of the
+        // Approval flow's authority level, but the Surveyor is who
+        // actually fills out the Liability stage in practice.
+        // =========================================================
+
+        [HttpPatch("{claimId:guid}/approved-amount")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
+        public async Task<IActionResult> UpdateApprovedAmount(
+            Guid claimId,
+            UpdateApprovedAmountRequest request)
+        {
+            if (claimId != request.ClaimId)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Claim ID in the URL and body must match."
+                });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var updated =
+                await _claimService
+                    .UpdateApprovedAmountAsync(request);
+
+            if (!updated)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "Claim not found."
+                });
+            }
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Approved amount updated successfully."
+            });
+        }
+
+        // =========================================================
+        // LIABILITY - UPDATE LIABILITY FIGURES
+        // PATCH: api/Claims/{claimId}/liability-figures
+        // Extended to Surveyor alongside approved-amount above, same
+        // reasoning - kept in sync so one endpoint doesn't work while
+        // the other silently 403s for the same person.
+        // =========================================================
+
+        [HttpPatch("{claimId:guid}/liability-figures")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
+        public async Task<IActionResult> UpdateLiabilityFigures(
+            Guid claimId,
+            UpdateLiabilityFiguresRequest request)
+        {
+            if (claimId != request.ClaimId)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Claim ID in the URL and body must match."
+                });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var updated =
+                await _claimService
+                    .UpdateLiabilityFiguresAsync(request);
+
+            if (!updated)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "Claim not found."
+                });
+            }
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Liability figures updated successfully."
+            });
+        }
+
+        // =========================================================
+        // LIABILITY - SUBMIT
+        // POST: api/Claims/{claimId}/submit-liability
+        // Same authority level as the liability-figures/approved-
+        // amount endpoints above. Sets LiabilitySubmitted, which the
+        // frontend's stepper (getStageIndex) checks to decide whether
+        // the Approval stage is reachable - same pattern as
+        // RepairAuthorizationStatusId unlocking Liability itself.
+        // =========================================================
+
+        [HttpPost("{claimId:guid}/submit-liability")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
+        public async Task<IActionResult> SubmitLiability(Guid claimId)
+        {
+            var updated =
+                await _claimService
+                    .SubmitLiabilityAsync(claimId);
+
+            if (!updated)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "Claim not found."
+                });
+            }
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Liability submitted successfully."
+            });
+        }
+
+        // =========================================================
+        // LIABILITY - PER-COMPONENT DAMAGE TABLE
+        // GET:   api/Claims/{claimId}/liability-damage-items
+        // PATCH: api/Claims/{claimId}/liability-damage-items
+        // Same authority level as the other Liability edit endpoints.
+        // =========================================================
+
+        [HttpGet("{claimId:guid}/liability-damage-items")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
+        public async Task<IActionResult> GetLiabilityDamageItems(Guid claimId)
+        {
+            var items = await _claimService.GetLiabilityDamageItemsAsync(claimId);
+            return Ok(items);
+        }
+
+        [HttpPatch("{claimId:guid}/liability-damage-items")]
+        [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
+        public async Task<IActionResult> UpdateLiabilityDamageItems(
+            Guid claimId,
+            UpdateLiabilityDamageItemsRequest request)
+        {
+            if (claimId != request.ClaimId)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = "Claim ID in the URL and body must match."
+                });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            await _claimService.UpdateLiabilityDamageItemsAsync(request);
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Damage item figures updated successfully."
+            });
+        }
+
+        // =========================================================
         // DELETE
         // DELETE: api/Claims/{id}
         // =========================================================
@@ -479,18 +754,40 @@ namespace ClaimShield.Api.Controllers
 
             if (!IsAdmin)
             {
-                if (!IsCustomer || !_currentUserService.UserId.HasValue)
+                if (!_currentUserService.UserId.HasValue)
                 {
                     return Forbidden(
                         "You are not authorized to close this claim.");
                 }
 
-                var myCustomer =
-                    await _customerRepository.GetByUserIdAsync(
-                        _currentUserService.UserId.Value);
+                if (IsCustomer)
+                {
+                    var myCustomer =
+                        await _customerRepository.GetByUserIdAsync(
+                            _currentUserService.UserId.Value);
 
-                if (myCustomer == null ||
-                    myCustomer.CustomerId != claim.CustomerId)
+                    if (myCustomer == null ||
+                        myCustomer.CustomerId != claim.CustomerId)
+                    {
+                        return Forbidden(
+                            "You are not authorized to close this claim.");
+                    }
+                }
+                else if (CurrentRoleId == RoleConstants.SurveyorId)
+                {
+                    // Claims Handler extension (Checkpoint 3) - a Surveyor
+                    // can close a claim they're assigned to, same as the
+                    // customer self-service path, once it's Settled.
+                    if (!await CanAccessClaimAsync(
+                            claim,
+                            _currentUserService.UserId.Value,
+                            RoleConstants.SurveyorId))
+                    {
+                        return Forbidden(
+                            "You are not authorized to close this claim.");
+                    }
+                }
+                else
                 {
                     return Forbidden(
                         "You are not authorized to close this claim.");
@@ -520,6 +817,64 @@ namespace ClaimShield.Api.Controllers
                 ClaimId = claimId,
                 StatusId = 10,
                 Status = "Closed"
+            });
+        }
+
+        // =========================================================
+        // POST: api/Claims/{claimId}/repair-authorization/close-or-deny
+        //
+        // Closes or denies a claim directly from the Repair
+        // Authorization stage, bypassing Liability/Approval/
+        // Settlement entirely - a genuinely different, earlier exit
+        // point than the generic /close endpoint above, which only
+        // works once a claim is already Settled or Rejected.
+        // =========================================================
+
+        [HttpPost("{claimId:guid}/repair-authorization/close-or-deny")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> CloseOrDenyFromRepairAuthorization(
+            Guid claimId,
+            [FromBody] RepairAuthCloseOrDenyRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            if (CurrentRoleId != RoleConstants.SurveyorId &&
+                CurrentRoleId != RoleConstants.ApproverId &&
+                CurrentRoleId != RoleConstants.AdminId)
+            {
+                return Forbidden(
+                    "You are not authorized to close or deny this claim.");
+            }
+
+            var (success, errorMessage) =
+                await _claimClosureService.CloseOrDenyFromRepairAuthorizationAsync(
+                    claimId,
+                    request);
+
+            if (!success)
+            {
+                return BadRequest(new
+                {
+                    Success = false,
+                    Message = errorMessage ?? "Could not close or deny this claim."
+                });
+            }
+
+            return Ok(new
+            {
+                Success = true,
+                Message =
+                    request.Action == "Closure"
+                        ? "Claim closed successfully."
+                        : "Claim denied successfully.",
+                ClaimId = claimId
             });
         }
 

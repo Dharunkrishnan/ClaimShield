@@ -9,6 +9,7 @@ import {
   XCircle,
   BadgeCheck,
   Archive,
+  PauseCircle,
   Circle,
 } from 'lucide-react'
 import { ClaimStatus, ClaimStatusName } from '../lib/statuses'
@@ -24,6 +25,7 @@ const STATUS_ICON: Record<number, typeof Circle> = {
   [ClaimStatus.Rejected]: XCircle,
   [ClaimStatus.Settled]: BadgeCheck,
   [ClaimStatus.Closed]: Archive,
+  [ClaimStatus.OnHold]: PauseCircle,
 }
 
 const STATUS_TONE: Record<number, string> = {
@@ -37,6 +39,7 @@ const STATUS_TONE: Record<number, string> = {
   [ClaimStatus.Rejected]: 'red',
   [ClaimStatus.Settled]: 'green',
   [ClaimStatus.Closed]: 'neutral',
+  [ClaimStatus.OnHold]: 'amber',
 }
 
 export function getClaimStatusTone(statusId: number | null | undefined): string {
