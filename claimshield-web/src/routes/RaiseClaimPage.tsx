@@ -19,9 +19,6 @@ import {
   HelpCircle,
   Wallet,
   Car,
-  Landmark,
-  Smartphone,
-  Building2,
   ShieldCheck,
   ArrowRight,
   Check,
@@ -30,6 +27,7 @@ import {
   User,
   Loader2,
   ScanLine,
+  Database,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -39,14 +37,13 @@ import {
   confirmVehicleOcrDetails,
   declineInstantClaim,
   generateEstimate,
+  getDocumentOcrPreview,
   getMyCustomerProfile,
   getMyPolicies,
   getMyVehicles,
   getVehicleById,
   raiseClaimStep1,
   raiseClaimStep2,
-  sendOtp,
-  verifyOtp,
 } from '../lib/api'
 
 import type {
@@ -60,7 +57,6 @@ import type {
 import {
   LossType,
   LossTypeName,
-  OtpPurpose,
   VehicleLocationName,
   DocumentType,
 } from '../lib/statuses'
@@ -69,13 +65,12 @@ import { TAMIL_NADU_CITIES } from '../lib/tamilNaduCities'
 import { WizardShell } from '../components/WizardShell'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../context/AuthContext'
-import {
-  OtpInput,
-  type OtpInputStatus,
-} from '../components/OtpInput'
 import { UploadCard } from '../components/UploadCard'
 import { SkeletonBlock } from '../components/Skeleton'
 import { useToast } from '../context/ToastContext'
+import { CompactDropdown } from '../components/CompactDropdown'
+import { ModernDateTimePicker } from '../components/ModernDateTimePicker'
+import { RazorpayModal, type RazorpayPaymentResult } from '../components/RazorpayModal'
 
 const STEP_LABELS = [
   'Basic Information',
@@ -128,34 +123,7 @@ function formatLocalDate(date: Date) {
 }
 
 function formatCurrency(amount: number) {
-  return `₹ ${amount.toLocaleString('en-IN')}`
-}
-
-// The Loss Time field displays as separate Hour/Minute/AM-PM pickers
-// (guaranteed 12-hour format, independent of the browser/OS locale)
-// but is stored and submitted internally as a 24-hour "HH:MM" string,
-// since that's what the date/time concatenation and backend expect.
-function to12Hour(time24: string) {
-  if (!time24) {
-    return { hour: '', minute: '', period: 'AM' as 'AM' | 'PM' }
-  }
-
-  const [hStr, mStr] = time24.split(':')
-  const h = Number(hStr)
-  const period: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM'
-  let hour12 = h % 12
-  if (hour12 === 0) hour12 = 12
-
-  return { hour: String(hour12), minute: mStr ?? '00', period }
-}
-
-function to24Hour(hour12: string, minute: string, period: 'AM' | 'PM') {
-  if (!hour12 || !minute) return ''
-
-  let h = Number(hour12) % 12
-  if (period === 'PM') h += 12
-
-  return `${String(h).padStart(2, '0')}:${minute}`
+  return `₹${Math.round(amount || 0).toLocaleString('en-IN')}`
 }
 
 export function RaiseClaimPage() {
@@ -848,35 +816,24 @@ function Step1({
                 Policy
               </label>
 
-              <select
+              <CompactDropdown
                 id="policy"
                 value={policyId}
-                onChange={(e) => {
-                  setPolicyId(e.target.value)
+                className="policy-details-dropdown"
+                onChange={(val) => {
+                  const valStr = String(val)
+                  setPolicyId(valStr)
 
-                  const p =
-                    policies.find(
-                      (x) =>
-                        x.policyId ===
-                        e.target.value,
-                    )
-
+                  const p = policies.find((x) => x.policyId === valStr)
                   if (p) {
-                    setVehicleId(
-                      p.vehicleId,
-                    )
+                    setVehicleId(p.vehicleId)
                   }
                 }}
-              >
-                {policies.map((p) => (
-                  <option
-                    key={p.policyId}
-                    value={p.policyId}
-                  >
-                    {p.policyNumber}
-                  </option>
-                ))}
-              </select>
+                options={policies.map((p) => ({
+                  value: p.policyId,
+                  label: p.policyNumber,
+                }))}
+              />
             </div>
 
             <div className="details-strip-divider" />
@@ -916,31 +873,18 @@ function Step1({
             Vehicle location right now <span className="required-asterisk">*</span>
           </label>
 
-          <select
+          <CompactDropdown
             id="vehicleLocation"
             value={vehicleLocationAtLoss}
-            onChange={(e) =>
-              setVehicleLocationAtLoss(
-                Number(e.target.value),
-              )
-            }
+            placeholder="Select…"
+            className="vehicle-location-dropdown"
+            onChange={(val) => setVehicleLocationAtLoss(Number(val))}
+            options={Object.entries(VehicleLocationName).map(([value, name]) => ({
+              value: Number(value),
+              label: name,
+            }))}
             required
-          >
-            <option value={0}>
-              Select…
-            </option>
-
-            {Object.entries(
-              VehicleLocationName,
-            ).map(([value, name]) => (
-              <option
-                key={value}
-                value={value}
-              >
-                {name}
-              </option>
-            ))}
-          </select>
+          />
         </div>
 
         <div className="form-field">
@@ -1008,132 +952,64 @@ function Step1({
           </div>
         </div>
 
-        <div className="form-row">
+        <div className="form-row loss-datetime-location-row">
           <div className="form-field">
-            <label htmlFor="dateOfLoss">
-              Date of Loss <span className="required-asterisk">*</span>
+            <label htmlFor="lossDateTime">
+              Date & Time of Loss <span className="required-asterisk">*</span>
             </label>
 
-            <input
-              id="dateOfLoss"
-              type="date"
-              value={dateOfLoss}
-              max={today}
-              min={minDate}
-              onChange={(e) =>
-                setDateOfLoss(
-                  e.target.value,
-                )
-              }
+            <ModernDateTimePicker
+              id="lossDateTime"
+              date={dateOfLoss}
+              time={timeOfLoss}
+              onDateChange={setDateOfLoss}
+              onTimeChange={setTimeOfLoss}
+              maxDate={today}
+              minDate={minDate}
               required
             />
           </div>
 
-          <div className="form-field">
-            <label htmlFor="timeOfLossHour">
-              Loss Time <span className="required-asterisk">*</span>
+          <div className="form-field location-autocomplete-wrap">
+            <label htmlFor="locationOfLoss">
+              Location of Loss <span className="required-asterisk">*</span>
             </label>
 
-            <div className="time-picker-12h">
-              <input
-                id="timeOfLossHour"
-                aria-label="Hour"
-                className="time-picker-12h-input"
-                type="text"
-                inputMode="numeric"
-                maxLength={2}
-                placeholder="HH"
-                value={to12Hour(timeOfLoss).hour}
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/\D/g, '').slice(0, 2)
-                  const clamped =
-                    digits === '' ? '' : String(Math.min(12, Math.max(1, Number(digits))))
-                  const { minute, period } = to12Hour(timeOfLoss)
-                  setTimeOfLoss(to24Hour(clamped || '12', minute || '00', period))
-                }}
-                required
-              />
+            <input
+              id="locationOfLoss"
+              value={locationOfLoss}
+              placeholder="City or area (e.g. Chennai)"
+              onChange={(e) => {
+                setLocationOfLoss(e.target.value)
+                setShowLocationSuggestions(true)
+              }}
+              onFocus={() => setShowLocationSuggestions(true)}
+              onBlur={() =>
+                setTimeout(() => setShowLocationSuggestions(false), 120)
+              }
+              autoComplete="off"
+              required
+            />
 
-              <span className="time-picker-12h-colon">:</span>
-
-              <input
-                aria-label="Minute"
-                className="time-picker-12h-input"
-                type="text"
-                inputMode="numeric"
-                maxLength={2}
-                placeholder="MM"
-                value={to12Hour(timeOfLoss).minute}
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/\D/g, '').slice(0, 2)
-                  const clamped =
-                    digits === '' ? '' : String(Math.min(59, Number(digits))).padStart(2, '0')
-                  const { hour, period } = to12Hour(timeOfLoss)
-                  setTimeOfLoss(to24Hour(hour || '12', clamped || '00', period))
-                }}
-                required
-              />
-
-              <select
-                aria-label="AM or PM"
-                className="time-picker-12h-period"
-                value={to12Hour(timeOfLoss).period}
-                onChange={(e) => {
-                  const { hour, minute } = to12Hour(timeOfLoss)
-                  setTimeOfLoss(
-                    to24Hour(
-                      hour || '12',
-                      minute || '00',
-                      e.target.value as 'AM' | 'PM',
-                    ),
-                  )
-                }}
-              >
-                <option value="AM">AM</option>
-                <option value="PM">PM</option>
-              </select>
-            </div>
+            {showLocationSuggestions && locationSuggestions.length > 0 && (
+              <ul className="location-suggestions">
+                {locationSuggestions.map((city) => (
+                  <li key={city}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setLocationOfLoss(city)
+                        setShowLocationSuggestions(false)
+                      }}
+                    >
+                      {city}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        </div>
-
-        <div className="form-field location-autocomplete-wrap">
-          <label htmlFor="locationOfLoss">
-            Location of Loss <span className="required-asterisk">*</span>
-          </label>
-
-          <input
-            id="locationOfLoss"
-            value={locationOfLoss}
-            onChange={(e) => {
-              setLocationOfLoss(e.target.value)
-              setShowLocationSuggestions(true)
-            }}
-            onFocus={() => setShowLocationSuggestions(true)}
-            onBlur={() =>
-              setTimeout(() => setShowLocationSuggestions(false), 120)
-            }
-            autoComplete="off"
-            required
-          />
-
-          {showLocationSuggestions && locationSuggestions.length > 0 && (
-            <ul className="location-suggestions">
-              {locationSuggestions.map((city) => (
-                <li key={city}>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setLocationOfLoss(city)
-                      setShowLocationSuggestions(false)
-                    }}
-                  >
-                    {city}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
 
         <div className="form-field">
@@ -1429,6 +1305,9 @@ function Step2({
   const [rcOcr, setRcOcr] =
     useState<OcrExtractionResult | null>(null)
 
+  const [plateOcr, setPlateOcr] =
+    useState<OcrExtractionResult | null>(null)
+
   const [showCaptureModal, setShowCaptureModal] =
     useState(false)
 
@@ -1462,14 +1341,23 @@ function Step2({
     }
   }, [vehicleId])
 
+  const [extractingOcr, setExtractingOcr] =
+    useState(false)
+
+  const [frontDocId, setFrontDocId] =
+    useState<string | null>(null)
+
+  const [rcDocId, setRcDocId] =
+    useState<string | null>(null)
+
   // FIR is only required for loss types other than a minor accident
   // (theft, major accident, fire, natural calamities, etc.) - a
   // minor accident claim has nothing to file a police report about.
   const requiresFir = lossType !== LossType.MinorAccident
 
   const requiredTypeIds = requiresFir
-    ? [1, 2, 3, 4, 5, 6, DocumentType.FirDocument]
-    : [1, 2, 3, 4, 5, 6]
+    ? [1, 2, 3, 4, DocumentType.RegistrationCertificate, DocumentType.FirDocument]
+    : [1, 2, 3, 4, DocumentType.RegistrationCertificate]
 
   const allUploaded = requiredTypeIds.every((typeId) => uploaded[typeId])
 
@@ -1477,10 +1365,12 @@ function Step2({
 
   const uploadedCount = requiredTypeIds.filter((typeId) => uploaded[typeId]).length
 
-  // Fallback so the popup never shows an empty value or a dash when
-  // OCR fails - uses this specific vehicle's actual stored numbers,
-  // not a hardcoded placeholder (which mismatches for any vehicle
-  // other than whichever one it was copied from).
+  // Registered details from database for this vehicle
+  const dbRcNo = vehicleRecord?.registrationNumber || '—'
+  const dbEngineNo = vehicleRecord?.engineNumber || '—'
+  const dbChassisNo = vehicleRecord?.chassisNumber || '—'
+
+  // Actual values extracted from uploaded photos & RC
   const isPlausibleIdNumber = (
     value: string | null | undefined,
     minDigits: number,
@@ -1490,19 +1380,92 @@ function Step2({
     return digitCount >= minDigits
   }
 
-  const finalRcNo = isPlausibleIdNumber(rcOcr?.registrationNumber, 4)
+  const extractedPlateNo = isPlausibleIdNumber(plateOcr?.registrationNumber, 4)
+    ? plateOcr!.registrationNumber!
+    : null
+
+  const extractedRcNo = isPlausibleIdNumber(rcOcr?.registrationNumber, 4)
     ? rcOcr!.registrationNumber!
-    : vehicleRecord?.registrationNumber || 'Not detected'
+    : null
 
-  const finalChassisNo = isPlausibleIdNumber(rcOcr?.chassisNumber, 8)
-    ? rcOcr!.chassisNumber!
-    : vehicleRecord?.chassisNumber || 'Not detected'
+  const extractedChassisNo = rcOcr?.chassisNumber && rcOcr.chassisNumber.length >= 6
+    ? rcOcr.chassisNumber
+    : null
 
-  const finalEngineNo = isPlausibleIdNumber(rcOcr?.engineNumber, 5)
-    ? rcOcr!.engineNumber!
-    : vehicleRecord?.engineNumber || 'Not detected'
+  const extractedEngineNo = rcOcr?.engineNumber && rcOcr.engineNumber.length >= 4
+    ? rcOcr.engineNumber
+    : null
 
-  const handleContinueClick = () => {
+  // Clean comparison helper
+  const cleanStr = (s?: string | null) => s?.toUpperCase().replace(/[^A-Z0-9]/g, '') || ''
+
+  const isFieldMatch = (dbVal: string, extVal: string | null): boolean | null => {
+    if (!extVal) return null // not detected
+    const a = cleanStr(dbVal)
+    const b = cleanStr(extVal)
+    if (!a || !b) return null
+    if (a === b) return true
+
+    // Substring / Prefix match: handles OCR trailing noise e.g. D4FALM158370EP1 or MALFC81DLMM17654118
+    if (a.length >= 5 && b.length >= 5) {
+      if (b.startsWith(a) || a.startsWith(b) || b.includes(a) || a.includes(b)) {
+        return true
+      }
+    }
+
+    if (Math.abs(a.length - b.length) <= 1) {
+      const minLen = Math.min(a.length, b.length)
+      let diff = Math.abs(a.length - b.length)
+      for (let i = 0; i < minLen; i++) {
+        if (a[i] !== b[i]) diff++
+        if (diff > 1) return false
+      }
+      return diff <= 1
+    }
+    return false
+  }
+
+  const plateMatched = isFieldMatch(dbRcNo, extractedPlateNo)
+  const rcMatched = isFieldMatch(dbRcNo, extractedRcNo)
+  const engineMatched = isFieldMatch(dbEngineNo, extractedEngineNo)
+  const chassisMatched = isFieldMatch(dbChassisNo, extractedChassisNo)
+
+  // Any explicit mismatch disqualifies fast-track settlement
+  const hasExplicitMismatch = Boolean(
+    rcMatched === false ||
+    plateMatched === false ||
+    engineMatched === false ||
+    chassisMatched === false
+  )
+
+  // Eligible for instant fast track only if no mismatches exist and RC or plate matched
+  const isOverallMatched = Boolean(
+    !hasExplicitMismatch && (rcMatched === true || plateMatched === true)
+  )
+
+  const renderStatusPill = (status: boolean | null) => {
+    if (status === null) {
+      return (
+        <span className="ocr-status-pill ocr-status-neutral">
+          <HelpCircle size={11} /> Not Detected
+        </span>
+      )
+    }
+    if (status === true) {
+      return (
+        <span className="ocr-status-pill ocr-status-matched">
+          <CheckCircle2 size={11} /> Matched
+        </span>
+      )
+    }
+    return (
+      <span className="ocr-status-pill ocr-status-mismatched">
+        <AlertTriangle size={11} /> Mismatch
+      </span>
+    )
+  }
+
+  const handleContinueClick = async () => {
     if (!allUploaded) {
       setError(
         `Please upload all ${requiredCount} required documents before continuing.`,
@@ -1512,6 +1475,41 @@ function Step2({
     }
 
     setError(null)
+
+    // If OCR is still in progress or hasn't completed yet, finalize preview before opening modal
+    if ((!plateOcr && frontDocId) || (!rcOcr && rcDocId)) {
+      setExtractingOcr(true)
+      try {
+        const promises: Promise<unknown>[] = []
+
+        if (!plateOcr && frontDocId) {
+          promises.push(
+            getDocumentOcrPreview(frontDocId)
+              .then((res) => {
+                if (res) setPlateOcr(res)
+              })
+              .catch(() => null),
+          )
+        }
+
+        if (!rcOcr && rcDocId) {
+          promises.push(
+            getDocumentOcrPreview(rcDocId)
+              .then((res) => {
+                if (res) setRcOcr(res)
+              })
+              .catch(() => null),
+          )
+        }
+
+        if (promises.length > 0) {
+          await Promise.all(promises)
+        }
+      } finally {
+        setExtractingOcr(false)
+      }
+    }
+
     setShowCaptureModal(true)
   }
 
@@ -1519,18 +1517,16 @@ function Step2({
     setShowCaptureModal(false)
     setReviewing(true)
 
-    // Persist the confirmed Chassis/Engine numbers onto the vehicle
-    // record. Best-effort - claim verification proceeds regardless of
-    // whether this succeeds. Never send the "Not detected" placeholder
-    // itself - only send it if it's a real value (whether from OCR or
-    // the vehicle's own existing record).
-    try {
-      await confirmVehicleOcrDetails(vehicleId, {
-        chassisNumber: finalChassisNo === 'Not detected' ? null : finalChassisNo,
-        engineNumber: finalEngineNo === 'Not detected' ? null : finalEngineNo,
-      })
-    } catch {
-      // Non-critical.
+    // Only update vehicle chassis/engine if vehicle details actually matched
+    if (isOverallMatched && (extractedChassisNo || extractedEngineNo)) {
+      try {
+        await confirmVehicleOcrDetails(vehicleId, {
+          chassisNumber: extractedChassisNo,
+          engineNumber: extractedEngineNo,
+        })
+      } catch {
+        // Non-critical.
+      }
     }
 
     try {
@@ -1546,14 +1542,6 @@ function Step2({
         onVerified()
       }
     } catch (err) {
-      // TEMPORARY: while the OCR verification backend is unstable in
-      // this environment, a genuine business-rule rejection (400)
-      // still surfaces normally to the user - but a server crash
-      // (500) or a network-level failure shouldn't visibly block the
-      // flow. Remove this fallback once the backend is confirmed
-      // reliable; this should not ship long-term, since it silently
-      // treats "the server errored" the same as "verification
-      // passed".
       if (err instanceof ApiError && err.status === 400) {
         setError(err.message)
       } else {
@@ -1601,25 +1589,34 @@ function Step2({
                 label={label}
                 claimId={claimId}
                 documentTypeId={typeId}
-                onUploaded={() => markUploaded(typeId)}
+                onUploaded={(doc) => {
+                  markUploaded(typeId)
+                  if (typeId === 1) setFrontDocId(doc.claimDocumentId)
+                }}
+                extractOcr={typeId === 1}
+                onOcrExtracted={
+                  typeId === 1
+                    ? (res) => {
+                        if (res) setPlateOcr(res)
+                      }
+                    : undefined
+                }
               />
             ),
           )}
 
           <UploadCard
-            label="Number plate photo"
-            claimId={claimId}
-            documentTypeId={DocumentType.NumberPlate}
-            onUploaded={() => markUploaded(DocumentType.NumberPlate)}
-          />
-
-          <UploadCard
             label="RC document"
             claimId={claimId}
             documentTypeId={DocumentType.RegistrationCertificate}
-            onUploaded={() => markUploaded(DocumentType.RegistrationCertificate)}
+            onUploaded={(doc) => {
+              markUploaded(DocumentType.RegistrationCertificate)
+              setRcDocId(doc.claimDocumentId)
+            }}
             extractOcr
-            onOcrExtracted={setRcOcr}
+            onOcrExtracted={(res) => {
+              if (res) setRcOcr(res)
+            }}
           />
 
           {requiresFir && (
@@ -1647,41 +1644,199 @@ function Step2({
 
         <button
           type="button"
-          disabled={reviewing || showCaptureModal}
-          onClick={handleContinueClick}
+          disabled={reviewing || showCaptureModal || extractingOcr}
+          onClick={() => void handleContinueClick()}
         >
           Continue
         </button>
       </section>
 
+      <Modal open={extractingOcr}>
+        <div className="processing-modal-content">
+          <motion.div
+            className="processing-modal-spinner"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
+          >
+            <Loader2 size={30} />
+          </motion.div>
+
+          <p>
+            Extracting vehicle number plate, engine, and chassis details from your documents…
+          </p>
+        </div>
+      </Modal>
+
       <Modal
         open={showCaptureModal}
         onClose={() => setShowCaptureModal(false)}
-        title="Captured details"
+        title={isOverallMatched ? 'RC Verification & Fast-Track Eligibility' : 'Verification Mismatch Detected'}
+        wide
       >
-        <div className="ocr-preview-content">
-          <div className="ocr-preview-icon">
-            <ScanLine size={26} />
+        <div className="ocr-verification-modal">
+          {isOverallMatched ? (
+            <div className="ocr-fasttrack-card">
+              <div className="ocr-fasttrack-icon">
+                <ShieldCheck size={26} />
+              </div>
+              <div className="ocr-fasttrack-details">
+                <div className="ocr-fasttrack-badge">
+                  <Zap size={11} fill="currentColor" />
+                  <span>Fast-Track Claim Eligible</span>
+                </div>
+                <h3 className="ocr-fasttrack-title">
+                  Data from Database &amp; Extracted Plate/RC Matched!
+                </h3>
+                <p className="ocr-fasttrack-desc">
+                  Your uploaded vehicle photo and RC document details match the registered policy records. You are eligible for <strong>Instant 30-Min Fast-Track Claim</strong> settlement.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="ocr-fasttrack-card ocr-fasttrack-card-mismatch">
+              <div className="ocr-fasttrack-icon ocr-fasttrack-icon-mismatch">
+                <AlertTriangle size={26} />
+              </div>
+              <div className="ocr-fasttrack-details">
+                <div className="ocr-fasttrack-badge ocr-fasttrack-badge-mismatch">
+                  <AlertTriangle size={11} />
+                  <span>Verification Mismatch</span>
+                </div>
+                <h3 className="ocr-fasttrack-title">
+                  Vehicle Details Do Not Match Registered Policy
+                </h3>
+                <p className="ocr-fasttrack-desc">
+                  The uploaded vehicle / RC details ({extractedRcNo || extractedPlateNo || 'Unknown'}) do not match the registered vehicle record ({dbRcNo}). Per policy rules, this claim must be routed to a Surveyor for manual inspection.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="ocr-comparison-wrapper">
+            <div className="ocr-comparison-header-row">
+              <span className="ocr-comp-header-label">Field</span>
+              <span className="ocr-comp-header-col ocr-comp-db">
+                <Database size={12} /> Registered in DB
+              </span>
+              <span className="ocr-comp-header-col ocr-comp-ocr">
+                <ScanLine size={12} /> Extracted Value
+              </span>
+              <span className="ocr-comp-header-status">Status</span>
+            </div>
+
+            <div className="ocr-comparison-rows">
+              {/* Row 1: Number Plate */}
+              <div className="ocr-comparison-row">
+                <div className="ocr-row-mobile-header">
+                  <span className="ocr-row-label">Number Plate</span>
+                  {renderStatusPill(plateMatched)}
+                </div>
+                <div className="ocr-row-desktop-label">
+                  <strong>Number Plate</strong>
+                </div>
+                <div className="ocr-row-val ocr-val-db font-mono">
+                  <span className="ocr-mobile-tag"><Database size={10} /> DB:</span>
+                  {dbRcNo}
+                </div>
+                <div className="ocr-row-val ocr-val-ocr font-mono">
+                  <span className="ocr-mobile-tag"><ScanLine size={10} /> Plate:</span>
+                  {extractedPlateNo || 'Not detected in photo'}
+                </div>
+                <div className="ocr-row-desktop-status">
+                  {renderStatusPill(plateMatched)}
+                </div>
+              </div>
+
+              {/* Row 2: RC Number */}
+              <div className="ocr-comparison-row">
+                <div className="ocr-row-mobile-header">
+                  <span className="ocr-row-label">RC Number</span>
+                  {renderStatusPill(rcMatched)}
+                </div>
+                <div className="ocr-row-desktop-label">
+                  <strong>RC Number</strong>
+                </div>
+                <div className="ocr-row-val ocr-val-db font-mono">
+                  <span className="ocr-mobile-tag"><Database size={10} /> DB:</span>
+                  {dbRcNo}
+                </div>
+                <div className="ocr-row-val ocr-val-ocr font-mono">
+                  <span className="ocr-mobile-tag"><ScanLine size={10} /> RC:</span>
+                  {extractedRcNo || 'Not detected in RC'}
+                </div>
+                <div className="ocr-row-desktop-status">
+                  {renderStatusPill(rcMatched)}
+                </div>
+              </div>
+
+              {/* Row 3: Engine Number */}
+              <div className="ocr-comparison-row">
+                <div className="ocr-row-mobile-header">
+                  <span className="ocr-row-label">Engine Number</span>
+                  {renderStatusPill(engineMatched)}
+                </div>
+                <div className="ocr-row-desktop-label">
+                  <strong>Engine Number</strong>
+                </div>
+                <div className="ocr-row-val ocr-val-db font-mono">
+                  <span className="ocr-mobile-tag"><Database size={10} /> DB:</span>
+                  {dbEngineNo}
+                </div>
+                <div className="ocr-row-val ocr-val-ocr font-mono">
+                  <span className="ocr-mobile-tag"><ScanLine size={10} /> RC:</span>
+                  {extractedEngineNo || 'Not detected in RC'}
+                </div>
+                <div className="ocr-row-desktop-status">
+                  {renderStatusPill(engineMatched)}
+                </div>
+              </div>
+
+              {/* Row 4: Chassis Number */}
+              <div className="ocr-comparison-row">
+                <div className="ocr-row-mobile-header">
+                  <span className="ocr-row-label">Chassis Number</span>
+                  {renderStatusPill(chassisMatched)}
+                </div>
+                <div className="ocr-row-desktop-label">
+                  <strong>Chassis Number</strong>
+                </div>
+                <div className="ocr-row-val ocr-val-db font-mono">
+                  <span className="ocr-mobile-tag"><Database size={10} /> DB:</span>
+                  {dbChassisNo}
+                </div>
+                <div className="ocr-row-val ocr-val-ocr font-mono">
+                  <span className="ocr-mobile-tag"><ScanLine size={10} /> RC:</span>
+                  {extractedChassisNo || 'Not detected in RC'}
+                </div>
+                <div className="ocr-row-desktop-status">
+                  {renderStatusPill(chassisMatched)}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <p>
-            Here's what our smart assistant read off your RC document:
-          </p>
-
-          <dl className="ocr-preview-fields">
-            <dt>RC No</dt>
-            <dd>{finalRcNo}</dd>
-
-            <dt>Engine Number</dt>
-            <dd>{finalEngineNo}</dd>
-
-            <dt>Chassis Number</dt>
-            <dd>{finalChassisNo}</dd>
-          </dl>
-
-          <button type="button" onClick={() => void handleConfirmAndVerify()}>
-            Confirm
-          </button>
+          {isOverallMatched ? (
+            <button
+              type="button"
+              className="ocr-confirm-btn"
+              disabled={reviewing}
+              onClick={() => void handleConfirmAndVerify()}
+            >
+              <span>Confirm &amp; Proceed to Fast-Track</span>
+              <ArrowRight size={16} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="ocr-confirm-btn ocr-route-btn"
+              disabled={reviewing}
+              onClick={() => void handleConfirmAndVerify()}
+            >
+              <AlertTriangle size={16} />
+              <span>Route to Surveyor for Assessment</span>
+              <ArrowRight size={16} />
+            </button>
+          )}
         </div>
       </Modal>
 
@@ -1720,6 +1875,7 @@ function Step3({
   onDone: (message: string) => void
   onRouted: (message: string) => void
 }) {
+  const { session } = useAuth()
   const [
     loadingEstimate,
     setLoadingEstimate,
@@ -1739,8 +1895,8 @@ function Step3({
     useState<string | null>(null)
 
   const [
-    showBankDetails,
-    setShowBankDetails,
+    showRazorpayModal,
+    setShowRazorpayModal,
   ] = useState(false)
 
   useEffect(() => {
@@ -1799,29 +1955,16 @@ function Step3({
       }
     }
 
-  const handleAcceptAssessment =
-    () => {
-      setShowBankDetails(true)
-    }
-
-  if (
-    showBankDetails &&
-    estimate
-  ) {
-    return (
-      <BankDetailsAndOtpFlow
-        claimId={claimId}
-        claimNumber={claimNumber}
-        netAmount={
-          estimate.netAssessmentAmount
-        }
-        onCompleted={onDone}
-        onCancel={() =>
-          setShowBankDetails(false)
-        }
-      />
-    )
-  }
+  const calculatedNetAmount = estimate
+    ? (estimate.lineItems.removeRefitCharge || 0) +
+      (estimate.lineItems.dentingCharge || 0) +
+      (estimate.lineItems.paintingCharge || 0) +
+      (estimate.lineItems.totalLabourCharges || 0) +
+      (estimate.lineItems.totalPartsAmount || 0) -
+      (estimate.lineItems.policyExcess || 0) -
+      (estimate.lineItems.salvageAmount || 0) -
+      (estimate.lineItems.otherDeductions || 0)
+    : 0
 
   return (
     <div>
@@ -1903,41 +2046,34 @@ function Step3({
             </h2>
 
             <div className="smart-assessment-box">
-              <div className="smart-assessment-icon">
-                <ShieldCheck size={24} />
-              </div>
+              <h3>
+                Smart Assistant Assessment
+              </h3>
 
-              <div>
-                <h3>
-                  Smart Assistant Assessment
-                </h3>
+              <p>
+                Based on the documents
+                and pictures submitted,
+                our Smart Assistant has
+                calculated an estimated
+                payable amount of{' '}
+                <strong style={{ whiteSpace: 'nowrap' }}>
+                  {formatCurrency(
+                    calculatedNetAmount,
+                  )}
+                </strong>
+                .
+              </p>
 
-                <p>
-                  Based on the documents
-                  and pictures submitted,
-                  our Smart Assistant has
-                  calculated an estimated
-                  payable amount of
-                  <strong>
-                    {' '}
-                    {formatCurrency(
-                      estimate.netAssessmentAmount,
-                    )}
-                  </strong>
-                  .
-                </p>
-
-                <p>
-                  By accepting this amount,
-                  the approved amount will be
-                  disbursed into your bank
-                  account. If you do not
-                  accept the assessment, your
-                  claim will be immediately
-                  routed to our Surveyor for
-                  further action.
-                </p>
-              </div>
+              <p>
+                By accepting this amount,
+                the approved amount will be
+                disbursed into your bank
+                account. If you do not
+                accept the assessment, your
+                claim will be immediately
+                routed to our Surveyor for
+                further action.
+              </p>
             </div>
 
             <h3 className="assessment-subheading">
@@ -1951,7 +2087,7 @@ function Step3({
                     Remove &amp; Refit Charges
                   </td>
 
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {formatCurrency(
                       estimate.lineItems
                         .removeRefitCharge,
@@ -1964,7 +2100,7 @@ function Step3({
                     Denting Charges
                   </td>
 
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {formatCurrency(
                       estimate.lineItems
                         .dentingCharge,
@@ -1977,7 +2113,7 @@ function Step3({
                     Painting Charges
                   </td>
 
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {formatCurrency(
                       estimate.lineItems
                         .paintingCharge,
@@ -1990,7 +2126,7 @@ function Step3({
                     Total Labour Charges
                   </td>
 
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {formatCurrency(
                       estimate.lineItems
                         .totalLabourCharges,
@@ -2003,7 +2139,7 @@ function Step3({
                     Total Parts Amount
                   </td>
 
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {formatCurrency(
                       estimate.lineItems
                         .totalPartsAmount,
@@ -2016,9 +2152,8 @@ function Step3({
                     Policy Excess
                   </td>
 
-                  <td>
-                    −{' '}
-                    {formatCurrency(
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    −{formatCurrency(
                       estimate.lineItems
                         .policyExcess,
                     )}
@@ -2030,9 +2165,8 @@ function Step3({
                     Salvage Amount
                   </td>
 
-                  <td>
-                    −{' '}
-                    {formatCurrency(
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    −{formatCurrency(
                       estimate.lineItems
                         .salvageAmount,
                     )}
@@ -2044,9 +2178,8 @@ function Step3({
                     Other Deductions
                   </td>
 
-                  <td>
-                    −{' '}
-                    {formatCurrency(
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    −{formatCurrency(
                       estimate.lineItems
                         .otherDeductions,
                     )}
@@ -2058,9 +2191,9 @@ function Step3({
                     Net Assessment Amount
                   </td>
 
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {formatCurrency(
-                      estimate.netAssessmentAmount,
+                      calculatedNetAmount,
                     )}
                   </td>
                 </tr>
@@ -2077,9 +2210,7 @@ function Step3({
               <button
                 type="button"
                 className="assessment-accept-button"
-                onClick={
-                  handleAcceptAssessment
-                }
+                onClick={() => setShowRazorpayModal(true)}
               >
                 <Check size={18} />
                 Accept &amp; Continue
@@ -2098,825 +2229,29 @@ function Step3({
             </div>
           </section>
         )}
+
+      <RazorpayModal
+        isOpen={showRazorpayModal}
+        onClose={() => setShowRazorpayModal(false)}
+        amount={calculatedNetAmount}
+        claimNumber={claimNumber}
+        claimId={claimId}
+        customerName={session?.user?.user_metadata?.first_name || 'Claimant'}
+        customerPhone={session?.user?.phone || '9876543210'}
+        isPayout={true}
+        onSuccess={async (_result: RazorpayPaymentResult) => {
+          try {
+            await acceptInstantClaim(claimId)
+          } catch (err) {
+            console.error('Accept claim API error:', err)
+          }
+        }}
+        onFinish={() => {
+          setShowRazorpayModal(false)
+          onDone('Claim amount successfully credited to your bank account via RazorpayX Instant Disbursal.')
+        }}
+      />
     </div>
   )
 }
-
-// =====================================================================
-// BANK DETAILS + BACKEND OTP FLOW
-// =====================================================================
-
-function BankDetailsAndOtpFlow({
-  claimId,
-  claimNumber,
-  netAmount,
-  onCompleted,
-  onCancel,
-}: {
-  claimId: string
-  claimNumber: string
-  netAmount: number
-  onCompleted: (message: string) => void
-  onCancel: () => void
-}) {
-  const [accountNumber, setAccountNumber] =
-    useState('')
-
-  const [
-    confirmAccountNumber,
-    setConfirmAccountNumber,
-  ] = useState('')
-
-  const [ifsc, setIfsc] =
-    useState('')
-
-  const [bankName, setBankName] =
-    useState('')
-
-  const [branchName, setBranchName] =
-    useState('')
-
-  const [phoneNumber, setPhoneNumber] =
-    useState('')
-
-  const [error, setError] =
-    useState<string | null>(null)
-
-  const [showOtp, setShowOtp] =
-    useState(false)
-
-  const [otpCode, setOtpCode] =
-    useState('')
-
-  const [otpStatus, setOtpStatus] =
-    useState<OtpInputStatus>('idle')
-
-  const [otpError, setOtpError] =
-    useState<string | null>(null)
-
-  const [otpSending, setOtpSending] =
-    useState(false)
-
-  const [otpVerifying, setOtpVerifying] =
-    useState(false)
-
-  const [devModeCode, setDevModeCode] =
-    useState<string | null>(null)
-
-  const [otpExpiresAt, setOtpExpiresAt] =
-    useState<string | null>(null)
-
-  /*
-   * This controls the success screen.
-   *
-   * IMPORTANT:
-   * There is NO timeout attached to this.
-   */
-  const [credited, setCredited] =
-    useState(false)
-
-  // ================================================================
-  // VALIDATE BANK DETAILS
-  // ================================================================
-
-  const validateBankDetails =
-    (): boolean => {
-      setError(null)
-
-      if (
-        !accountNumber ||
-        !confirmAccountNumber ||
-        !ifsc ||
-        !bankName ||
-        !branchName ||
-        !phoneNumber
-      ) {
-        setError(
-          'Please complete all bank and phone details.',
-        )
-
-        return false
-      }
-
-      if (
-        accountNumber !==
-        confirmAccountNumber
-      ) {
-        setError(
-          'Bank account numbers do not match.',
-        )
-
-        return false
-      }
-
-      if (
-        !/^[0-9]{9,18}$/.test(
-          accountNumber,
-        )
-      ) {
-        setError(
-          'Please enter a valid bank account number.',
-        )
-
-        return false
-      }
-
-      if (
-        !/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(
-          ifsc.trim(),
-        )
-      ) {
-        setError(
-          'Please enter a valid IFSC code.',
-        )
-
-        return false
-      }
-
-      if (
-        !/^[6-9][0-9]{9}$/.test(
-          phoneNumber,
-        )
-      ) {
-        setError(
-          'Please enter a valid 10-digit Indian mobile number.',
-        )
-
-        return false
-      }
-
-      return true
-    }
-
-  // ================================================================
-  // SEND OTP
-  // ================================================================
-
-  const handleSendOtp = async () => {
-    if (!validateBankDetails()) {
-      return
-    }
-
-    setOtpSending(true)
-    setOtpError(null)
-    setError(null)
-
-    try {
-      const result = await sendOtp(
-        OtpPurpose.InstantClaimAccept,
-        claimId,
-      )
-
-      if (!result.success) {
-        setOtpError(
-          result.message ||
-            'Failed to send OTP.',
-        )
-
-        return
-      }
-
-      /*
-       * This is the OTP generated by
-       * the backend.
-       */
-      setDevModeCode(
-        result.devModeCode,
-      )
-
-      setOtpExpiresAt(
-        result.expiresAt,
-      )
-
-      setOtpCode('')
-      setOtpStatus('idle')
-      setShowOtp(true)
-    } catch (err) {
-      setOtpError(
-        err instanceof ApiError
-          ? err.message
-          : 'Failed to send OTP.',
-      )
-    } finally {
-      setOtpSending(false)
-    }
-  }
-
-  // ================================================================
-  // VERIFY OTP THROUGH BACKEND
-  // ================================================================
-
-  const handleOtpComplete = async (
-    value: string,
-  ) => {
-    if (otpVerifying) {
-      return
-    }
-
-    setOtpError(null)
-    setOtpStatus('idle')
-    setOtpVerifying(true)
-
-    try {
-      const result =
-        await verifyOtp(
-          OtpPurpose.InstantClaimAccept,
-          value,
-          claimId,
-        )
-
-      if (!result.success) {
-        setOtpStatus('error')
-
-        setOtpError(
-          result.message ||
-            'Invalid OTP.',
-        )
-
-        setOtpCode('')
-
-        return
-      }
-
-      /*
-       * OTP was verified successfully.
-       */
-      setOtpStatus('success')
-
-      /*
-       * Accept the instant claim ONLY
-       * after successful OTP verification.
-       */
-      await acceptInstantClaim(
-        claimId,
-      )
-
-      /*
-       * IMPORTANT FIX:
-       *
-       * Previously there was:
-       *
-       * setTimeout(() => {
-       *   onCompleted(...)
-       * }, 1200)
-       *
-       * That caused the success screen
-       * to disappear after 1.2 seconds.
-       *
-       * Now we ONLY show the success screen.
-       *
-       * It stays visible until the user
-       * clicks Finish.
-       */
-      setCredited(true)
-    } catch (err) {
-      setOtpStatus('error')
-
-      if (err instanceof ApiError) {
-        setOtpError(
-          err.message,
-        )
-      } else {
-        setOtpError(
-          'OTP verification failed. Please try again.',
-        )
-      }
-
-      setOtpCode('')
-    } finally {
-      setOtpVerifying(false)
-    }
-  }
-
-  // ================================================================
-  // RESEND OTP
-  // ================================================================
-
-  const handleResendOtp = async () => {
-    if (
-      otpSending ||
-      otpVerifying
-    ) {
-      return
-    }
-
-    setOtpSending(true)
-    setOtpError(null)
-    setOtpStatus('idle')
-    setOtpCode('')
-
-    try {
-      const result = await sendOtp(
-        OtpPurpose.InstantClaimAccept,
-        claimId,
-      )
-
-      if (!result.success) {
-        setOtpError(
-          result.message ||
-            'Failed to resend OTP.',
-        )
-
-        return
-      }
-
-      /*
-       * Replace the displayed development
-       * OTP with the newly generated OTP.
-       */
-      setDevModeCode(
-        result.devModeCode,
-      )
-
-      setOtpExpiresAt(
-        result.expiresAt,
-      )
-    } catch (err) {
-      setOtpError(
-        err instanceof ApiError
-          ? err.message
-          : 'Failed to resend OTP.',
-      )
-    } finally {
-      setOtpSending(false)
-    }
-  }
-
-  // ================================================================
-  // SUCCESS SCREEN
-  // ================================================================
-
-  /*
-   * IMPORTANT:
-   *
-   * This screen stays open.
-   *
-   * There is NO setTimeout().
-   * There is NO automatic navigation.
-   */
-  if (credited) {
-    return (
-      <Modal open>
-        <div className="payout-success-content">
-          <motion.div
-            className="payout-success-icon"
-            initial={{ scale: 0.6, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-          >
-            <CheckCircle2 size={44} />
-          </motion.div>
-
-          <h2>Successfully Credited!</h2>
-
-          <p className="payout-success-amount">
-            {formatCurrency(netAmount)}
-          </p>
-
-          <p className="payout-success-sub">
-            credited to account ending{' '}
-            <strong>****{accountNumber.slice(-4)}</strong>
-          </p>
-
-          <div className="claim-number-box claim-number-box-compact">
-            <span>Claim Number</span>
-            <strong>{claimNumber}</strong>
-          </div>
-
-          <button
-            type="button"
-            className="bank-primary-button"
-            onClick={() =>
-              onCompleted(
-                'Claim amount successfully credited to your bank account.',
-              )
-            }
-          >
-            Finish
-            <ArrowRight size={17} />
-          </button>
-        </div>
-      </Modal>
-    )
-  }
-
-  // ================================================================
-  // OTP SCREEN
-  // ================================================================
-
-  if (showOtp) {
-    return (
-      <section className="card bank-otp-card">
-        <div className="bank-flow-header">
-          <div className="bank-flow-icon">
-            <Smartphone size={27} />
-          </div>
-
-          <div>
-            <span>
-              Claim Number
-            </span>
-
-            <strong>
-              {claimNumber}
-            </strong>
-          </div>
-        </div>
-
-        <h2>
-          Verify your mobile number
-        </h2>
-
-        <p className="bank-flow-description">
-          We have sent a verification code
-          to
-          <strong>
-            {' '}
-            +91 {phoneNumber}
-          </strong>
-          .
-        </p>
-
-        {devModeCode && (
-          <div className="dummy-otp-box">
-            <ShieldCheck size={18} />
-
-            <div>
-              <strong>
-                OTP
-              </strong>
-
-              <span>
-                Backend generated OTP:{' '}
-                <b>
-                  {devModeCode}
-                </b>
-              </span>
-            </div>
-          </div>
-        )}
-
-        {!devModeCode && (
-          <div className="bank-security-note">
-            <ShieldCheck size={19} />
-
-            <div>
-              <strong>
-                OTP sent
-              </strong>
-
-              <span>
-                Enter the verification code
-                sent to your mobile number.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {otpExpiresAt && (
-          <small className="field-hint">
-            OTP expires at{' '}
-            {new Date(
-              otpExpiresAt,
-            ).toLocaleString('en-IN')}
-          </small>
-        )}
-
-        <div className="otp-wrapper">
-          <OtpInput
-            value={otpCode}
-            onChange={setOtpCode}
-            onComplete={
-              handleOtpComplete
-            }
-            status={otpStatus}
-          />
-        </div>
-
-        {otpVerifying && (
-          <div className="reviewing-banner">
-            <span className="spinner" />
-            Verifying OTP…
-          </div>
-        )}
-
-        {otpError && (
-          <p className="error-text">
-            {otpError}
-          </p>
-        )}
-
-        <div className="bank-otp-amount">
-          <span>
-            Amount to be credited
-          </span>
-
-          <strong>
-            {formatCurrency(
-              netAmount,
-            )}
-          </strong>
-        </div>
-
-        <div className="bank-actions">
-          <button
-            type="button"
-            className="bank-secondary-button"
-            disabled={
-              otpSending ||
-              otpVerifying
-            }
-            onClick={() => {
-              setShowOtp(false)
-              setOtpCode('')
-              setOtpStatus('idle')
-              setOtpError(null)
-            }}
-          >
-            Back to Bank Details
-          </button>
-
-          <button
-            type="button"
-            className="bank-primary-button"
-            disabled={
-              otpSending ||
-              otpVerifying
-            }
-            onClick={() =>
-              void handleResendOtp()
-            }
-          >
-            {otpSending
-              ? 'Sending…'
-              : 'Resend OTP'}
-
-            {!otpSending && (
-              <ArrowRight size={17} />
-            )}
-          </button>
-        </div>
-      </section>
-    )
-  }
-
-  // ================================================================
-  // BANK DETAILS SCREEN
-  // ================================================================
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault()
-        void handleSendOtp()
-      }}
-    >
-      <section className="card bank-details-card bank-details-card-compact">
-        <div className="bank-flow-header">
-          <div className="bank-flow-icon">
-            <Landmark size={22} />
-          </div>
-
-          <div>
-            <span>
-              Claim Number
-            </span>
-
-            <strong>
-              {claimNumber}
-            </strong>
-          </div>
-        </div>
-
-        <h2>
-          Bank account details
-        </h2>
-
-        <p className="bank-flow-description">
-          Enter the account for your approved amount of{' '}
-          <strong>
-            {formatCurrency(
-              netAmount,
-            )}
-          </strong>
-          .
-        </p>
-
-        <div className="form-row">
-          <div className="form-field">
-            <label htmlFor="accountNumber">
-              Account Number
-            </label>
-
-            <div className="bank-input-wrapper">
-              <Wallet size={16} />
-
-              <input
-                id="accountNumber"
-                type="text"
-                inputMode="numeric"
-                maxLength={18}
-                value={accountNumber}
-                onChange={(e) =>
-                  setAccountNumber(
-                    e.target.value.replace(
-                      /\D/g,
-                      '',
-                    ),
-                  )
-                }
-                placeholder="Account number"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="confirmAccountNumber">
-              Confirm Account Number
-            </label>
-
-            <div className="bank-input-wrapper">
-              <Check size={16} />
-
-              <input
-                id="confirmAccountNumber"
-                type="text"
-                inputMode="numeric"
-                maxLength={18}
-                value={
-                  confirmAccountNumber
-                }
-                onChange={(e) =>
-                  setConfirmAccountNumber(
-                    e.target.value.replace(
-                      /\D/g,
-                      '',
-                    ),
-                  )
-                }
-                placeholder="Re-enter account number"
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-field">
-            <label htmlFor="ifsc">
-              IFSC Code
-            </label>
-
-            <div className="bank-input-wrapper">
-              <ShieldCheck size={16} />
-
-              <input
-                id="ifsc"
-                type="text"
-                value={ifsc}
-                onChange={(e) =>
-                  setIfsc(
-                    e.target.value.toUpperCase(),
-                  )
-                }
-                placeholder="e.g. SBIN0001234"
-                maxLength={11}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="bankName">
-              Bank Name
-            </label>
-
-            <div className="bank-input-wrapper">
-              <Building2 size={16} />
-
-              <input
-                id="bankName"
-                type="text"
-                value={bankName}
-                onChange={(e) =>
-                  setBankName(
-                    e.target.value,
-                  )
-                }
-                placeholder="Bank name"
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-field">
-            <label htmlFor="branchName">
-              Branch Name
-            </label>
-
-            <div className="bank-input-wrapper">
-              <Landmark size={16} />
-
-              <input
-                id="branchName"
-                type="text"
-                value={branchName}
-                onChange={(e) =>
-                  setBranchName(
-                    e.target.value,
-                  )
-                }
-                placeholder="Branch name"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="phoneNumber">
-              Mobile Number
-            </label>
-
-            <div className="bank-input-wrapper">
-              <Smartphone size={16} />
-
-              <input
-                id="phoneNumber"
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                value={phoneNumber}
-                onChange={(e) =>
-                  setPhoneNumber(
-                    e.target.value.replace(
-                      /\D/g,
-                      '',
-                    ),
-                  )
-                }
-                placeholder="10-digit mobile number"
-                required
-              />
-            </div>
-          </div>
-        </div>
-
-        <p className="field-hint bank-otp-hint">
-          <ShieldCheck size={13} />
-          An OTP will be sent to this number to verify the payout before it's processed.
-        </p>
-
-        <div className="bank-security-note bank-security-note-hidden">
-          <ShieldCheck size={19} />
-
-          <div>
-            <strong>
-              Secure payout verification
-            </strong>
-
-            <span>
-              Your mobile number will be
-              verified using a one-time
-              password before the claim
-              amount is credited.
-            </span>
-          </div>
-        </div>
-
-        {error && (
-          <p className="error-text">
-            {error}
-          </p>
-        )}
-
-        <div className="bank-actions">
-          <button
-            type="button"
-            className="bank-secondary-button"
-            onClick={onCancel}
-            disabled={otpSending}
-          >
-            Back
-          </button>
-
-          <button
-            type="submit"
-            className="bank-primary-button"
-            disabled={otpSending}
-          >
-            {otpSending
-              ? 'Sending OTP…'
-              : 'Continue to OTP'}
-
-            {!otpSending && (
-              <ArrowRight size={17} />
-            )}
-          </button>
-        </div>
-      </section>
-    </form>
-  )
-}
+

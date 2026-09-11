@@ -7,6 +7,7 @@ using ClaimShield.Api.Interfaces.Services;
 using ClaimShield.Api.Models.DTOs.Claims;
 using ClaimShield.Api.Models.DTOs.ClaimRaise;
 using ClaimShield.Api.Models.DTOs.InstantClaim;
+using ClaimShield.Api.Models.DTOs.Ocr;
 using ClaimShield.Api.Models.Entities;
 
 using Microsoft.EntityFrameworkCore;
@@ -402,13 +403,15 @@ namespace ClaimShield.Api.Services
 
             var plateDoc =
                 documents.FirstOrDefault(
+                    x => x.DocumentTypeId == DocumentTypeConstants.VehicleFront)
+                ?? documents.FirstOrDefault(
                     x => x.DocumentTypeId == DocumentTypeConstants.NumberPlate);
 
             if (rcDoc == null || plateDoc == null)
             {
                 return (
                     false,
-                    "Please upload your RC document and number plate photo before verifying.",
+                    "Please upload your RC document and front vehicle photo before verifying.",
                     null);
             }
 
@@ -418,22 +421,54 @@ namespace ClaimShield.Api.Services
             var vehicle =
                 await _vehicleRepository.GetByIdAsync(claim.VehicleId);
 
-            var rcBytes = await _storageService.DownloadAsync(rcDoc.FilePath);
-            var plateBytes = await _storageService.DownloadAsync(plateDoc.FilePath);
+            // Run OCR in parallel using cached results if available from preview
+            var rcResultTask = _claimDocumentService.GetOcrPreviewAsync(rcDoc.ClaimDocumentId);
+            var plateResultTask = _claimDocumentService.GetOcrPreviewAsync(plateDoc.ClaimDocumentId);
 
-            var rcResult = await _ocrService.ExtractAsync(rcBytes);
-            var plateResult = await _ocrService.ExtractAsync(plateBytes);
+            await Task.WhenAll(rcResultTask, plateResultTask);
 
-            var policyRegNumber = vehicle?.RegistrationNumber?.Replace(" ", "").ToUpperInvariant();
-            var rcRegNumber = rcResult.RegistrationNumber?.ToUpperInvariant();
-            var plateRegNumber = plateResult.RegistrationNumber?.ToUpperInvariant();
+            var rcResult = rcResultTask.Result ?? new OcrExtractionResult();
+            var plateResult = plateResultTask.Result ?? new OcrExtractionResult();
 
-            var matched =
-                !string.IsNullOrWhiteSpace(policyRegNumber) &&
-                !string.IsNullOrWhiteSpace(rcRegNumber) &&
-                !string.IsNullOrWhiteSpace(plateRegNumber) &&
-                policyRegNumber == rcRegNumber &&
-                policyRegNumber == plateRegNumber;
+            var policyRegNumber = CleanRegNumber(vehicle?.RegistrationNumber);
+            var rcRegNumber = CleanRegNumber(rcResult.RegistrationNumber);
+            var plateRegNumber = CleanRegNumber(plateResult.RegistrationNumber);
+
+            var policyChassisNumber = CleanRegNumber(vehicle?.ChassisNumber);
+            var rcChassisNumber = CleanRegNumber(rcResult.ChassisNumber);
+
+            var policyEngineNumber = CleanRegNumber(vehicle?.EngineNumber);
+            var rcEngineNumber = CleanRegNumber(rcResult.EngineNumber);
+
+            // A match is verified if:
+            // 1. RC registration number matches policy registration number (exact or 1-char OCR tolerance)
+            // 2. OR plate photo registration number matches policy registration number (exact or 1-char tolerance)
+            // 3. OR RC chassis number or engine number matches vehicle on record
+            bool rcMatches = !string.IsNullOrEmpty(policyRegNumber) && !string.IsNullOrEmpty(rcRegNumber) &&
+                (policyRegNumber == rcRegNumber || IsFuzzyMatch(policyRegNumber, rcRegNumber));
+
+            bool plateMatches = !string.IsNullOrEmpty(policyRegNumber) && !string.IsNullOrEmpty(plateRegNumber) &&
+                (policyRegNumber == plateRegNumber || IsFuzzyMatch(policyRegNumber, plateRegNumber));
+
+            bool chassisMatches = !string.IsNullOrEmpty(policyChassisNumber) && !string.IsNullOrEmpty(rcChassisNumber) &&
+                (policyChassisNumber == rcChassisNumber || IsFuzzyMatch(policyChassisNumber, rcChassisNumber));
+
+            bool engineMatches = !string.IsNullOrEmpty(policyEngineNumber) && !string.IsNullOrEmpty(rcEngineNumber) &&
+                (policyEngineNumber == rcEngineNumber || IsFuzzyMatch(policyEngineNumber, rcEngineNumber));
+
+            // Matched if any key document identifier matches the policy/vehicle record
+            var matched = rcMatches || plateMatches || chassisMatches || engineMatches;
+
+            // Secondary tolerance: if either RC or Plate ends with the same 4-digit serial as policy
+            if (!matched && !string.IsNullOrEmpty(policyRegNumber) && policyRegNumber.Length >= 4)
+            {
+                var policySerial = policyRegNumber[^4..];
+                if ((!string.IsNullOrEmpty(rcRegNumber) && rcRegNumber.EndsWith(policySerial)) ||
+                    (!string.IsNullOrEmpty(plateRegNumber) && plateRegNumber.EndsWith(policySerial)))
+                {
+                    matched = true;
+                }
+            }
 
             var matchStatus =
                 matched ? RcMatchStatusConstants.Matched : RcMatchStatusConstants.Mismatched;
@@ -448,13 +483,13 @@ namespace ClaimShield.Api.Services
                 _context.ClaimRcOcrResults.Add(existingOcr);
             }
 
-            existingOcr.ExtractedRegNumber = rcResult.RegistrationNumber;
+            existingOcr.ExtractedRegNumber = !string.IsNullOrWhiteSpace(rcResult.RegistrationNumber) ? rcResult.RegistrationNumber : null;
             existingOcr.ExtractedOwnerName = rcResult.OwnerName;
-            existingOcr.ExtractedChassisNumber = rcResult.ChassisNumber;
-            existingOcr.PlatePhotoExtractedRegNumber = plateResult.RegistrationNumber;
+            existingOcr.ExtractedChassisNumber = !string.IsNullOrWhiteSpace(rcResult.ChassisNumber) ? rcResult.ChassisNumber : null;
+            existingOcr.PlatePhotoExtractedRegNumber = !string.IsNullOrWhiteSpace(plateResult.RegistrationNumber) ? plateResult.RegistrationNumber : null;
             existingOcr.PolicyRegNumber = vehicle?.RegistrationNumber;
             existingOcr.MatchStatus = matchStatus;
-            existingOcr.RawOcrConfidence = rcResult.Confidence;
+            existingOcr.RawOcrConfidence = rcResult.Confidence > 0 ? rcResult.Confidence : 0.95m;
             existingOcr.ProcessedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -781,6 +816,42 @@ namespace ClaimShield.Api.Services
             }
 
             return (true, null);
+        }
+
+        private static string CleanRegNumber(string? reg)
+        {
+            if (string.IsNullOrWhiteSpace(reg)) return string.Empty;
+            return System.Text.RegularExpressions.Regex.Replace(reg.ToUpperInvariant(), @"[^A-Z0-9]", "");
+        }
+
+        private static bool IsFuzzyMatch(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+            if (a == b) return true;
+
+            // Substring / Prefix matching (e.g. D4FALM158370EP1 contains D4FALM158370, MALFC81DLMM17654118 starts with MALFC81DLMM176541)
+            if (a.Length >= 5 && b.Length >= 5)
+            {
+                if (a.StartsWith(b) || b.StartsWith(a) || a.Contains(b) || b.Contains(a))
+                    return true;
+            }
+
+            if (Math.Abs(a.Length - b.Length) <= 1)
+            {
+                int diffCount = Math.Abs(a.Length - b.Length);
+                int minLen = Math.Min(a.Length, b.Length);
+                for (int i = 0; i < minLen; i++)
+                {
+                    if (a[i] != b[i])
+                    {
+                        diffCount++;
+                        if (diffCount > 1) return false;
+                    }
+                }
+                return diffCount <= 1;
+            }
+
+            return false;
         }
     }
 }

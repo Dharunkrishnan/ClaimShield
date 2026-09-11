@@ -15,6 +15,7 @@ import {
   Gauge,
   Eye,
   Wrench,
+  HelpCircle,
 } from 'lucide-react'
 import { ApiError, getMyClaims, getMyCustomerProfile, sendAiChatMessage } from '../lib/api'
 import type { ClaimResponseDto } from '../lib/types'
@@ -36,8 +37,259 @@ interface QuickPrompt {
 const QUICK_PROMPTS: QuickPrompt[] = [
   { label: 'Claim status', text: 'What is the status of my claim?', icon: Gauge },
   { label: 'My Surveyor', text: 'Who is my surveyor?', icon: Eye },
+  { label: 'Repair Estimate', text: 'Explain my repair estimate and deductible details', icon: HelpCircle },
   { label: 'My Repairer', text: 'Who is repairing my vehicle?', icon: Wrench },
 ]
+
+function renderFormattedMessage(text: string) {
+  const lines = text.split('\n')
+  return (
+    <div className="chat-msg-formatted">
+      {lines.map((line, i) => {
+        const trimmed = line.trim()
+        if (!trimmed) {
+          return <div key={i} className="chat-line-gap" />
+        }
+
+        const isBullet = /^[*-•]\s+(.*)$/.test(trimmed)
+        const isNumbered = /^\d+\.\s+(.*)$/.test(trimmed)
+        const lineText = isBullet
+          ? trimmed.replace(/^[*-•]\s+/, '')
+          : isNumbered
+            ? trimmed.replace(/^\d+\.\s+/, '')
+            : trimmed
+
+        const parts = lineText.split(/(\*\*[^*]+\*\*)/g)
+        const renderedParts = parts.map((part, pIdx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <strong key={pIdx} className="chat-strong">
+                {part.slice(2, -2)}
+              </strong>
+            )
+          }
+          return part
+        })
+
+        if (isBullet) {
+          return (
+            <div key={i} className="chat-bullet-item">
+              <span className="chat-bullet-dot">•</span>
+              <span>{renderedParts}</span>
+            </div>
+          )
+        }
+
+        if (isNumbered) {
+          const numMatch = trimmed.match(/^(\d+)\./)
+          return (
+            <div key={i} className="chat-bullet-item">
+              <span className="chat-bullet-num">{numMatch ? numMatch[1] : ''}.</span>
+              <span>{renderedParts}</span>
+            </div>
+          )
+        }
+
+        return (
+          <p key={i} className="chat-msg-paragraph">
+            {renderedParts}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
+
+const DIGIT_WORDS: Record<string, string> = {
+  '0': 'zero',
+  '1': 'one',
+  '2': 'two',
+  '3': 'three',
+  '4': 'four',
+  '5': 'five',
+  '6': 'six',
+  '7': 'seven',
+  '8': 'eight',
+  '9': 'nine',
+}
+
+function spellOutCode(token: string): string {
+  if (!token) return ''
+  const clean = token.replace(/[^A-Za-z0-9]/g, '')
+  if (!clean) return token
+
+  const chars = clean.split('')
+  const spoken = chars.map((char) => {
+    const upper = char.toUpperCase()
+    if (DIGIT_WORDS[upper]) {
+      return DIGIT_WORDS[upper]
+    }
+    return upper
+  })
+
+  return spoken.join(', ') + ' '
+}
+
+function findFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  if (!voices || voices.length === 0) return null
+
+  // 1. High priority: Indian English Female voices (Heera, Neerja, Veena, Raveena, Swara, etc.)
+  const inFemaleKeywords = [
+    'heera',
+    'neerja',
+    'veena',
+    'raveena',
+    'swara',
+    'priya',
+    'ananya',
+    'kavya',
+    'geeta',
+    'sunita',
+  ]
+  const inFemale = voices.find((v) => {
+    const name = (v.name || '').toLowerCase()
+    const lang = (v.lang || '').toLowerCase()
+    const isIndian = lang.includes('en-in') || lang.includes('ta-in') || name.includes('india')
+    const matchesName =
+      inFemaleKeywords.some((k) => name.includes(k)) ||
+      (isIndian &&
+        (name.includes('female') || name.includes('woman') || name.includes('girl')))
+    return matchesName
+  })
+  if (inFemale) return inFemale
+
+  // 2. Any en-IN voice that is explicitly NOT male
+  const inAnyFemale = voices.find((v) => {
+    const name = (v.name || '').toLowerCase()
+    const lang = (v.lang || '').toLowerCase()
+    const isIndian = lang.includes('en-in') || lang.includes('ta-in') || name.includes('india')
+    const isMale =
+      name.includes('ravi') ||
+      name.includes('male') ||
+      name.includes('guy') ||
+      name.includes('man') ||
+      name.includes('david') ||
+      name.includes('prabhat')
+    return isIndian && !isMale
+  })
+  if (inAnyFemale) return inAnyFemale
+
+  // 3. Known Natural / High-quality English Female voices (Windows Zira, Edge Jenny/Aria, Apple Samantha, Chrome Female)
+  const generalFemaleKeywords = [
+    'zira',
+    'jenny',
+    'aria',
+    'hazel',
+    'susan',
+    'sonia',
+    'samantha',
+    'victoria',
+    'karen',
+    'tessa',
+    'moira',
+    'steffi',
+    'clara',
+    'libby',
+    'natasha',
+    'ava',
+    'emma',
+    'ana',
+    'mia',
+    'female',
+    'woman',
+  ]
+  const generalFemale = voices.find((v) => {
+    const name = (v.name || '').toLowerCase()
+    const lang = (v.lang || '').toLowerCase()
+    const isEnglish = lang.startsWith('en')
+    return isEnglish && generalFemaleKeywords.some((k) => name.includes(k))
+  })
+  if (generalFemale) return generalFemale
+
+  // 4. Any English voice that is NOT in the male keywords list
+  const anyNonMaleEnglish = voices.find((v) => {
+    const name = (v.name || '').toLowerCase()
+    const lang = (v.lang || '').toLowerCase()
+    const isEnglish = lang.startsWith('en')
+    const isMale =
+      name.includes('ravi') ||
+      name.includes('david') ||
+      name.includes('mark') ||
+      name.includes('guy') ||
+      name.includes('george') ||
+      name.includes('richard') ||
+      name.includes('male') ||
+      name.includes('man') ||
+      name.includes('stefan')
+    return isEnglish && !isMale
+  })
+  if (anyNonMaleEnglish) return anyNonMaleEnglish
+
+  // 5. Fallback
+  return voices[0] || null
+}
+
+function cleanTextForSpeech(text: string): string {
+  if (!text) return ''
+
+  return (
+    text
+      // Strip markdown bold and italic formatting (**word**, *word*, __word__, _word_)
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/_([^_]+)_/g, '$1')
+      // Strip markdown headers (#, ##, ###)
+      .replace(/^#+\s+/gm, '')
+      // Replace rupee symbol with number + rupees (preserve formatted numbers like ₹45,000)
+      .replace(/₹\s*([\d,]+)/g, '$1 rupees')
+      // Spell out Claim Numbers (e.g. CLM00234, CLM202600107-DRAFT, CLM25DE9488, CLM0021)
+      .replace(/\b(CLM[0-9A-Za-z_-]*)\b/gi, (m) => {
+        const parts = m.split(/[-_]/)
+        return (
+          parts
+            .map((p) => (/^[a-zA-Z]{4,}$/.test(p) ? p : spellOutCode(p).trim()))
+            .join(' ') + ' '
+        )
+      })
+      // Spell out Policy Numbers (e.g. POLTN74BC4444, POL123456 - ignore word 'Policy' or 'Police')
+      .replace(/\b(POL[0-9][0-9A-Za-z]*|POL[A-Z]{2,}[0-9A-Za-z]*)\b/gi, (m) => {
+        if (/^(policy|policies|police)$/i.test(m)) return m
+        return spellOutCode(m)
+      })
+      // Spell out Vehicle Registration Numbers (e.g. TN41AX5452, KA01AB1234)
+      .replace(/\b([A-Z]{2}\s?[0-9]{1,2}\s?[A-Z]{1,3}\s?[0-9]{4})\b/gi, (m) =>
+        spellOutCode(m)
+      )
+      // Spell out standalone numbers with leading zeros (e.g. 00234, 00111, 0021 - but NOT inside amounts like 1,000)
+      .replace(/(?<![\d,])\b(0\d+)\b(?![\d,])/g, (m) => spellOutCode(m))
+      // Spell out any other mixed alphanumeric codes with BOTH letters and digits (e.g. EST101, WO2026, IDV123)
+      .replace(/\b(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*[0-9])[A-Za-z0-9]{3,}\b/g, (m) => {
+        if (/^(1st|2nd|3rd|[0-9]+th)$/i.test(m)) return m
+        return spellOutCode(m)
+      })
+      // Spell out 10-digit phone numbers digit-by-digit
+      .replace(/(?<![\d,])\b(\d{10})\b(?![\d,])/g, (m) => spellOutCode(m))
+      // Replace bullets and list numbers
+      .replace(/^[*-•]\s+/gm, '')
+      .replace(/^\d+\.\s+/gm, '')
+      // Remove divider lines (---, ===)
+      .replace(/^[=-]{3,}\s*$/gm, '')
+      // Remove pure Tamil script characters if any
+      .replace(/[\u0B80-\u0BFF]/g, '')
+      // Remove emojis and unicode symbols
+      .replace(
+        /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F018}-\u{1F270}\u{2388}\u{200D}\u{FE0F}]/gu,
+        ''
+      )
+      // Clean colons, newlines, dots, and extra whitespace
+      .replace(/[:]/g, ', ')
+      .replace(/\n+/g, '. ')
+      .replace(/\.\s*\./g, '.')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+  )
+}
 
 function getSpeechRecognitionCtor() {
   return (
@@ -66,12 +318,33 @@ export function ChatAssistant() {
   const [listening, setListening] = useState(false)
   const [muted, setMuted] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([])
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const loadedClaimsRef = useRef(false)
   const prevPathRef = useRef(location.pathname)
 
   const firstName = displayName?.trim().split(' ')[0] || 'there'
+
+  // Pre-load available synthesis voices and track updates (Chrome / Edge / Safari / Windows)
+  useEffect(() => {
+    if (!SPEECH_OUTPUT_SUPPORTED) return
+
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices()
+      if (v && v.length > 0) {
+        setAvailableVoices(v)
+      }
+    }
+
+    loadVoices()
+    window.speechSynthesis.onvoiceschanged = loadVoices
+
+    return () => {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.onvoiceschanged = null
+      }
+    }
+  }, [])
 
   // Highlight the assistant with a one-time welcome bubble shortly after
   // sign-in, then settle back to its normal, unobtrusive icon state.
@@ -86,25 +359,69 @@ export function ChatAssistant() {
 
   const handleBubbleClick = () => {
     setShowGreeting(false)
-    setOpen((o) => !o)
+    setOpen((o) => {
+      if (o && SPEECH_OUTPUT_SUPPORTED) {
+        window.speechSynthesis.cancel()
+      }
+      return !o
+    })
   }
 
+  const handleClose = () => {
+    if (SPEECH_OUTPUT_SUPPORTED) {
+      window.speechSynthesis.cancel()
+    }
+    setOpen(false)
+  }
+
+  const toggleMute = () => {
+    if (SPEECH_OUTPUT_SUPPORTED) {
+      window.speechSynthesis.cancel()
+    }
+    setMuted((m) => !m)
+  }
+
+  // Fetch user's claims on mount or open
   useEffect(() => {
-    if (!open || loadedClaimsRef.current) return
-    loadedClaimsRef.current = true
+    if (!open && claims.length > 0) return
 
     getMyCustomerProfile()
       .then((customer) => getMyClaims(customer.customerId))
       .then((data) => {
         setClaims(data)
-        if (data.length > 0) setClaimId(data[0].claimId)
+        setClaimsLoaded(true)
       })
       .catch(() => {
-        /* Chat still works without a pre-selected claim - the assistant
-           will ask for a claim number in that case. */
+        setClaimsLoaded(true)
       })
-      .finally(() => setClaimsLoaded(true))
-  }, [open])
+  }, [open, claims.length])
+
+  // Sync selected claim with the current route / page
+  useEffect(() => {
+    if (claims.length === 0) return
+
+    // 1. Extract claim ID or number from URL if viewing a claim page
+    const pathMatch = location.pathname.match(/\/(?:my-claims|claims)\/([^/?#]+)/)
+    const urlClaimParam = pathMatch ? pathMatch[1] : new URLSearchParams(location.search).get('claimId')
+
+    if (urlClaimParam) {
+      const match = claims.find(
+        (c) =>
+          c.claimId.toLowerCase() === urlClaimParam.toLowerCase() ||
+          c.claimNumber.toLowerCase() === urlClaimParam.toLowerCase()
+      )
+      if (match) {
+        setClaimId(match.claimId)
+        return
+      }
+    }
+
+    // 2. Default to the latest claim if nothing is selected yet
+    setClaimId((prev) => {
+      if (prev && claims.some((c) => c.claimId === prev)) return prev
+      return claims[0]?.claimId || ''
+    })
+  }, [location.pathname, location.search, claims])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -112,9 +429,24 @@ export function ChatAssistant() {
 
   const speak = (text: string) => {
     if (muted || !SPEECH_OUTPUT_SUPPORTED) return
+    const cleaned = cleanTextForSpeech(text)
+    if (!cleaned) return
+
     window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'en-IN'
+    const utterance = new SpeechSynthesisUtterance(cleaned)
+
+    const voiceList = availableVoices.length > 0 ? availableVoices : window.speechSynthesis.getVoices()
+    const femaleVoice = findFemaleVoice(voiceList)
+
+    if (femaleVoice) {
+      utterance.voice = femaleVoice
+      utterance.lang = femaleVoice.lang
+    } else {
+      utterance.lang = 'en-IN'
+    }
+
+    utterance.rate = 0.98
+    utterance.pitch = 1.15 // Pleasant, bright female tone
     window.speechSynthesis.speak(utterance)
   }
 
@@ -147,6 +479,17 @@ export function ChatAssistant() {
     const trimmed = text.trim()
     if (!trimmed || sending) return
 
+    // Auto-detect if user mentioned a specific claim number in the text
+    const mentionedClaim = claims.find((c) =>
+      new RegExp(`\\b${c.claimNumber}\\b`, 'i').test(trimmed)
+    )
+
+    let targetClaimId = claimId
+    if (mentionedClaim) {
+      targetClaimId = mentionedClaim.claimId
+      setClaimId(mentionedClaim.claimId)
+    }
+
     setMessages((m) => [...m, { id: crypto.randomUUID(), role: 'user', text: trimmed }])
     setInput('')
     setSending(true)
@@ -155,7 +498,7 @@ export function ChatAssistant() {
     try {
       const result = await sendAiChatMessage({
         message: trimmed,
-        claimId: claimId || null,
+        claimId: targetClaimId || null,
       })
       setMessages((m) => [
         ...m,
@@ -172,6 +515,9 @@ export function ChatAssistant() {
   }
 
   const handleMic = () => {
+    if (SPEECH_OUTPUT_SUPPORTED) {
+      window.speechSynthesis.cancel()
+    }
     const SpeechRecognitionCtor = getSpeechRecognitionCtor()
     if (!SpeechRecognitionCtor) return
 
@@ -224,10 +570,10 @@ export function ChatAssistant() {
             />
             <motion.div
               className="chat-greeting-bubble"
-              initial={{ opacity: 0, y: 10, scale: 0.94 }}
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.94 }}
-              transition={{ duration: 0.25, ease: 'easeOut' }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
             >
               <button
                 type="button"
@@ -235,13 +581,13 @@ export function ChatAssistant() {
                 onClick={() => setShowGreeting(false)}
                 aria-label="Dismiss"
               >
-                <X size={12} />
+                <X size={11} />
               </button>
               <span className="chat-greeting-icon">
-                <Sparkles size={14} />
+                <Sparkles size={11} />
               </span>
               <p>
-                Welcome back, {firstName}! I'm Movo — here for any assistance, just tap to ask.
+                Hi {firstName}! Tap to ask Movo.
               </p>
             </motion.div>
           </>
@@ -277,22 +623,33 @@ export function ChatAssistant() {
                 <strong>Movo</strong>
                 <span className="chat-panel-subtitle">
                   <Sparkles size={11} />
-                  Rule-based lookup - answers from your real claim data
+                  Powered by Gemini AI • Real-time Claim Assistant
                 </span>
               </div>
-              {SPEECH_OUTPUT_SUPPORTED && (
-                <motion.button
+              <div className="chat-panel-header-actions">
+                {SPEECH_OUTPUT_SUPPORTED && (
+                  <motion.button
+                    type="button"
+                    className={`chat-mute-toggle ${muted ? 'chat-mute-toggle-muted' : 'chat-mute-toggle-active'}`}
+                    onClick={toggleMute}
+                    title={muted ? 'Unmute voice replies' : 'Mute / Stop voice playback'}
+                    aria-pressed={!muted}
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.92 }}
+                  >
+                    {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </motion.button>
+                )}
+                <button
                   type="button"
-                  className={`chat-mute-toggle ${muted ? 'chat-mute-toggle-muted' : 'chat-mute-toggle-active'}`}
-                  onClick={() => setMuted((m) => !m)}
-                  title={muted ? 'Unmute voice replies' : 'Mute voice replies'}
-                  aria-pressed={!muted}
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.92 }}
+                  className="chat-panel-close-btn"
+                  onClick={handleClose}
+                  title="Close assistant"
+                  aria-label="Close assistant"
                 >
-                  {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                </motion.button>
-              )}
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {claimsLoaded && claims.length > 0 && (
@@ -303,6 +660,7 @@ export function ChatAssistant() {
                   value={claimId}
                   onChange={(e) => setClaimId(e.target.value)}
                 >
+                  <option value="">All Claims / General</option>
                   {claims.map((c) => (
                     <option key={c.claimId} value={c.claimId}>
                       {c.claimNumber}
@@ -354,7 +712,9 @@ export function ChatAssistant() {
                         <Bot size={13} />
                       </span>
                     )}
-                    <div className={`chat-msg chat-msg-${m.role}`}>{m.text}</div>
+                    <div className={`chat-msg chat-msg-${m.role}`}>
+                      {m.role === 'assistant' ? renderFormattedMessage(m.text) : m.text}
+                    </div>
                     {m.role === 'user' && (
                       <span className="chat-msg-avatar chat-msg-avatar-user">
                         <User size={13} />

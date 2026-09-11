@@ -19,9 +19,6 @@ function formatCurrency(amount: number | null) {
   return amount != null ? `₹ ${amount.toLocaleString('en-IN')}` : '—'
 }
 
-// incidentDate now genuinely carries a customer-provided time (Raise
-// Claim captures Date of Loss + Loss Time separately and combines
-// them) - policy dates remain date-only picks with no real time.
 function formatDateOnly(value: string) {
   return new Date(value).toLocaleDateString('en-IN', {
     day: '2-digit',
@@ -79,24 +76,23 @@ export function CustomerDashboardPage() {
   const firstName = displayName?.trim().split(' ')[0] || 'there'
 
   return (
-    <div>
+    <div className="dashboard-page-container">
+      {/* Welcome Top Header with compact refresh button on top right */}
       <div className="dashboard-topbar">
-        <div>
-          <span className="dashboard-topbar-eyebrow">Dashboard</span>
-          <h1 className="dashboard-topbar-title">Welcome back, {firstName}</h1>
-        </div>
-
-        <div className="dashboard-topbar-actions">
+        <div className="dashboard-topbar-header">
+          <div>
+            <span className="dashboard-topbar-eyebrow">Dashboard</span>
+            <h1 className="dashboard-topbar-title">Welcome back, {firstName}</h1>
+          </div>
           <button
             type="button"
-            className="dashboard-refresh-button"
+            className="dashboard-refresh-icon-btn"
             onClick={() => void loadDashboard(true)}
             disabled={refreshing}
             aria-label="Refresh dashboard"
             title="Refresh"
           >
-            <RefreshCw size={14} className={refreshing ? 'is-spinning' : ''} />
-            {refreshing ? 'Refreshing…' : 'Refresh'}
+            <RefreshCw size={15} className={refreshing ? 'is-spinning' : ''} />
           </button>
         </div>
       </div>
@@ -111,36 +107,46 @@ export function CustomerDashboardPage() {
 
       {!loading && (
         <>
-          <div className="stat-cards">
-            <div className="stat-card stat-card-blue">
-              <span className="stat-card-icon stat-card-icon-blue">
-                <FileText size={18} />
-              </span>
-              <p className="stat-card-label">Active policies</p>
+          {/* 3 KPI cards in a single compact line on all screens */}
+          <div className="stat-cards stat-cards-row">
+            <div className="stat-card stat-card-compact stat-card-blue">
+              <div className="stat-card-header">
+                <span className="stat-card-icon stat-card-icon-blue">
+                  <FileText size={11} />
+                </span>
+                <p className="stat-card-label">Active policies</p>
+              </div>
               <p className="stat-card-value">
                 {policies!.filter((p) => new Date(p.endDate) >= new Date()).length}
               </p>
             </div>
-            <div className="stat-card stat-card-amber">
-              <span className="stat-card-icon stat-card-icon-amber">
-                <ClipboardList size={18} />
-              </span>
-              <p className="stat-card-label">Open claims</p>
+            <div className="stat-card stat-card-compact stat-card-amber">
+              <div className="stat-card-header">
+                <span className="stat-card-icon stat-card-icon-amber">
+                  <ClipboardList size={11} />
+                </span>
+                <p className="stat-card-label">Open claims</p>
+              </div>
               <p className="stat-card-value">{openClaims.length}</p>
             </div>
-            <div className="stat-card stat-card-teal">
-              <span className="stat-card-icon stat-card-icon-teal">
-                <CheckCircle2 size={18} />
-              </span>
-              <p className="stat-card-label">Closed claims</p>
+            <div className="stat-card stat-card-compact stat-card-teal">
+              <div className="stat-card-header">
+                <span className="stat-card-icon stat-card-icon-teal">
+                  <CheckCircle2 size={11} />
+                </span>
+                <p className="stat-card-label">Closed claims</p>
+              </div>
               <p className="stat-card-value">{closedClaims.length}</p>
             </div>
           </div>
 
+          {/* Instant Claim Banner (compact) */}
           <InstantClaimBanner />
 
+          {/* How It Works (3 cards in single line) */}
           <HowItWorks />
 
+          {/* Your active policy (3 clean lines) */}
           {activePolicy &&
             (() => {
               const startMs = new Date(activePolicy.startDate).getTime()
@@ -154,99 +160,146 @@ export function CustomerDashboardPage() {
 
               return (
                 <section className="card card-tint-blue policy-highlight-card">
-                  <h2>Your active policy</h2>
-                  <span className="badge badge-icon badge-blue policy-type-chip">
-                    <FileText size={13} />
-                    {activePolicy.policyTypeId
-                      ? (PolicyTypeName[activePolicy.policyTypeId] ?? 'Policy')
-                      : 'Policy'}
-                  </span>
+                  <div className="policy-highlight-header">
+                    <h2>Your active policy</h2>
+                    <span className="badge badge-icon badge-blue policy-type-chip">
+                      <FileText size={11} />
+                      {activePolicy.policyTypeId
+                        ? (PolicyTypeName[activePolicy.policyTypeId] ?? 'Policy')
+                        : 'Policy'}
+                    </span>
+                  </div>
 
-                  <dl className="fact-grid fact-grid-rich">
-                    <dt>
-                      <span className="fact-icon fact-icon-blue">
-                        <Hash size={14} />
+                  <div className="policy-kv-list">
+                    {/* Line 1: Policy number */}
+                    <div className="policy-kv-row">
+                      <span className="policy-kv-label">
+                        <Hash size={12} className="policy-kv-icon" />
+                        Policy number
                       </span>
-                      Policy number
-                    </dt>
-                    <dd>{activePolicy.policyNumber}</dd>
+                      <span className="policy-kv-value">{activePolicy.policyNumber}</span>
+                    </div>
 
-                    <dt>
-                      <span className="fact-icon fact-icon-teal">
-                        <Wallet size={14} />
+                    {/* Line 2: Coverage amount */}
+                    <div className="policy-kv-row">
+                      <span className="policy-kv-label">
+                        <Wallet size={12} className="policy-kv-icon" />
+                        Coverage amount
                       </span>
-                      Coverage amount
-                    </dt>
-                    <dd>{formatCurrency(activePolicy.coverageAmount)}</dd>
+                      <span className="policy-kv-value">{formatCurrency(activePolicy.coverageAmount)}</span>
+                    </div>
 
-                    <dt>
-                      <span className="fact-icon fact-icon-amber">
-                        <CalendarClock size={14} />
+                    {/* Line 3: Valid until */}
+                    <div className="policy-kv-row">
+                      <span className="policy-kv-label">
+                        <CalendarClock size={12} className="policy-kv-icon" />
+                        Valid until
                       </span>
-                      Valid until
-                    </dt>
-                    <dd>
-                      {formatDateOnly(activePolicy.endDate)}
-                      <div className="policy-validity-bar">
-                        <div
-                          className="policy-validity-bar-fill"
-                          style={{ width: `${remainingPercent}%` }}
-                        />
+                      <div className="policy-kv-val-group">
+                        <span className="policy-kv-value">{formatDateOnly(activePolicy.endDate)}</span>
+                        <span className="policy-validity-pill">{daysRemaining}d left</span>
                       </div>
-                      <span className="policy-validity-days">
-                        {daysRemaining} day{daysRemaining === 1 ? '' : 's'} remaining
-                      </span>
-                    </dd>
-                  </dl>
-                  <Link to="/my-policy">View full policy details →</Link>
+                    </div>
+                  </div>
+
+                  <div className="policy-validity-bar-wrap">
+                    <div className="policy-validity-bar">
+                      <div
+                        className="policy-validity-bar-fill"
+                        style={{ width: `${remainingPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <Link to="/my-policy" className="policy-details-link">View full policy details →</Link>
                 </section>
               )
             })()}
 
-          <section className="card card-tint-blue">
-            <h2>Recent claims</h2>
+          {/* Recent claims section (shows only 2 claims + View more option) */}
+          <section className="card card-tint-blue recent-claims-card">
+            <div className="recent-claims-header-row">
+              <h2>Recent claims</h2>
+              {claims!.length > 2 && (
+                <Link to="/my-claims" className="recent-claims-view-more-link">
+                  View all ({claims!.length}) →
+                </Link>
+              )}
+            </div>
             {claims!.length === 0 && <p>You haven't raised any claims yet.</p>}
             {claims!.length > 0 && (
-              <table className="queue-table">
-                <thead>
-                  <tr>
-                    <th>Claim No</th>
-                    <th>Policy No</th>
-                    <th>Vehicle No</th>
-                    <th>Loss Date</th>
-                    <th>Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {claims!.slice(0, 5).map((claim) => (
-                    <tr key={claim.claimId}>
-                      <td>
-                        {claim.claimNumber}
-                      </td>
-                      <td>{claim.policyNumber ?? '—'}</td>
-                      <td>{claim.vehicleRegistrationNumber ?? '—'}</td>
-                      <td>{formatDateTime(claim.incidentDate)}</td>
-                      <td>
+              <>
+                {/* Desktop table view (Top 2) */}
+                <div className="desktop-recent-claims-table table-responsive">
+                  <table className="queue-table">
+                    <thead>
+                      <tr>
+                        <th>Claim No</th>
+                        <th>Policy No</th>
+                        <th>Vehicle No</th>
+                        <th>Loss Date</th>
+                        <th>Status</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {claims!.slice(0, 2).map((claim) => (
+                        <tr key={claim.claimId}>
+                          <td>{claim.claimNumber}</td>
+                          <td>{claim.policyNumber ?? '—'}</td>
+                          <td>{claim.vehicleRegistrationNumber ?? '—'}</td>
+                          <td>{formatDateTime(claim.incidentDate)}</td>
+                          <td>
+                            <ClaimStatusBadge statusId={claim.statusId} />
+                          </td>
+                          <td>
+                            <Link to={`/my-claims/${claim.claimId}`} className="button-link">
+                              <Eye size={12} />
+                              View
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile compact card list (Top 2 claims, fits 100% screen width) */}
+                <div className="mobile-recent-claims-list">
+                  {claims!.slice(0, 2).map((claim) => (
+                    <div key={claim.claimId} className="mobile-claim-card">
+                      <div className="mobile-claim-card-top">
+                        <span className="mobile-claim-number">{claim.claimNumber}</span>
                         <ClaimStatusBadge statusId={claim.statusId} />
-                      </td>
-                      <td>
-                        <Link to={`/my-claims/${claim.claimId}`} className="button-link">
-                          <Eye size={14} />
-                          View
-                        </Link>
-                      </td>
-                    </tr>
+                      </div>
+                      <div className="mobile-claim-card-meta">
+                        <span>{claim.vehicleRegistrationNumber ?? claim.policyNumber ?? 'Vehicle'}</span>
+                        <span className="mobile-claim-dot">•</span>
+                        <span>{formatDateOnly(claim.incidentDate)}</span>
+                      </div>
+                      <Link to={`/my-claims/${claim.claimId}`} className="mobile-claim-view-btn">
+                        <Eye size={12} />
+                        View claim details
+                      </Link>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+
+                {claims!.length > 2 && (
+                  <div className="mobile-recent-claims-more-btn-wrap">
+                    <Link to="/my-claims" className="mobile-recent-claims-more-btn">
+                      View all {claims!.length} claims
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
-            <p>
-              <Link to="/my-claims/new" className="button-link">
-                <FilePlus2 size={16} />
+            <div className="recent-claims-cta-wrap">
+              <Link to="/my-claims/new" className="button-link btn-compact-center">
+                <FilePlus2 size={13} />
                 Raise a new claim
               </Link>
-            </p>
+            </div>
           </section>
         </>
       )}

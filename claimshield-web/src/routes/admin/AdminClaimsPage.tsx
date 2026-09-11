@@ -43,51 +43,53 @@ export function AdminClaimsPage() {
       {claims && claims.length === 0 && <p>No claims yet.</p>}
 
       {claims && claims.length > 0 && (
-        <table className="queue-table">
-          <thead>
-            <tr>
-              <th>Claim number</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {claims.map((claim) => (
-              <Fragment key={claim.claimId}>
-                <tr>
-                  <td>
-                    <Link to={`/claims/${claim.claimId}`}>{claim.claimNumber}</Link>
-                  </td>
-                  <td>{ClaimStatusName[claim.statusId ?? 0] ?? 'Unknown'}</td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpandedClaimId(
-                          expandedClaimId === claim.claimId ? null : claim.claimId,
-                        )
-                      }
-                    >
-                      {expandedClaimId === claim.claimId ? 'Close' : 'Assign'}
-                    </button>
-                  </td>
-                </tr>
-                {expandedClaimId === claim.claimId && (
+        <div className="table-responsive">
+          <table className="queue-table">
+            <thead>
+              <tr>
+                <th>Claim number</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {claims.map((claim) => (
+                <Fragment key={claim.claimId}>
                   <tr>
-                    <td colSpan={3}>
-                      <AssignPanel
-                        claimId={claim.claimId}
-                        surveyors={surveyors}
-                        repairers={repairers}
-                        onDone={() => void load()}
-                      />
+                    <td>
+                      <Link to={`/claims/${claim.claimId}`}>{claim.claimNumber}</Link>
+                    </td>
+                    <td>{ClaimStatusName[claim.statusId ?? 0] ?? 'Unknown'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedClaimId(
+                            expandedClaimId === claim.claimId ? null : claim.claimId,
+                          )
+                        }
+                      >
+                        {expandedClaimId === claim.claimId ? 'Close' : 'Assign'}
+                      </button>
                     </td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
+                  {expandedClaimId === claim.claimId && (
+                    <tr>
+                      <td colSpan={3}>
+                        <AssignPanel
+                          claimId={claim.claimId}
+                          surveyors={surveyors}
+                          repairers={repairers}
+                          onDone={() => void load()}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

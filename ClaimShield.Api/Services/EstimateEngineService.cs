@@ -139,7 +139,7 @@ namespace ClaimShield.Api.Services
             var otherDeductions = 0m;
 
             var netAmount =
-                totalLabour + partsAmount - excess - salvage - otherDeductions;
+                removeRefit + denting + painting + totalLabour + partsAmount - excess - salvage - otherDeductions;
 
             if (netAmount < 0)
             {

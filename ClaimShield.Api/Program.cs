@@ -1,3 +1,4 @@
+using ClaimShield.Api.AI.Configuration;
 using ClaimShield.Api.AI.Interfaces;
 using ClaimShield.Api.AI.Services;
 using ClaimShield.Api.Authentication;
@@ -434,10 +435,16 @@ builder.Services.AddScoped<
     OtpService>();
 
 // ------------------------------------------------------------
+// In-Memory Caching & Performance
+// ------------------------------------------------------------
+
+builder.Services.AddMemoryCache();
+
+// ------------------------------------------------------------
 // OCR (Phase 12 - RC/plate photo extraction)
 // ------------------------------------------------------------
 
-builder.Services.AddScoped<
+builder.Services.AddSingleton<
     IOcrService,
     TesseractOcrService>();
 
@@ -546,16 +553,15 @@ builder.Services.AddScoped<
     ClaimClosureService>();
 
 // ============================================================
-// AI SERVICE
+// AI SERVICE (Google Gemini with Resilient Fallback)
 // ============================================================
-//
-// Development AI uses ClaimShield's existing services.
-// No OpenAI API key is required.
-//
 
-builder.Services.AddScoped<
-    IAiService,
-    MockAiService>();
+builder.Services.Configure<GeminiSettings>(
+    builder.Configuration.GetSection("Gemini"));
+
+builder.Services.AddScoped<MockAiService>();
+builder.Services.AddHttpClient<GeminiAiService>();
+builder.Services.AddScoped<IAiService, GeminiAiService>();
 
 // ============================================================
 // CORS

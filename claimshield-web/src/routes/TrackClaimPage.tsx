@@ -14,7 +14,6 @@ import {
   Search,
   X,
   MapPinned,
-  ChevronRight,
   FileCheck,
   ClipboardCheck,
   ClipboardList,
@@ -25,13 +24,17 @@ import {
   Check,
   Zap,
   Eye,
+  CalendarDays,
+  ArrowRight,
 } from 'lucide-react'
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-IN', {
+  return new Date(value).toLocaleString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -126,7 +129,7 @@ export function TrackClaimPage() {
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null)
-  const [visibleCount, setVisibleCount] = useState(4)
+  const [visibleCount, setVisibleCount] = useState(3)
 
   const [selectedClaimDetail, setSelectedClaimDetail] =
     useState<ClaimResponseDto | null>(null)
@@ -216,7 +219,7 @@ export function TrackClaimPage() {
 
   return (
     <div>
-      <h1>Track Claim</h1>
+      <h1 className="track-claim-page-title">Track Claim</h1>
 
       {error && <p className="error-text">{error}</p>}
 
@@ -232,7 +235,7 @@ export function TrackClaimPage() {
 
       {!loading && claims!.length > 0 && (
         <div className="policy-layout">
-          <div className="policy-list">
+          <div className="policy-list track-claim-list">
             <div className="table-search">
               <Search size={16} className="table-search-icon" />
               <input
@@ -240,7 +243,7 @@ export function TrackClaimPage() {
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value)
-                  setVisibleCount(4)
+                  setVisibleCount(3)
                 }}
                 placeholder="Search claim no, policy no, vehicle no…"
                 className="table-search-input"
@@ -251,7 +254,7 @@ export function TrackClaimPage() {
                   className="table-search-clear"
                   onClick={() => {
                     setSearchTerm('')
-                    setVisibleCount(4)
+                    setVisibleCount(3)
                   }}
                   aria-label="Clear search"
                 >
@@ -271,32 +274,45 @@ export function TrackClaimPage() {
                 <button
                   type="button"
                   key={claim.claimId}
-                  className={`policy-list-card${isSelected ? ' is-selected' : ''}`}
+                  className={`track-claim-item-tile${isSelected ? ' is-selected' : ''}`}
                   onClick={() =>
                     setSelectedClaimId((current) =>
                       current === claim.claimId ? null : claim.claimId,
                     )
                   }
                 >
-                  <div className="policy-list-card-top">
-                    <span className="policy-list-number">
-                      <MapPinned size={15} />
+                  <div className="track-claim-tile-top">
+                    <span className="track-claim-tile-number">
+                      <ShieldCheck size={16} />
                       {claim.claimNumber}
                     </span>
                     <ClaimStatusBadge statusId={claim.statusId} />
                   </div>
 
-                  <span className="policy-list-type">
-                    {claim.vehicleRegistrationNumber ?? '—'}
-                  </span>
+                  <div className="track-claim-tile-grid">
+                    <div className="track-claim-tile-field">
+                      <span className="track-claim-tile-label">Policy</span>
+                      <span className="track-claim-tile-val font-mono">{claim.policyNumber ?? '—'}</span>
+                    </div>
+                    <div className="track-claim-tile-field">
+                      <span className="track-claim-tile-label">Vehicle</span>
+                      <span className="track-claim-tile-val font-mono">{claim.vehicleRegistrationNumber ?? '—'}</span>
+                    </div>
+                    <div className="track-claim-tile-field full-width">
+                      <span className="track-claim-tile-label">Loss Date</span>
+                      <span className="track-claim-tile-val">
+                        <CalendarDays size={12} />
+                        {formatDate(claim.incidentDate)}
+                      </span>
+                    </div>
+                  </div>
 
-                  <span className="policy-list-dates">
-                    Loss date: {formatDate(claim.incidentDate)}
-                  </span>
-
-                  <span className="policy-list-chevron">
-                    <ChevronRight size={16} />
-                  </span>
+                  <div className="track-claim-tile-footer">
+                    <div className="track-claim-tile-link">
+                      <span>{isSelected ? 'Viewing claim timeline' : 'Track claim progress'}</span>
+                      <ArrowRight size={14} />
+                    </div>
+                  </div>
                 </button>
               )
             })}
@@ -305,16 +321,44 @@ export function TrackClaimPage() {
               <button
                 type="button"
                 className="track-claim-view-more"
-                onClick={() => setVisibleCount((c) => c + 4)}
+                onClick={() => setVisibleCount((c) => c + 3)}
               >
                 View more ({filteredClaims.length - visibleCount} more)
               </button>
             )}
           </div>
 
-          <div className="policy-detail-area">
+          {/* Backdrop on mobile */}
+          {selectedClaim && (
+            <div
+              className="policy-mobile-backdrop"
+              onClick={() => setSelectedClaimId(null)}
+              aria-hidden="true"
+            />
+          )}
+
+          <div className={`policy-detail-area${selectedClaim ? ' is-drawer-open' : ''}`}>
             {selectedClaim ? (
               <section className="card card-tint-blue">
+                {/* Mobile Drawer Top Bar (Hidden on desktop) */}
+                <div className="policy-drawer-topbar">
+                  <button
+                    type="button"
+                    className="policy-drawer-back-btn"
+                    onClick={() => setSelectedClaimId(null)}
+                  >
+                    ← Back to claims
+                  </button>
+                  <button
+                    type="button"
+                    className="policy-drawer-close-btn"
+                    onClick={() => setSelectedClaimId(null)}
+                    aria-label="Close details"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
                 <div className="claim-timeline-header">
                   <div>
                     <span className="details-strip-label">Claim Number</span>

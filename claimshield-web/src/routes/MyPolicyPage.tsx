@@ -37,6 +37,8 @@ import {
   Eye,
   Zap,
   ArrowRight,
+  ArrowLeft,
+  X,
 } from 'lucide-react'
 
 function formatCurrency(amount: number | null) {
@@ -150,6 +152,7 @@ export function MyPolicyPage() {
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null)
   const [openSections, setOpenSections] = useState<SectionKey[]>(DEFAULT_OPEN_SECTIONS)
   const [claimsVisibleCount, setClaimsVisibleCount] = useState(4)
+  const [mobileClaimsVisibleCount, setMobileClaimsVisibleCount] = useState(3)
 
   useEffect(() => {
     let cancelled = false
@@ -166,6 +169,9 @@ export function MyPolicyPage() {
           setPolicies(policyData)
           setVehicles(vehicleData)
           setClaims(claimData)
+          if (typeof window !== 'undefined' && window.innerWidth >= 768 && policyData.length > 0) {
+            setSelectedPolicyId(policyData[0].policyId)
+          }
         }
       })
       .catch((err: unknown) => {
@@ -206,13 +212,18 @@ export function MyPolicyPage() {
   const handleSelectPolicy = (policyId: string) => {
     setOpenSections(DEFAULT_OPEN_SECTIONS)
     setClaimsVisibleCount(4)
+    setMobileClaimsVisibleCount(3)
     setSelectedPolicyId((current) => (current === policyId ? null : policyId))
   }
 
   const toggleSection = (id: SectionKey) => {
-    setOpenSections((current) =>
-      current.includes(id) ? current.filter((k) => k !== id) : [...current, id],
-    )
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setOpenSections((current) => (current.includes(id) ? [] : [id]))
+    } else {
+      setOpenSections((current) =>
+        current.includes(id) ? current.filter((k) => k !== id) : [...current, id],
+      )
+    }
   }
 
   const customerName =
@@ -245,41 +256,47 @@ export function MyPolicyPage() {
       {!loading && policies!.length > 0 && (
         <div className="policy-layout">
           <div className="policy-list">
-            {policies!.map((policy) => {
-              const status = getPolicyStatus(policy)
-              const vehicle = vehicles!.find((v) => v.vehicleId === policy.vehicleId)
-              const isSelected = policy.policyId === selectedPolicyId
+            <div className="policy-cards-grid">
+              {policies!.map((policy) => {
+                const status = getPolicyStatus(policy)
+                const vehicle = vehicles!.find((v) => v.vehicleId === policy.vehicleId)
+                const isSelected = policy.policyId === selectedPolicyId
 
-              return (
-                <button
-                  type="button"
-                  key={policy.policyId}
-                  className={`policy-list-card${isSelected ? ' is-selected' : ''}`}
-                  onClick={() => handleSelectPolicy(policy.policyId)}
-                >
-                  <div className="policy-list-card-top">
-                    <span className="policy-list-number">
-                      <ShieldCheck size={15} />
-                      {policy.policyNumber}
-                    </span>
-                    <span className={`badge badge-${status.tone}`}>{status.label}</span>
-                  </div>
+                return (
+                  <button
+                    type="button"
+                    key={policy.policyId}
+                    className={`policy-list-card${isSelected ? ' is-selected' : ''}`}
+                    onClick={() => handleSelectPolicy(policy.policyId)}
+                  >
+                    <div className="policy-list-card-main">
+                      <div className="policy-list-card-primary">
+                        <span className="policy-list-number">
+                          <ShieldCheck size={16} />
+                          {policy.policyNumber}
+                        </span>
+                        <span className={`badge badge-${status.tone}`}>{status.label}</span>
+                      </div>
 
-                  <span className="policy-list-type">
-                    {policy.policyTypeId ? PolicyTypeName[policy.policyTypeId] ?? 'Policy' : 'Policy'}
-                    {vehicle && ` · ${vehicle.registrationNumber}`}
-                  </span>
+                      <span className="policy-list-type">
+                        {policy.policyTypeId ? PolicyTypeName[policy.policyTypeId] ?? 'Policy' : 'Policy'}
+                        {vehicle && ` · ${vehicle.registrationNumber}`}
+                      </span>
 
-                  <span className="policy-list-dates">
-                    {formatDate(policy.startDate)} – {formatDate(policy.endDate)}
-                  </span>
+                      <span className="policy-list-dates">
+                        {formatDate(policy.startDate)} – {formatDate(policy.endDate)}
+                      </span>
+                    </div>
 
-                  <span className="policy-list-chevron">
-                    <ChevronRight size={16} />
-                  </span>
-                </button>
-              )
-            })}
+                    <div className="policy-list-card-aside">
+                      <span className="policy-list-chevron">
+                        <ChevronRight size={16} />
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
 
             <div className="policy-promo-card">
               <span className="policy-promo-badge">
@@ -320,7 +337,16 @@ export function MyPolicyPage() {
             </div>
           </div>
 
-          <div className="policy-detail-area">
+          {/* Mobile backdrop overlay */}
+          {selectedPolicy && (
+            <div
+              className="policy-mobile-backdrop"
+              onClick={() => setSelectedPolicyId(null)}
+              aria-hidden="true"
+            />
+          )}
+
+          <div className={`policy-detail-area${selectedPolicy ? ' is-drawer-open' : ''}`}>
             <AnimatePresence mode="wait">
               {selectedPolicy &&
                 (() => {
@@ -337,11 +363,33 @@ export function MyPolicyPage() {
                   return (
                     <motion.div
                       key={selectedPolicy.policyId}
+                      className="policy-detail-container"
                       initial={{ opacity: 0, x: -28 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -28 }}
                       transition={{ duration: 0.25, ease: 'easeOut' }}
                     >
+                      {/* Mobile Drawer Top Bar (Hidden on desktop) */}
+                      <div className="policy-drawer-topbar">
+                        <button
+                          type="button"
+                          className="policy-drawer-back-btn"
+                          onClick={() => setSelectedPolicyId(null)}
+                          aria-label="Back to policies list"
+                        >
+                          <ArrowLeft size={16} />
+                          <span>Back to policies</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="policy-drawer-close-btn"
+                          onClick={() => setSelectedPolicyId(null)}
+                          aria-label="Close details"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
                       {/* Hero summary */}
                       <section className="policy-hero">
                         <div className="policy-hero-top">
@@ -395,26 +443,52 @@ export function MyPolicyPage() {
                           isOpen={openSections.includes('holder')}
                           onToggle={toggleSection}
                         >
-                          <dl className="fact-grid fact-grid-rich">
-                            <dt><span className="fact-icon fact-icon-blue"><User size={14} /></span>Customer name</dt>
-                            <dd>{customerName}</dd>
+                          <div className="policy-fact-list">
+                            <div className="policy-fact-row">
+                              <span className="policy-fact-label">
+                                <span className="fact-icon fact-icon-blue"><ShieldCheck size={13} /></span>
+                                Policy number
+                              </span>
+                              <span className="policy-fact-value font-mono">{selectedPolicy.policyNumber}</span>
+                            </div>
 
-                            <dt><span className="fact-icon fact-icon-teal"><Phone size={14} /></span>Contact number</dt>
-                            {/* TODO: temporary hardcoded fallback - remove once
-                                GET /api/Customers/me reliably returns phoneNumber
-                                from the DB (see chat: stale-build investigation) */}
-                            <dd>{customer?.phoneNumber || '+91 98765 43210'}</dd>
+                            <div className="policy-fact-row">
+                              <span className="policy-fact-label">
+                                <span className="fact-icon fact-icon-blue"><User size={13} /></span>
+                                Customer name
+                              </span>
+                              <span className="policy-fact-value">{customerName}</span>
+                            </div>
 
-                            <dt><span className="fact-icon fact-icon-amber"><Mail size={14} /></span>Email address</dt>
-                            <dd>{customer?.email ?? session?.user.email ?? '—'}</dd>
+                            <div className="policy-fact-row">
+                              <span className="policy-fact-label">
+                                <span className="fact-icon fact-icon-teal"><Phone size={13} /></span>
+                                Contact number
+                              </span>
+                              {/* TODO: temporary hardcoded fallback - remove once
+                                  GET /api/Customers/me reliably returns phoneNumber
+                                  from the DB (see chat: stale-build investigation) */}
+                              <span className="policy-fact-value">{customer?.phoneNumber || '+91 98765 43210'}</span>
+                            </div>
+
+                            <div className="policy-fact-row">
+                              <span className="policy-fact-label">
+                                <span className="fact-icon fact-icon-amber"><Mail size={13} /></span>
+                                Email address
+                              </span>
+                              <span className="policy-fact-value policy-fact-email">{customer?.email ?? session?.user.email ?? '—'}</span>
+                            </div>
 
                             {customerAddress && (
-                              <>
-                                <dt><span className="fact-icon fact-icon-blue"><MapPin size={14} /></span>Address</dt>
-                                <dd>{customerAddress}</dd>
-                              </>
+                              <div className="policy-fact-row">
+                                <span className="policy-fact-label">
+                                  <span className="fact-icon fact-icon-blue"><MapPin size={13} /></span>
+                                  Address
+                                </span>
+                                <span className="policy-fact-value">{customerAddress}</span>
+                              </div>
                             )}
-                          </dl>
+                          </div>
                         </AccordionSection>
 
                         <AccordionSection
@@ -425,23 +499,43 @@ export function MyPolicyPage() {
                           isOpen={openSections.includes('coverage')}
                           onToggle={toggleSection}
                         >
-                          <dl className="fact-grid fact-grid-rich">
-                            <dt><span className="fact-icon fact-icon-blue"><Layers size={14} /></span>Coverage type</dt>
-                            <dd>
-                              {selectedPolicy.policyTypeId
-                                ? PolicyTypeName[selectedPolicy.policyTypeId] ?? 'Unknown'
-                                : '—'}
-                            </dd>
+                          <div className="policy-fact-list">
+                            <div className="policy-fact-row">
+                              <span className="policy-fact-label">
+                                <span className="fact-icon fact-icon-blue"><Layers size={13} /></span>
+                                Coverage type
+                              </span>
+                              <span className="policy-fact-value">
+                                {selectedPolicy.policyTypeId
+                                  ? PolicyTypeName[selectedPolicy.policyTypeId] ?? 'Unknown'
+                                  : '—'}
+                              </span>
+                            </div>
 
-                            <dt><span className="fact-icon fact-icon-teal"><Wallet size={14} /></span>Sum insured</dt>
-                            <dd>{formatCurrency(selectedPolicy.coverageAmount)}</dd>
+                            <div className="policy-fact-row">
+                              <span className="policy-fact-label">
+                                <span className="fact-icon fact-icon-teal"><Wallet size={13} /></span>
+                                Sum insured
+                              </span>
+                              <span className="policy-fact-value">{formatCurrency(selectedPolicy.coverageAmount)}</span>
+                            </div>
 
-                            <dt><span className="fact-icon fact-icon-blue"><Wallet size={14} /></span>Premium</dt>
-                            <dd>{formatCurrency(selectedPolicy.premiumAmount)}</dd>
+                            <div className="policy-fact-row">
+                              <span className="policy-fact-label">
+                                <span className="fact-icon fact-icon-blue"><Wallet size={13} /></span>
+                                Premium
+                              </span>
+                              <span className="policy-fact-value">{formatCurrency(selectedPolicy.premiumAmount)}</span>
+                            </div>
 
-                            <dt><span className="fact-icon fact-icon-teal"><Percent size={14} /></span>Deductible</dt>
-                            <dd>{formatCurrency(selectedPolicy.excess)}</dd>
-                          </dl>
+                            <div className="policy-fact-row">
+                              <span className="policy-fact-label">
+                                <span className="fact-icon fact-icon-teal"><Percent size={13} /></span>
+                                Deductible
+                              </span>
+                              <span className="policy-fact-value">{formatCurrency(selectedPolicy.excess)}</span>
+                            </div>
+                          </div>
                         </AccordionSection>
 
                         <AccordionSection
@@ -453,23 +547,41 @@ export function MyPolicyPage() {
                           onToggle={toggleSection}
                         >
                           {selectedVehicle ? (
-                            <dl className="fact-grid fact-grid-rich">
-                              <dt>Vehicle registration number</dt>
-                              <dd>{selectedVehicle.registrationNumber}</dd>
+                            <div className="policy-fact-list">
+                              <div className="policy-fact-row">
+                                <span className="policy-fact-label">
+                                  <span className="fact-icon fact-icon-blue"><Car size={13} /></span>
+                                  Registration number
+                                </span>
+                                <span className="policy-fact-value font-mono">{selectedVehicle.registrationNumber}</span>
+                              </div>
 
-                              <dt>Manufacturing year</dt>
-                              <dd>{selectedVehicle.manufacturingYear}</dd>
+                              <div className="policy-fact-row">
+                                <span className="policy-fact-label">
+                                  <span className="fact-icon fact-icon-teal"><CalendarDays size={13} /></span>
+                                  Manufacturing year
+                                </span>
+                                <span className="policy-fact-value">{selectedVehicle.manufacturingYear}</span>
+                              </div>
 
                               {selectedVehicle.engineNumber && (
-                                <>
-                                  <dt>Engine number</dt>
-                                  <dd>{selectedVehicle.engineNumber}</dd>
-                                </>
+                                <div className="policy-fact-row">
+                                  <span className="policy-fact-label">
+                                    <span className="fact-icon fact-icon-blue"><Sparkles size={13} /></span>
+                                    Engine number
+                                  </span>
+                                  <span className="policy-fact-value font-mono">{selectedVehicle.engineNumber}</span>
+                                </div>
                               )}
 
-                              <dt>Chassis number</dt>
-                              <dd>{selectedVehicle.chassisNumber}</dd>
-                            </dl>
+                              <div className="policy-fact-row">
+                                <span className="policy-fact-label">
+                                  <span className="fact-icon fact-icon-teal"><ShieldCheck size={13} /></span>
+                                  Chassis number
+                                </span>
+                                <span className="policy-fact-value font-mono">{selectedVehicle.chassisNumber}</span>
+                              </div>
+                            </div>
                           ) : (
                             <p>No vehicle linked to this policy.</p>
                           )}
@@ -510,45 +622,78 @@ export function MyPolicyPage() {
 
                           {policyClaims.length > 0 && (
                             <>
-                              <table className="queue-table">
-                                <thead>
-                                  <tr>
-                                    <th>Claim No</th>
-                                    <th>Loss Date</th>
-                                    <th>Status</th>
-                                    <th></th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {policyClaims.slice(0, claimsVisibleCount).map((claim) => (
-                                    <tr key={claim.claimId}>
-                                      <td>
-                                        {claim.claimNumber}
-                                      </td>
-                                      <td>{formatDateTime(claim.incidentDate)}</td>
-                                      <td>
-                                        <ClaimStatusBadge statusId={claim.statusId} />
-                                      </td>
-                                      <td>
-                                        <Link to={`/my-claims/${claim.claimId}`} className="button-link">
-                                          <Eye size={14} />
-                                          View
-                                        </Link>
-                                      </td>
+                              {/* Desktop Claims Table */}
+                              <div className="policy-claims-desktop-table table-responsive">
+                                <table className="queue-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Claim No</th>
+                                      <th>Loss Date</th>
+                                      <th>Status</th>
+                                      <th></th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                  </thead>
+                                  <tbody>
+                                    {policyClaims.slice(0, claimsVisibleCount).map((claim) => (
+                                      <tr key={claim.claimId}>
+                                        <td>
+                                          {claim.claimNumber}
+                                        </td>
+                                        <td>{formatDateTime(claim.incidentDate)}</td>
+                                        <td>
+                                          <ClaimStatusBadge statusId={claim.statusId} />
+                                        </td>
+                                        <td>
+                                          <Link to={`/my-claims/${claim.claimId}`} className="button-link">
+                                            <Eye size={14} />
+                                            View
+                                          </Link>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                {claimsVisibleCount < policyClaims.length && (
+                                  <button
+                                    type="button"
+                                    className="track-claim-view-more policy-claims-desktop-more"
+                                    onClick={() => setClaimsVisibleCount((c) => c + 4)}
+                                  >
+                                    View more ({policyClaims.length - claimsVisibleCount} more)
+                                  </button>
+                                )}
+                              </div>
 
-                              {claimsVisibleCount < policyClaims.length && (
-                                <button
-                                  type="button"
-                                  className="track-claim-view-more"
-                                  onClick={() => setClaimsVisibleCount((c) => c + 4)}
-                                >
-                                  View more ({policyClaims.length - claimsVisibleCount} more)
-                                </button>
-                              )}
+                              {/* Mobile Structured Claims List */}
+                              <div className="policy-claims-mobile-list">
+                                {policyClaims.slice(0, mobileClaimsVisibleCount).map((claim) => (
+                                  <div key={claim.claimId} className="policy-claim-card">
+                                    <div className="policy-claim-card-header">
+                                      <span className="policy-claim-card-num">{claim.claimNumber}</span>
+                                      <ClaimStatusBadge statusId={claim.statusId} />
+                                    </div>
+                                    <div className="policy-claim-card-footer">
+                                      <span className="policy-claim-card-date">
+                                        <CalendarDays size={12} />
+                                        {formatDateTime(claim.incidentDate)}
+                                      </span>
+                                      <Link to={`/my-claims/${claim.claimId}`} className="policy-claim-card-link">
+                                        <Eye size={13} />
+                                        <span>View</span>
+                                      </Link>
+                                    </div>
+                                  </div>
+                                ))}
+                                {mobileClaimsVisibleCount < policyClaims.length && (
+                                  <button
+                                    type="button"
+                                    className="track-claim-view-more policy-claims-mobile-more"
+                                    onClick={() => setMobileClaimsVisibleCount((c) => c + 3)}
+                                  >
+                                    View more ({policyClaims.length - mobileClaimsVisibleCount} more)
+                                  </button>
+                                )}
+                              </div>
                             </>
                           )}
                         </AccordionSection>

@@ -163,12 +163,10 @@ export function MyClaimDetailPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
 
-  const [openSections, setOpenSections] = useState<SectionKey[]>(['claim'])
+  const [openSection, setOpenSection] = useState<SectionKey | null>('claim')
 
   const toggleSection = (key: SectionKey) =>
-    setOpenSections((current) =>
-      current.includes(key) ? current.filter((k) => k !== key) : [...current, key],
-    )
+    setOpenSection((current) => (current === key ? null : key))
 
   const loadAll = useCallback(async () => {
     if (!claimId) return
@@ -243,7 +241,7 @@ export function MyClaimDetailPage() {
               icon={<ClipboardList size={16} />}
               title="Claim details"
               subtitle={ClaimStatusName[claim.statusId ?? 0] ?? 'Unknown'}
-              isOpen={openSections.includes('claim')}
+              isOpen={openSection === 'claim'}
               onToggle={() => toggleSection('claim')}
             >
               <dl className="fact-grid fact-grid-rich">
@@ -275,7 +273,7 @@ export function MyClaimDetailPage() {
               icon={<ShieldCheck size={16} />}
               title="Policy details"
               subtitle={policy?.policyNumber}
-              isOpen={openSections.includes('policy')}
+              isOpen={openSection === 'policy'}
               onToggle={() => toggleSection('policy')}
             >
               {policy ? (
@@ -311,7 +309,7 @@ export function MyClaimDetailPage() {
               icon={<Car size={16} />}
               title="Vehicle details"
               subtitle={vehicle?.registrationNumber ?? claim.vehicleRegistrationNumber ?? undefined}
-              isOpen={openSections.includes('vehicle')}
+              isOpen={openSection === 'vehicle'}
               onToggle={() => toggleSection('vehicle')}
             >
               {vehicle ? (
@@ -341,7 +339,7 @@ export function MyClaimDetailPage() {
               icon={<FileText size={16} />}
               title="Documents"
               subtitle={`${documents.length} uploaded`}
-              isOpen={openSections.includes('documents')}
+              isOpen={openSection === 'documents'}
               onToggle={() => toggleSection('documents')}
             >
               {documents.length === 0 ? (

@@ -5,6 +5,7 @@ using ClaimShield.Api.Models.DTOs.ClaimDocuments;
 using ClaimShield.Api.Models.DTOs.Ocr;
 using ClaimShield.Api.Models.Entities;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ClaimShield.Api.Services
 {
@@ -18,6 +19,7 @@ namespace ClaimShield.Api.Services
         private readonly ISupabaseStorageService _storageService;
         private readonly IOcrService _ocrService;
         private readonly IClaimDecisionService _claimDecisionService;
+        private readonly IMemoryCache _cache;
 
         public ClaimDocumentService(
             IClaimDocumentRepository claimDocumentRepository,
@@ -27,7 +29,8 @@ namespace ClaimShield.Api.Services
             IRepairAssignmentRepository repairAssignmentRepository,
             ISupabaseStorageService storageService,
             IOcrService ocrService,
-            IClaimDecisionService claimDecisionService)
+            IClaimDecisionService claimDecisionService,
+            IMemoryCache cache)
         {
             _claimDocumentRepository = claimDocumentRepository;
             _claimRepository = claimRepository;
@@ -37,6 +40,7 @@ namespace ClaimShield.Api.Services
             _storageService = storageService;
             _ocrService = ocrService;
             _claimDecisionService = claimDecisionService;
+            _cache = cache;
         }
 
         // =========================================================
@@ -432,6 +436,12 @@ namespace ClaimShield.Api.Services
         public async Task<OcrExtractionResult?> GetOcrPreviewAsync(
             Guid claimDocumentId)
         {
+            string cacheKey = $"ocr_doc_{claimDocumentId}";
+            if (_cache.TryGetValue<OcrExtractionResult>(cacheKey, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
             var document =
                 await _claimDocumentRepository.GetByIdAsync(
                     claimDocumentId);
@@ -445,7 +455,13 @@ namespace ClaimShield.Api.Services
                 await _storageService.DownloadAsync(
                     document.FilePath);
 
-            return await _ocrService.ExtractAsync(bytes);
+            var result = await _ocrService.ExtractAsync(bytes);
+            if (result != null)
+            {
+                _cache.Set(cacheKey, result, TimeSpan.FromMinutes(30));
+            }
+
+            return result;
         }
 
         // =========================================================

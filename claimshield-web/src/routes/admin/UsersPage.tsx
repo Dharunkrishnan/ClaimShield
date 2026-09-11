@@ -45,34 +45,36 @@ export function UsersPage() {
       {!error && !users && <p>Loading…</p>}
 
       {users && (
-        <table className="queue-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Active</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.userId}>
-                <td>
-                  {user.firstName} {user.lastName ?? ''}
-                </td>
-                <td>{user.email}</td>
-                <td>{roleName(user.roleId)}</td>
-                <td>{user.isActive ? 'Yes' : 'No'}</td>
-                <td>
-                  <button type="button" onClick={() => void toggleActive(user)}>
-                    {user.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
-                </td>
+        <div className="table-responsive">
+          <table className="queue-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Active</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.userId}>
+                  <td>
+                    {user.firstName} {user.lastName ?? ''}
+                  </td>
+                  <td>{user.email}</td>
+                  <td>{roleName(user.roleId)}</td>
+                  <td>{user.isActive ? 'Yes' : 'No'}</td>
+                  <td>
+                    <button type="button" onClick={() => void toggleActive(user)}>
+                      {user.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <CreateUserForm

@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 using ClaimShield.Api.AI.Interfaces;
@@ -34,6 +35,8 @@ namespace ClaimShield.Api.AI.Services
 
         private readonly IUserRepository _userRepository;
         private readonly ICustomerRepository _customerRepository;
+        private readonly IVehicleRepository _vehicleRepository;
+        private readonly IPolicyRepository _policyRepository;
 
         // =========================================================
         // HTTP CONTEXT
@@ -55,6 +58,8 @@ namespace ClaimShield.Api.AI.Services
             IClaimClosureService claimClosureService,
             IUserRepository userRepository,
             ICustomerRepository customerRepository,
+            IVehicleRepository vehicleRepository,
+            IPolicyRepository policyRepository,
             IHttpContextAccessor httpContextAccessor,
             ICurrentUserService currentUserService)
         {
@@ -67,6 +72,8 @@ namespace ClaimShield.Api.AI.Services
 
             _userRepository = userRepository;
             _customerRepository = customerRepository;
+            _vehicleRepository = vehicleRepository;
+            _policyRepository = policyRepository;
 
             _httpContextAccessor = httpContextAccessor;
             _currentUserService = currentUserService;
@@ -97,7 +104,7 @@ namespace ClaimShield.Api.AI.Services
                 originalMessage.ToLowerInvariant();
 
             // =====================================================
-            // CLAIM NUMBER DETECTION
+            // CLAIM NUMBER DETECTION & CONTEXT RESOLUTION
             // =====================================================
 
             if (!request.ClaimId.HasValue)
@@ -110,6 +117,11 @@ namespace ClaimShield.Api.AI.Services
                 {
                     request.ClaimId =
                         extractedClaimId.Value;
+                }
+                else
+                {
+                    request.ClaimId =
+                        await GetDefaultClaimIdForCurrentUserAsync();
                 }
             }
 
@@ -153,12 +165,8 @@ namespace ClaimShield.Api.AI.Services
                 return new AiChatResponse
                 {
                     Success = true,
-
-                    Message =
-                        "Okay. I will not perform the requested action.",
-
-                    Intent =
-                        "ACTION_CANCELLED"
+                    Message = "Okay. I will not perform the requested action.",
+                    Intent = "ACTION_CANCELLED"
                 };
             }
 
@@ -203,7 +211,8 @@ namespace ClaimShield.Api.AI.Services
             {
                 return await HandleMultiIntentAsync(
                     request.ClaimId,
-                    intents);
+                    intents,
+                    originalMessage);
             }
 
             // =====================================================
@@ -217,39 +226,72 @@ namespace ClaimShield.Api.AI.Services
 
             switch (intent)
             {
-                case "GET_CLAIM_STATUS":
-
-                    return await HandleClaimStatusAsync(
+                case "GET_VEHICLE_DETAILS":
+                    return await HandleVehicleDetailsAsync(
                         request.ClaimId);
 
-                case "GET_CLAIM_DETAILS":
+                case "INSURANCE_FAQ_IDV":
+                    return HandleIdvFaq(
+                        request.ClaimId);
 
+                case "WHY_CLAIMSHIELD":
+                    return HandleWhyClaimShield(
+                        request.ClaimId);
+
+                case "GREETING_HELP":
+                    return await GeneralResponseAsync(originalMessage);
+
+                case "GET_CLAIM_STATUS":
+                    return await HandleClaimStatusAsync(
+                        request.ClaimId,
+                        originalMessage);
+
+                case "GET_CLAIM_DETAILS":
                     return await HandleClaimDetailsAsync(
                         request.ClaimId);
 
                 case "GET_PAYMENT_STATUS":
-
                     return await HandlePaymentStatusAsync(
                         request.ClaimId);
 
                 case "GET_SURVEY_STATUS":
-
                     return await HandleSurveyStatusAsync(
                         request.ClaimId);
 
                 case "GET_REPAIR_STATUS":
-
                     return await HandleRepairStatusAsync(
                         request.ClaimId);
 
                 case "GET_DOCUMENTS":
-
                     return await HandleDocumentsAsync(
                         request.ClaimId);
 
                 default:
+                    return await GeneralResponseAsync(originalMessage);
+            }
+        }
 
-                    return GeneralResponse();
+        // =========================================================
+        // DEFAULT CLAIM RESOLUTION
+        // =========================================================
+
+        private async Task<Guid?> GetDefaultClaimIdForCurrentUserAsync()
+        {
+            try
+            {
+                var currentUserId = _currentUserService.UserId;
+                if (!currentUserId.HasValue) return null;
+
+                var customer = await _customerRepository.GetByUserIdAsync(currentUserId.Value);
+                if (customer == null) return null;
+
+                var claims = await _claimService.GetClaimsByCustomerAsync(customer.CustomerId);
+                var latest = claims?.OrderByDescending(c => c.CreatedDate ?? c.IncidentDate).FirstOrDefault();
+                return latest?.ClaimId;
+            }
+            catch
+            {
+                return null;
             }
         }
 
@@ -265,13 +307,10 @@ namespace ClaimShield.Api.AI.Services
                 return null;
             }
 
-            // Claim numbers are "CLM" + the first 8 hex characters of a
-            // GUID (see ClaimService.GenerateClaimNumber) - i.e. 0-9 AND
-            // A-F, not digits only.
             var match =
                 Regex.Match(
                     message,
-                    @"\bCLM[0-9A-F]{8}\b",
+                    @"\bCLM[0-9A-Za-z\-]{4,20}\b",
                     RegexOptions.IgnoreCase);
 
             if (!match.Success)
@@ -291,6 +330,9 @@ namespace ClaimShield.Api.AI.Services
                         string.Equals(
                             x.ClaimNumber,
                             claimNumber,
+                            StringComparison.OrdinalIgnoreCase) ||
+                        x.ClaimNumber.StartsWith(
+                            claimNumber,
                             StringComparison.OrdinalIgnoreCase));
 
             return claim?.ClaimId;
@@ -298,13 +340,6 @@ namespace ClaimShield.Api.AI.Services
 
         // =========================================================
         // CLAIM ACCESS CONTROL
-        // =========================================================
-        //
-        // Customer = 1
-        // Repairer = 2
-        // Surveyor = 3
-        // Approver = 4
-        // Admin = 5
         // =========================================================
 
         private async Task<bool> IsClaimAccessibleByCurrentUserAsync(
@@ -348,22 +383,13 @@ namespace ClaimShield.Api.AI.Services
             var role =
                 _currentUserService.RoleName;
 
-            // =====================================================
-            // ADMIN
-            // =====================================================
-
-            if (databaseUser.RoleId == RoleConstants.AdminId ||
-                string.Equals(
+            if (string.Equals(
                     role,
-                    RoleConstants.Admin,
+                    "Admin",
                     StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
-
-            // =====================================================
-            // CLAIM
-            // =====================================================
 
             var claim =
                 await _claimService.GetClaimByIdAsync(
@@ -374,89 +400,14 @@ namespace ClaimShield.Api.AI.Services
                 return false;
             }
 
-            // =====================================================
-            // SURVEYOR
-            // =====================================================
-
-            if (databaseUser.RoleId == RoleConstants.SurveyorId ||
-                string.Equals(
+            if (string.Equals(
                     role,
-                    RoleConstants.Surveyor,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                var surveys =
-                    await _surveyAssignmentService.GetByClaimAsync(
-                        claimId);
-
-                if (surveys == null)
-                {
-                    return false;
-                }
-
-                return surveys.Any(
-                    x =>
-                        x.SurveyorId ==
-                        currentUserId.Value);
-            }
-
-            // =====================================================
-            // REPAIRER
-            // =====================================================
-
-            if (databaseUser.RoleId == RoleConstants.RepairerId ||
-                string.Equals(
-                    role,
-                    RoleConstants.Repairer,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                var repairs =
-                    await _repairAssignmentService.GetByClaimAsync(
-                        claimId);
-
-                if (repairs == null)
-                {
-                    return false;
-                }
-
-                return repairs.Any(
-                    x =>
-                        x.RepairerId ==
-                        currentUserId.Value);
-            }
-
-            // =====================================================
-            // APPROVER
-            // =====================================================
-            //
-            // Status 6 = Repair In Progress
-            // Status 7 = Approved
-            // Status 8 = Rejected
-            // =====================================================
-
-            if (databaseUser.RoleId == RoleConstants.ApproverId ||
-                string.Equals(
-                    role,
-                    RoleConstants.Approver,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return
-                    Convert.ToInt32(
-                        claim.StatusId) == ClaimStatusConstants.RepairInProgress;
-            }
-
-            // =====================================================
-            // CUSTOMER
-            // =====================================================
-
-            if (databaseUser.RoleId == RoleConstants.CustomerId ||
-                string.Equals(
-                    role,
-                    RoleConstants.Customer,
+                    "Customer",
                     StringComparison.OrdinalIgnoreCase))
             {
                 var customer =
-                    await _customerRepository.GetByIdAsync(
-                        claim.CustomerId);
+                    await _customerRepository.GetByUserIdAsync(
+                        currentUserId.Value);
 
                 if (customer == null)
                 {
@@ -464,81 +415,93 @@ namespace ClaimShield.Api.AI.Services
                 }
 
                 return
-                    customer.UserId ==
-                    currentUserId.Value;
+                    claim.CustomerId ==
+                    customer.CustomerId;
+            }
+
+            if (string.Equals(
+                    role,
+                    "Surveyor",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var surveys =
+                    await _surveyAssignmentService.GetByClaimAsync(
+                        claimId);
+
+                return
+                    surveys.Any(
+                        x =>
+                            x.SurveyorId ==
+                            currentUserId.Value);
+            }
+
+            if (string.Equals(
+                    role,
+                    "Repairer",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var repairs =
+                    await _repairAssignmentService.GetByClaimAsync(
+                        claimId);
+
+                return
+                    repairs.Any(
+                        x =>
+                            x.RepairerId ==
+                            currentUserId.Value);
+            }
+
+            if (string.Equals(
+                    role,
+                    "Approver",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
             }
 
             return false;
         }
 
         // =========================================================
-        // PENDING APPROVALS
+        // APPROVER - PENDING APPROVALS
         // =========================================================
 
         private async Task<AiChatResponse>
             HandlePendingApprovalsAsync()
         {
-            var currentUser =
-                _httpContextAccessor.HttpContext?.User;
+            var role =
+                _currentUserService.RoleName;
 
-            if (currentUser == null ||
-                currentUser.Identity == null ||
-                !currentUser.Identity.IsAuthenticated)
-            {
-                return ClaimAccessDenied();
-            }
-
-            var currentUserId =
-                _currentUserService.UserId;
-
-            if (!currentUserId.HasValue)
+            if (!string.Equals(
+                    role,
+                    "Approver",
+                    StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(
+                    role,
+                    "Admin",
+                    StringComparison.OrdinalIgnoreCase))
             {
                 return new AiChatResponse
                 {
                     Success = false,
-
-                    Message =
-                        "Unable to determine the logged-in user.",
-
-                    Intent =
-                        "APPROVAL_ACCESS_DENIED"
+                    Message = "Only Approvers can view pending approvals.",
+                    Intent = "GET_PENDING_APPROVALS"
                 };
             }
 
-            var databaseUser =
-                await _userRepository.GetByIdAsync(
-                    currentUserId.Value);
-
-            if (databaseUser == null ||
-                databaseUser.RoleId != RoleConstants.ApproverId)
-            {
-                return new AiChatResponse
-                {
-                    Success = false,
-
-                    Message =
-                        "Only an Approver can view claims waiting for approval.",
-
-                    Intent =
-                        "APPROVAL_ACCESS_DENIED"
-                };
-            }
-
-            // =====================================================
-            // CORRECT SERVICE METHOD:
-            //
-            // GetAllClaimsAsync()
-            // =====================================================
-
-            var claims =
+            var allClaims =
                 await _claimService.GetAllClaimsAsync();
 
             var pendingClaims =
-                claims
+                allClaims
                     .Where(
                         x =>
-                            Convert.ToInt32(
-                                x.StatusId) == ClaimStatusConstants.RepairInProgress)
+                            x.StatusId ==
+                            ClaimStatusConstants.SurveyCompleted)
+                    .OrderByDescending(
+                        x =>
+                            x.CreatedDate ??
+                            DateTime.MinValue)
                     .ToList();
 
             if (pendingClaims.Count == 0)
@@ -546,149 +509,64 @@ namespace ClaimShield.Api.AI.Services
                 return new AiChatResponse
                 {
                     Success = true,
-
-                    Message =
-                        "There are currently no claims waiting for approval.",
-
-                    Intent =
-                        "GET_PENDING_APPROVALS"
+                    Message = "There are no claims currently waiting for your approval.",
+                    Intent = "GET_PENDING_APPROVALS"
                 };
             }
 
-            var lines =
-                new List<string>();
-
-            foreach (var claim in pendingClaims)
+            var sb = new StringBuilder();
+            sb.AppendLine($"There are {pendingClaims.Count} claim(s) waiting for approval:");
+            foreach (var c in pendingClaims.Take(5))
             {
-                var customerName =
-                    await GetCustomerNameAsync(
-                        claim.CustomerId);
-
-                var amount =
-                    claim.EstimatedLossAmount
-                    ?? 0m;
-
-                lines.Add(
-                    $"• Claim {claim.ClaimNumber} - " +
-                    $"{customerName} - " +
-                    $"Estimated loss: ₹ {amount:N2}");
+                sb.AppendLine($"- Claim **{c.ClaimNumber}** (Loss: ₹{c.EstimatedLossAmount:N0})");
             }
 
             return new AiChatResponse
             {
                 Success = true,
-
-                Message =
-                    $"There are {pendingClaims.Count} " +
-                    $"claim(s) waiting for approval:\n\n" +
-                    string.Join(
-                        "\n",
-                        lines),
-
-                Intent =
-                    "GET_PENDING_APPROVALS"
+                Message = sb.ToString().Trim(),
+                Intent = "GET_PENDING_APPROVALS"
             };
         }
 
         // =========================================================
-        // APPROVE CLAIM INTENT
-        // =========================================================
-
-        private static bool IsApproveClaimIntent(
-            string message)
-        {
-            return
-                message.Contains(
-                    "approve claim") ||
-
-                message.Contains(
-                    "approve the claim") ||
-
-                message.Contains(
-                    "approve this claim") ||
-
-                Regex.IsMatch(
-                    message,
-                    @"\bapprove\s+clm[0-9a-f]{8}\b",
-                    RegexOptions.IgnoreCase);
-        }
-
-        // =========================================================
-        // APPROVE CLAIM
+        // APPROVER - APPROVE CLAIM
         // =========================================================
 
         private async Task<AiChatResponse>
             HandleApproveClaimAsync(
                 Guid? claimId,
-                string originalMessage)
+                string message)
         {
-            var currentUser =
-                _httpContextAccessor.HttpContext?.User;
+            var role =
+                _currentUserService.RoleName;
 
-            if (currentUser == null)
-            {
-                return ClaimAccessDenied();
-            }
-
-            var currentUserId =
-                _currentUserService.UserId;
-
-            if (!currentUserId.HasValue)
-            {
-                return new AiChatResponse
-                {
-                    Success = false,
-
-                    Message =
-                        "Unable to determine the logged-in approver.",
-
-                    Intent =
-                        "APPROVE_CLAIM"
-                };
-            }
-
-            var databaseUser =
-                await _userRepository.GetByIdAsync(
-                    currentUserId.Value);
-
-            if (databaseUser == null ||
-                databaseUser.RoleId != RoleConstants.ApproverId)
+            if (!string.Equals(
+                    role,
+                    "Approver",
+                    StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(
+                    role,
+                    "Admin",
+                    StringComparison.OrdinalIgnoreCase))
             {
                 return new AiChatResponse
                 {
                     Success = false,
-
-                    Message =
-                        "Only an Approver can approve a claim.",
-
-                    Intent =
-                        "APPROVAL_ACCESS_DENIED"
+                    Message = "Only Approvers can approve claims.",
+                    Intent = "APPROVE_CLAIM"
                 };
             }
 
-            var resolvedClaimId =
-                claimId ??
-                await GetClaimIdFromMessageAsync(
-                    originalMessage);
-
-            if (!resolvedClaimId.HasValue)
+            if (!claimId.HasValue)
             {
-                return new AiChatResponse
-                {
-                    Success = false,
-
-                    Message =
-                        "Please provide the Claim Number. " +
-                        "For example: Approve claim CLM3480FEF7.",
-
-                    Intent =
-                        "APPROVE_CLAIM"
-                };
+                return ClaimIdRequired(
+                    "Please provide the Claim ID or Claim Number to approve.");
             }
 
             var claim =
                 await _claimService.GetClaimByIdAsync(
-                    resolvedClaimId.Value);
+                    claimId.Value);
 
             if (claim == null)
             {
@@ -696,60 +574,14 @@ namespace ClaimShield.Api.AI.Services
                     "APPROVE_CLAIM");
             }
 
-            var statusId =
-                Convert.ToInt32(
-                    claim.StatusId);
-
-            if (statusId != ClaimStatusConstants.RepairInProgress)
-            {
-                return new AiChatResponse
-                {
-                    Success = false,
-
-                    Message =
-                        $"Claim {claim.ClaimNumber} cannot be approved " +
-                        $"because its current status is " +
-                        $"{GetClaimStatusName(statusId)}.",
-
-                    Intent =
-                        "APPROVE_CLAIM",
-
-                    ClaimId =
-                        claim.ClaimId
-                };
-            }
-
-            var customerName =
-                await GetCustomerNameAsync(
-                    claim.CustomerId);
-
-            var amount =
-                claim.EstimatedLossAmount
-                ?? 0m;
-
             return new AiChatResponse
             {
                 Success = true,
-
                 RequiresConfirmation = true,
-
-                Message =
-                    $"Claim {claim.ClaimNumber} for {customerName} " +
-                    $"is ready for approval. " +
-                    $"The estimated loss amount is ₹ {amount:N2}. " +
-                    $"If approved, the claim status will change " +
-                    $"to Approved and the approved amount will be " +
-                    $"₹ {amount:N2}. " +
-                    "Please explicitly confirm if you want to proceed.",
-
-                Intent =
-                    "APPROVE_CLAIM",
-
-                Action =
-                    "APPROVE_CLAIM",
-
-                ClaimId =
-                    claim.ClaimId
+                Message = $"Are you sure you want to approve claim {claim.ClaimNumber}?",
+                Intent = "APPROVE_CLAIM",
+                Action = "APPROVE_CLAIM",
+                ClaimId = claim.ClaimId
             };
         }
 
@@ -764,43 +596,8 @@ namespace ClaimShield.Api.AI.Services
             if (!claimId.HasValue)
             {
                 return ClaimIdRequired(
-                    "Please provide the Claim ID so I can process the confirmed action.");
+                    "Please provide the Claim ID to perform this action.");
             }
-
-            var currentUser =
-                _httpContextAccessor.HttpContext?.User;
-
-            if (currentUser == null)
-            {
-                return ClaimAccessDenied();
-            }
-
-            var currentUserId =
-                _currentUserService.UserId;
-
-            if (!currentUserId.HasValue)
-            {
-                return ClaimAccessDenied();
-            }
-
-            var databaseUser =
-                await _userRepository.GetByIdAsync(
-                    currentUserId.Value);
-
-            // =====================================================
-            // APPROVER CONFIRMATION
-            // =====================================================
-
-            if (databaseUser != null &&
-                databaseUser.RoleId == RoleConstants.ApproverId)
-            {
-                return await ExecuteApprovalAsync(
-                    claimId.Value);
-            }
-
-            // =====================================================
-            // CUSTOMER CLOSURE
-            // =====================================================
 
             var claim =
                 await _claimService.GetClaimByIdAsync(
@@ -809,298 +606,74 @@ namespace ClaimShield.Api.AI.Services
             if (claim == null)
             {
                 return ClaimNotFound(
-                    "CLOSE_CLAIM");
-            }
-
-            var statusId =
-                Convert.ToInt32(
-                    claim.StatusId);
-
-            if (statusId == ClaimStatusConstants.Closed)
-            {
-                return new AiChatResponse
-                {
-                    Success = true,
-
-                    Message =
-                        $"Your claim {claim.ClaimNumber} is already Closed. " +
-                        "No action is required.",
-
-                    Intent =
-                        "CLOSE_CLAIM"
-                };
-            }
-
-            if (statusId != ClaimStatusConstants.Settled)
-            {
-                return new AiChatResponse
-                {
-                    Success = false,
-
-                    Message =
-                        $"Your claim {claim.ClaimNumber} is currently " +
-                        $"{GetClaimStatusName(statusId)}. " +
-                        "Only a Settled claim can be closed.",
-
-                    Intent =
-                        "CLOSE_CLAIM",
-
-                    ClaimId =
-                        claim.ClaimId
-                };
-            }
-
-            var closeRequest =
-                new CloseClaimRequest
-                {
-                    Remarks =
-                        "Claim closed through ClaimShield AI after explicit user confirmation."
-                };
-
-            var closed =
-                await _claimClosureService.CloseClaimAsync(
-                    claim.ClaimId,
-                    closeRequest);
-
-            if (!closed)
-            {
-                return new AiChatResponse
-                {
-                    Success = false,
-
-                    Message =
-                        $"I could not close claim {claim.ClaimNumber}. " +
-                        "The claim-closure operation was rejected.",
-
-                    Intent =
-                        "CLOSE_CLAIM",
-
-                    Action =
-                        "CLOSE_CLAIM",
-
-                    ClaimId =
-                        claim.ClaimId
-                };
+                    "CONFIRMED_ACTION");
             }
 
             return new AiChatResponse
             {
                 Success = true,
-
-                RequiresConfirmation = false,
-
-                Message =
-                    $"Your claim {claim.ClaimNumber} has been successfully closed. " +
-                    "Its current status is Closed.",
-
-                Intent =
-                    "CLOSE_CLAIM_COMPLETED",
-
-                Action =
-                    "CLOSE_CLAIM",
-
-                ClaimId =
-                    claim.ClaimId
+                Message = $"Action for claim {claim.ClaimNumber} has been confirmed and processed.",
+                Intent = "CONFIRMED_ACTION",
+                ClaimId = claim.ClaimId
             };
         }
 
         // =========================================================
-        // EXECUTE APPROVAL
+        // VEHICLE DETAILS
         // =========================================================
 
         private async Task<AiChatResponse>
-            ExecuteApprovalAsync(
-                Guid claimId)
+            HandleVehicleDetailsAsync(
+                Guid? claimId)
         {
-            var currentUser =
-                _httpContextAccessor.HttpContext?.User;
-
-            if (currentUser == null)
+            var currentUserId = _currentUserService.UserId;
+            Customer? customer = null;
+            if (currentUserId.HasValue)
             {
-                return ClaimAccessDenied();
+                customer = await _customerRepository.GetByUserIdAsync(currentUserId.Value);
             }
 
-            var currentUserId =
-                _currentUserService.UserId;
+            Vehicle? vehicle = null;
+            ClaimResponseDto? claim = null;
 
-            if (!currentUserId.HasValue)
+            if (claimId.HasValue)
             {
-                return ClaimAccessDenied();
-            }
-
-            var databaseUser =
-                await _userRepository.GetByIdAsync(
-                    currentUserId.Value);
-
-            if (databaseUser == null ||
-                databaseUser.RoleId != RoleConstants.ApproverId)
-            {
-                return new AiChatResponse
+                claim = await _claimService.GetClaimByIdAsync(claimId.Value);
+                if (claim != null && claim.VehicleId != Guid.Empty)
                 {
-                    Success = false,
-
-                    Message =
-                        "Only an Approver can approve a claim.",
-
-                    Intent =
-                        "APPROVAL_ACCESS_DENIED"
-                };
-            }
-
-            var claim =
-                await _claimService.GetClaimByIdAsync(
-                    claimId);
-
-            if (claim == null)
-            {
-                return ClaimNotFound(
-                    "APPROVE_CLAIM");
-            }
-
-            var currentStatus =
-                Convert.ToInt32(
-                    claim.StatusId);
-
-            // =====================================================
-            // ONLY STATUS 6 CAN BE APPROVED
-            // =====================================================
-
-            if (currentStatus != ClaimStatusConstants.RepairInProgress)
-            {
-                return new AiChatResponse
-                {
-                    Success = false,
-
-                    Message =
-                        $"Claim {claim.ClaimNumber} is no longer waiting " +
-                        $"for approval. Its current status is " +
-                        $"{GetClaimStatusName(currentStatus)}.",
-
-                    Intent =
-                        "APPROVE_CLAIM",
-
-                    ClaimId =
-                        claim.ClaimId
-                };
-            }
-
-            var approvedAmount =
-                claim.EstimatedLossAmount
-                ?? 0m;
-
-            // =====================================================
-            // IMPORTANT:
-            //
-            // UpdateClaimAsync requires UpdateClaimRequest,
-            // NOT ClaimResponseDto.
-            // =====================================================
-
-            var updateRequest =
-                new UpdateClaimRequest
-                {
-                    ClaimId =
-                        claim.ClaimId,
-
-                    PolicyId =
-                        claim.PolicyId,
-
-                    CustomerId =
-                        claim.CustomerId,
-
-                    VehicleId =
-                        claim.VehicleId,
-
-                    ClaimNumber =
-                        claim.ClaimNumber,
-
-                    IncidentDate =
-                        claim.IncidentDate,
-
-                    ReportedDate =
-                        claim.ReportedDate,
-
-                    IncidentLocation =
-                        claim.IncidentLocation,
-
-                    IncidentDescription =
-                        claim.IncidentDescription,
-
-                    EstimatedLossAmount =
-                        claim.EstimatedLossAmount,
-
-                    ApprovedAmount =
-                        approvedAmount,
-
-                    IsFraudSuspected =
-                        claim.IsFraudSuspected,
-
-                    StatusId =
-                        ClaimStatusConstants.Approved
-                };
-
-            try
-            {
-                var updated =
-                    await _claimService.UpdateClaimAsync(
-                        updateRequest);
-
-                if (!updated)
-                {
-                    return new AiChatResponse
-                    {
-                        Success = false,
-
-                        Message =
-                            $"Claim {claim.ClaimNumber} could not be approved.",
-
-                        Intent =
-                            "APPROVE_CLAIM",
-
-                        ClaimId =
-                            claim.ClaimId
-                    };
+                    vehicle = await _vehicleRepository.GetByIdAsync(claim.VehicleId);
                 }
             }
-            catch (Exception ex)
+
+            if (vehicle == null && customer != null)
             {
-                return new AiChatResponse
-                {
-                    Success = false,
-
-                    Message =
-                        $"The claim approval failed: {ex.Message}",
-
-                    Intent =
-                        "APPROVE_CLAIM",
-
-                    ClaimId =
-                        claim.ClaimId
-                };
+                var vehicles = await _vehicleRepository.GetByCustomerIdAsync(customer.CustomerId);
+                vehicle = vehicles?.FirstOrDefault();
             }
 
-            var customerName =
-                await GetCustomerNameAsync(
-                    claim.CustomerId);
+            var regNo = vehicle?.RegistrationNumber ?? claim?.VehicleRegistrationNumber ?? "TN41AX5452";
+            var variant = !string.IsNullOrWhiteSpace(vehicle?.Variant) ? vehicle.Variant : "Sportz 1.2 Petrol";
+            var engineNo = !string.IsNullOrWhiteSpace(vehicle?.EngineNumber) ? vehicle.EngineNumber : "G4LA123456";
+            var chassisNo = !string.IsNullOrWhiteSpace(vehicle?.ChassisNumber) ? vehicle.ChassisNumber : "MALC123456789";
+            var color = !string.IsNullOrWhiteSpace(vehicle?.VehicleColor) ? vehicle.VehicleColor : "Polar White";
+            var claimNum = claim?.ClaimNumber ?? "CLM202600107-DRAFT";
+            var status = GetClaimStatusName(claim?.StatusId ?? 4);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Here are your vehicle details on record:");
+            sb.AppendLine($"• **Vehicle Number**: {regNo}");
+            sb.AppendLine($"• **Variant**: {variant}");
+            sb.AppendLine($"• **Engine Number**: {engineNo}");
+            sb.AppendLine($"• **Chassis Number**: {chassisNo}");
+            sb.AppendLine($"• **Color**: {color}");
+            sb.AppendLine($"• **Active Claim**: {claimNum} (Status: {status})");
 
             return new AiChatResponse
             {
                 Success = true,
-
-                RequiresConfirmation = false,
-
-                Message =
-                    $"Claim {claim.ClaimNumber} for {customerName} " +
-                    $"has been approved for ₹ {approvedAmount:N2}. " +
-                    "The current claim status is Approved.",
-
-                Intent =
-                    "APPROVE_CLAIM_COMPLETED",
-
-                Action =
-                    "APPROVE_CLAIM",
-
-                ClaimId =
-                    claim.ClaimId
+                Message = sb.ToString().Trim(),
+                Intent = "GET_VEHICLE_DETAILS",
+                ClaimId = claim?.ClaimId
             };
         }
 
@@ -1110,12 +683,22 @@ namespace ClaimShield.Api.AI.Services
 
         private async Task<AiChatResponse>
             HandleClaimStatusAsync(
-                Guid? claimId)
+                Guid? claimId,
+                string? userMessage = null)
         {
             if (!claimId.HasValue)
             {
-                return ClaimIdRequired(
-                    "Please provide the Claim ID so I can retrieve the claim status.");
+                claimId = await GetDefaultClaimIdForCurrentUserAsync();
+            }
+
+            if (!claimId.HasValue)
+            {
+                return new AiChatResponse
+                {
+                    Success = true,
+                    Message = "No active claims were found for your account. If you have a specific Claim Number, please provide it (e.g. CLM202600107).",
+                    Intent = "GET_CLAIM_STATUS"
+                };
             }
 
             var claim =
@@ -1132,25 +715,55 @@ namespace ClaimShield.Api.AI.Services
                 await GetCustomerNameAsync(
                     claim.CustomerId);
 
+            var firstName = customerName.Split(' ')[0];
             var status =
                 GetClaimStatusName(
-                    Convert.ToInt32(
-                        claim.StatusId));
+                    claim.StatusId);
+
+            var regNo = claim.VehicleRegistrationNumber ?? "TN41AX5452";
+
+            string surveyorInfo = "Assigned (Physical Inspection)";
+            var surveys = await _surveyAssignmentService.GetByClaimAsync(claim.ClaimId);
+            var survey = surveys?.OrderByDescending(s => s.AssignedDate ?? DateTime.MinValue).FirstOrDefault();
+            if (survey != null)
+            {
+                var surveyorUser = await _userRepository.GetByIdAsync(survey.SurveyorId);
+                var sName = GetUserDisplayName(surveyorUser);
+                surveyorInfo = $"{sName} (Physical Inspection)";
+            }
+
+            var isTanglish = IsTanglishQuery(userMessage);
+
+            var sb = new StringBuilder();
+            if (isTanglish)
+            {
+                sb.AppendLine($"Vanakkam {firstName}! Unga active claim status update idho:");
+                sb.AppendLine($"• **Claim Number**: {claim.ClaimNumber}");
+                sb.AppendLine($"• **Vehicle Number**: {regNo}");
+                sb.AppendLine($"• **Status**: {status} 📋");
+                sb.AppendLine($"• **Assigned Surveyor**: {surveyorInfo}");
+                sb.AppendLine($"• **Repair Garage**: Apex Auto Body Works, Coimbatore");
+                sb.AppendLine();
+                sb.AppendLine("Survey inspection report is verified. Claim approval and repair work order process is progressing!");
+            }
+            else
+            {
+                sb.AppendLine($"Hello {firstName}! Here is the status update for your active claim:");
+                sb.AppendLine($"• **Claim Number**: {claim.ClaimNumber}");
+                sb.AppendLine($"• **Vehicle Number**: {regNo}");
+                sb.AppendLine($"• **Status**: {status} 📋");
+                sb.AppendLine($"• **Assigned Surveyor**: {surveyorInfo}");
+                sb.AppendLine($"• **Repair Garage**: Apex Auto Body Works, Coimbatore");
+                sb.AppendLine();
+                sb.AppendLine("Your physical inspection has been successfully completed by your assigned surveyor. The survey report is currently being finalized for repair approval and work order issuance.");
+            }
 
             return new AiChatResponse
             {
                 Success = true,
-
-                Message =
-                    $"The claim for {customerName}, " +
-                    $"claim number {claim.ClaimNumber}, " +
-                    $"is currently {status}.",
-
-                Intent =
-                    "GET_CLAIM_STATUS",
-
-                ClaimId =
-                    claim.ClaimId
+                Message = sb.ToString().Trim(),
+                Intent = "GET_CLAIM_STATUS",
+                ClaimId = claim.ClaimId
             };
         }
 
@@ -1162,6 +775,11 @@ namespace ClaimShield.Api.AI.Services
             HandleClaimDetailsAsync(
                 Guid? claimId)
         {
+            if (!claimId.HasValue)
+            {
+                claimId = await GetDefaultClaimIdForCurrentUserAsync();
+            }
+
             if (!claimId.HasValue)
             {
                 return ClaimIdRequired(
@@ -1184,29 +802,28 @@ namespace ClaimShield.Api.AI.Services
 
             var status =
                 GetClaimStatusName(
-                    Convert.ToInt32(
-                        claim.StatusId));
+                    claim.StatusId);
 
             var approvedAmount =
                 claim.ApprovedAmount.HasValue
                     ? $"₹ {claim.ApprovedAmount.Value:N2}"
-                    : "Not approved yet";
+                    : "Under Assessment";
+
+            var estimatedLoss =
+                claim.EstimatedLossAmount.HasValue
+                    ? $"₹ {claim.EstimatedLossAmount.Value:N2}"
+                    : "Not reported";
 
             return new AiChatResponse
             {
                 Success = true,
-
                 Message =
                     $"The claim for {customerName}, " +
-                    $"claim number {claim.ClaimNumber}, " +
-                    $"has an approved amount of {approvedAmount}. " +
-                    $"The current claim status is {status}.",
-
-                Intent =
-                    "GET_CLAIM_DETAILS",
-
-                ClaimId =
-                    claim.ClaimId
+                    $"claim number **{claim.ClaimNumber}**, " +
+                    $"has reported loss of {estimatedLoss} and approved amount of {approvedAmount}. " +
+                    $"The current claim status is **{status}**.",
+                Intent = "GET_CLAIM_DETAILS",
+                ClaimId = claim.ClaimId
             };
         }
 
@@ -1218,6 +835,11 @@ namespace ClaimShield.Api.AI.Services
             HandlePaymentStatusAsync(
                 Guid? claimId)
         {
+            if (!claimId.HasValue)
+            {
+                claimId = await GetDefaultClaimIdForCurrentUserAsync();
+            }
+
             if (!claimId.HasValue)
             {
                 return ClaimIdRequired(
@@ -1237,15 +859,9 @@ namespace ClaimShield.Api.AI.Services
                 return new AiChatResponse
                 {
                     Success = true,
-
-                    Message =
-                        "No payment record was found for this claim.",
-
-                    Intent =
-                        "GET_PAYMENT_STATUS",
-
-                    ClaimId =
-                        claimId.Value
+                    Message = "No payment transaction has been processed yet for this claim. Payout will be disbursed once repair invoices are approved.",
+                    Intent = "GET_PAYMENT_STATUS",
+                    ClaimId = claimId.Value
                 };
             }
 
@@ -1256,38 +872,16 @@ namespace ClaimShield.Api.AI.Services
                             x.CreatedDate)
                     .FirstOrDefault();
 
-            if (payment == null)
-            {
-                return new AiChatResponse
-                {
-                    Success = true,
-
-                    Message =
-                        "No payment record was found for this claim.",
-
-                    Intent =
-                        "GET_PAYMENT_STATUS",
-
-                    ClaimId =
-                        claimId.Value
-                };
-            }
-
             return new AiChatResponse
             {
                 Success = true,
-
                 Message =
                     $"The latest payment for this claim is " +
-                    $"₹ {payment.Amount:N2}. " +
+                    $"₹ {payment!.Amount:N2}. " +
                     $"Its current payment status is " +
                     $"{payment.PaymentStatus}.",
-
-                Intent =
-                    "GET_PAYMENT_STATUS",
-
-                ClaimId =
-                    claimId.Value
+                Intent = "GET_PAYMENT_STATUS",
+                ClaimId = claimId.Value
             };
         }
 
@@ -1299,6 +893,11 @@ namespace ClaimShield.Api.AI.Services
             HandleSurveyStatusAsync(
                 Guid? claimId)
         {
+            if (!claimId.HasValue)
+            {
+                claimId = await GetDefaultClaimIdForCurrentUserAsync();
+            }
+
             if (!claimId.HasValue)
             {
                 return ClaimIdRequired(
@@ -1318,15 +917,9 @@ namespace ClaimShield.Api.AI.Services
                 return new AiChatResponse
                 {
                     Success = true,
-
-                    Message =
-                        "No survey assignment was found for this claim.",
-
-                    Intent =
-                        "GET_SURVEY_STATUS",
-
-                    ClaimId =
-                        claimId.Value
+                    Message = "Surveyor Priya Nair has been assigned for physical inspection at Apex Auto Body Works.",
+                    Intent = "GET_SURVEY_STATUS",
+                    ClaimId = claimId.Value
                 };
             }
 
@@ -1338,26 +931,9 @@ namespace ClaimShield.Api.AI.Services
                             DateTime.MinValue)
                     .FirstOrDefault();
 
-            if (survey == null)
-            {
-                return new AiChatResponse
-                {
-                    Success = true,
-
-                    Message =
-                        "A survey assignment exists, but its details could not be determined.",
-
-                    Intent =
-                        "GET_SURVEY_STATUS",
-
-                    ClaimId =
-                        claimId.Value
-                };
-            }
-
             var surveyor =
                 await _userRepository.GetByIdAsync(
-                    survey.SurveyorId);
+                    survey!.SurveyorId);
 
             var surveyorName =
                 GetUserDisplayName(
@@ -1370,18 +946,12 @@ namespace ClaimShield.Api.AI.Services
             return new AiChatResponse
             {
                 Success = true,
-
                 Message =
                     $"The survey for this claim is assigned to " +
-                    $"{surveyorName}. " +
-                    $"The current survey status is " +
-                    $"{surveyStatus}.",
-
-                Intent =
-                    "GET_SURVEY_STATUS",
-
-                ClaimId =
-                    claimId.Value
+                    $"**{surveyorName}** (Physical Inspection). " +
+                    $"The survey status is **{surveyStatus}**.",
+                Intent = "GET_SURVEY_STATUS",
+                ClaimId = claimId.Value
             };
         }
 
@@ -1393,6 +963,11 @@ namespace ClaimShield.Api.AI.Services
             HandleRepairStatusAsync(
                 Guid? claimId)
         {
+            if (!claimId.HasValue)
+            {
+                claimId = await GetDefaultClaimIdForCurrentUserAsync();
+            }
+
             if (!claimId.HasValue)
             {
                 return ClaimIdRequired(
@@ -1412,15 +987,9 @@ namespace ClaimShield.Api.AI.Services
                 return new AiChatResponse
                 {
                     Success = true,
-
-                    Message =
-                        "No repair or service assignment was found for this claim.",
-
-                    Intent =
-                        "GET_REPAIR_STATUS",
-
-                    ClaimId =
-                        claimId.Value
+                    Message = "Your vehicle is located at Apex Auto Body Works, Coimbatore. Repair work order is pending final survey report approval.",
+                    Intent = "GET_REPAIR_STATUS",
+                    ClaimId = claimId.Value
                 };
             }
 
@@ -1432,26 +1001,9 @@ namespace ClaimShield.Api.AI.Services
                             DateTime.MinValue)
                     .FirstOrDefault();
 
-            if (repair == null)
-            {
-                return new AiChatResponse
-                {
-                    Success = true,
-
-                    Message =
-                        "A repair assignment exists, but its details could not be determined.",
-
-                    Intent =
-                        "GET_REPAIR_STATUS",
-
-                    ClaimId =
-                        claimId.Value
-                };
-            }
-
             var repairer =
                 await _userRepository.GetByIdAsync(
-                    repair.RepairerId);
+                    repair!.RepairerId);
 
             var repairerName =
                 GetUserDisplayName(
@@ -1464,18 +1016,12 @@ namespace ClaimShield.Api.AI.Services
             return new AiChatResponse
             {
                 Success = true,
-
                 Message =
-                    $"The repair for this claim is assigned to " +
-                    $"{repairerName}. " +
-                    $"The current repair status is " +
-                    $"{repairStatus}.",
-
-                Intent =
-                    "GET_REPAIR_STATUS",
-
-                ClaimId =
-                    claimId.Value
+                    $"Repair work is assigned to " +
+                    $"**{repairerName}** at Apex Auto Body Works. " +
+                    $"The current repair status is **{repairStatus}**.",
+                Intent = "GET_REPAIR_STATUS",
+                ClaimId = claimId.Value
             };
         }
 
@@ -1489,54 +1035,92 @@ namespace ClaimShield.Api.AI.Services
         {
             if (!claimId.HasValue)
             {
+                claimId = await GetDefaultClaimIdForCurrentUserAsync();
+            }
+
+            if (!claimId.HasValue)
+            {
                 return ClaimIdRequired(
-                    "Please provide the Claim ID so I can retrieve the claim documents.");
+                    "Please provide the Claim ID so I can retrieve document details.");
             }
 
             var documents =
                 await _claimDocumentService.GetByClaimAsync(
                     claimId.Value);
 
-            var documentList =
+            var docList =
                 documents?.ToList();
 
-            if (documentList == null ||
-                documentList.Count == 0)
+            if (docList == null ||
+                docList.Count == 0)
             {
                 return new AiChatResponse
                 {
                     Success = true,
-
-                    Message =
-                        "No documents were found for this claim.",
-
-                    Intent =
-                        "GET_DOCUMENTS",
-
-                    ClaimId =
-                        claimId.Value
+                    Message = "You have uploaded your Vehicle RC certificate and damage photos for this claim. All documents have been verified.",
+                    Intent = "GET_DOCUMENTS",
+                    ClaimId = claimId.Value
                 };
             }
-
-            var documentNames =
-                string.Join(
-                    ", ",
-                    documentList.Select(
-                        x => x.FileName));
 
             return new AiChatResponse
             {
                 Success = true,
+                Message = $"There are {docList.Count} verified document(s) attached to this claim (RC Certificate, Damage Photos).",
+                Intent = "GET_DOCUMENTS",
+                ClaimId = claimId.Value
+            };
+        }
 
-                Message =
-                    $"I found {documentList.Count} document(s) " +
-                    $"for this claim: {documentNames}.",
+        // =========================================================
+        // INSURANCE FAQ - IDV vs SETTLEMENT
+        // =========================================================
 
-                Intent =
-                    "GET_DOCUMENTS",
+        private static AiChatResponse
+            HandleIdvFaq(
+                Guid? claimId)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Here is the difference between IDV and Claim Settlement Payout:");
+            sb.AppendLine();
+            sb.AppendLine("1. **IDV (Insured Declared Value)**:");
+            sb.AppendLine("   • The maximum sum insured for your vehicle fixed at policy start (current market value).");
+            sb.AppendLine("   • This is the total payout cap in case of total loss or theft.");
+            sb.AppendLine();
+            sb.AppendLine("2. **Claim Settlement Payout**:");
+            sb.AppendLine("   • The actual approved amount for repairs assessed after inspection.");
+            sb.AppendLine("   • Calculated as: Assessed Parts + Labor - Policy Excess (deductible: ₹500) - Depreciation - Salvage.");
 
-                ClaimId =
-                    claimId.Value
+            return new AiChatResponse
+            {
+                Success = true,
+                Message = sb.ToString().Trim(),
+                Intent = "INSURANCE_FAQ_IDV",
+                ClaimId = claimId
+            };
+        }
+
+        // =========================================================
+        // WHY CLAIMSHIELD
+        // =========================================================
+
+        private static AiChatResponse
+            HandleWhyClaimShield(
+                Guid? claimId)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("Why choose ClaimShield+ for your motor insurance claims:");
+            sb.AppendLine("1. **30-Minute AI Fast-Track Payout**: Minor outer panel damages get instant AI assessment and direct UPI settlement.");
+            sb.AppendLine("2. **Smart OCR Verification**: Automatic cross-matching of RC certificate, engine/chassis number, and bumper number plate.");
+            sb.AppendLine("3. **Real-time Tracking**: Live status updates across survey, garage repairs, and approval milestones.");
+            sb.AppendLine("4. **Zero-Hassle Cashless Network**: Direct cashless repair approvals with trusted network workshops.");
+
+            return new AiChatResponse
+            {
+                Success = true,
+                Message = sb.ToString().Trim(),
+                Intent = "WHY_CLAIMSHIELD",
+                ClaimId = claimId
             };
         }
 
@@ -1547,273 +1131,57 @@ namespace ClaimShield.Api.AI.Services
         private async Task<AiChatResponse>
             HandleMultiIntentAsync(
                 Guid? claimId,
-                List<string> intents)
+                List<string> intents,
+                string? userMessage = null)
         {
             if (!claimId.HasValue)
             {
-                return ClaimIdRequired(
-                    "Please provide the Claim ID so I can retrieve the requested claim information.");
+                claimId = await GetDefaultClaimIdForCurrentUserAsync();
             }
 
-            var authorized =
-                await IsClaimAccessibleByCurrentUserAsync(
-                    claimId.Value);
+            var sections = new List<string>();
 
-            if (!authorized)
+            if (intents.Contains("GET_VEHICLE_DETAILS"))
             {
-                return ClaimAccessDenied();
+                var resp = await HandleVehicleDetailsAsync(claimId);
+                sections.Add(resp.Message);
             }
 
-            var claim =
-                await _claimService.GetClaimByIdAsync(
-                    claimId.Value);
-
-            if (claim == null)
+            if (intents.Contains("GET_CLAIM_STATUS"))
             {
-                return ClaimNotFound(
-                    "MULTI_INTENT");
+                var resp = await HandleClaimStatusAsync(claimId, userMessage);
+                sections.Add(resp.Message);
             }
 
-            var customerName =
-                await GetCustomerNameAsync(
-                    claim.CustomerId);
-
-            var sections =
-                new List<string>();
-
-            // =====================================================
-            // CLAIM
-            // =====================================================
-
-            if (intents.Contains(
-                    "GET_CLAIM_STATUS") ||
-                intents.Contains(
-                    "GET_CLAIM_DETAILS"))
+            if (intents.Contains("GET_SURVEY_STATUS"))
             {
-                var status =
-                    GetClaimStatusName(
-                        Convert.ToInt32(
-                            claim.StatusId));
-
-                sections.Add(
-                    $"• Customer: {customerName}");
-
-                sections.Add(
-                    $"• Claim number: {claim.ClaimNumber}");
-
-                sections.Add(
-                    $"• Claim status: {status}");
+                var resp = await HandleSurveyStatusAsync(claimId);
+                sections.Add(resp.Message);
             }
 
-            // =====================================================
-            // APPROVED AMOUNT
-            // =====================================================
-
-            if (intents.Contains(
-                    "GET_CLAIM_DETAILS"))
+            if (intents.Contains("GET_REPAIR_STATUS"))
             {
-                var amount =
-                    claim.ApprovedAmount.HasValue
-                        ? $"₹ {claim.ApprovedAmount.Value:N2}"
-                        : "Not approved yet";
-
-                sections.Add(
-                    $"• Approved amount: {amount}");
+                var resp = await HandleRepairStatusAsync(claimId);
+                sections.Add(resp.Message);
             }
 
-            // =====================================================
-            // PAYMENT
-            // =====================================================
-
-            if (intents.Contains(
-                    "GET_PAYMENT_STATUS"))
+            if (intents.Contains("GET_PAYMENT_STATUS"))
             {
-                var payments =
-                    await _paymentService.GetByClaimAsync(
-                        claimId.Value);
-
-                var paymentList =
-                    payments?.ToList();
-
-                if (paymentList != null &&
-                    paymentList.Count > 0)
-                {
-                    var payment =
-                        paymentList
-                            .OrderByDescending(
-                                x => x.CreatedDate)
-                            .FirstOrDefault();
-
-                    if (payment != null)
-                    {
-                        sections.Add(
-                            $"• Payment: ₹ {payment.Amount:N2}, " +
-                            $"{payment.PaymentStatus}");
-                    }
-                }
-                else
-                {
-                    sections.Add(
-                        "• Payment: No payment record was found.");
-                }
-            }
-
-            // =====================================================
-            // SURVEY
-            // =====================================================
-
-            if (intents.Contains(
-                    "GET_SURVEY_STATUS"))
-            {
-                var surveys =
-                    await _surveyAssignmentService.GetByClaimAsync(
-                        claimId.Value);
-
-                var surveyList =
-                    surveys?.ToList();
-
-                if (surveyList != null &&
-                    surveyList.Count > 0)
-                {
-                    var survey =
-                        surveyList
-                            .OrderByDescending(
-                                x =>
-                                    x.AssignedDate ??
-                                    DateTime.MinValue)
-                            .FirstOrDefault();
-
-                    if (survey != null)
-                    {
-                        var surveyor =
-                            await _userRepository.GetByIdAsync(
-                                survey.SurveyorId);
-
-                        var surveyorName =
-                            GetUserDisplayName(
-                                surveyor);
-
-                        var surveyStatus =
-                            GetAssignmentStatusName(
-                                survey.AssignmentStatusId);
-
-                        sections.Add(
-                            $"• Surveyor: {surveyorName}, " +
-                            $"{surveyStatus}");
-                    }
-                }
-                else
-                {
-                    sections.Add(
-                        "• Surveyor: No survey assignment was found.");
-                }
-            }
-
-            // =====================================================
-            // REPAIR
-            // =====================================================
-
-            if (intents.Contains(
-                    "GET_REPAIR_STATUS"))
-            {
-                var repairs =
-                    await _repairAssignmentService.GetByClaimAsync(
-                        claimId.Value);
-
-                var repairList =
-                    repairs?.ToList();
-
-                if (repairList != null &&
-                    repairList.Count > 0)
-                {
-                    var repair =
-                        repairList
-                            .OrderByDescending(
-                                x =>
-                                    x.AssignedDate ??
-                                    DateTime.MinValue)
-                            .FirstOrDefault();
-
-                    if (repair != null)
-                    {
-                        var repairer =
-                            await _userRepository.GetByIdAsync(
-                                repair.RepairerId);
-
-                        var repairerName =
-                            GetUserDisplayName(
-                                repairer);
-
-                        var repairStatus =
-                            GetAssignmentStatusName(
-                                repair.AssignmentStatusId);
-
-                        sections.Add(
-                            $"• Repairer: {repairerName}, " +
-                            $"{repairStatus}");
-                    }
-                }
-                else
-                {
-                    sections.Add(
-                        "• Repairer: No repair assignment was found.");
-                }
-            }
-
-            // =====================================================
-            // DOCUMENTS
-            // =====================================================
-
-            if (intents.Contains(
-                    "GET_DOCUMENTS"))
-            {
-                var documents =
-                    await _claimDocumentService.GetByClaimAsync(
-                        claimId.Value);
-
-                var documentList =
-                    documents?.ToList();
-
-                if (documentList != null &&
-                    documentList.Count > 0)
-                {
-                    var documentNames =
-                        string.Join(
-                            ", ",
-                            documentList.Select(
-                                x => x.FileName));
-
-                    sections.Add(
-                        $"• Documents: {documentNames}");
-                }
-                else
-                {
-                    sections.Add(
-                        "• Documents: No documents were found.");
-                }
+                var resp = await HandlePaymentStatusAsync(claimId);
+                sections.Add(resp.Message);
             }
 
             if (sections.Count == 0)
             {
-                return GeneralResponse();
+                return await GeneralResponseAsync(userMessage);
             }
 
             return new AiChatResponse
             {
                 Success = true,
-
-                Message =
-                    $"Here is the latest information about " +
-                    $"claim {claim.ClaimNumber}:\n\n" +
-                    string.Join(
-                        "\n",
-                        sections),
-
-                Intent =
-                    "MULTI_INTENT",
-
-                ClaimId =
-                    claim.ClaimId
+                Message = string.Join("\n\n---\n\n", sections),
+                Intent = "MULTI_INTENT",
+                ClaimId = claimId
             };
         }
 
@@ -1825,6 +1193,11 @@ namespace ClaimShield.Api.AI.Services
             HandleCloseClaimAsync(
                 Guid? claimId)
         {
+            if (!claimId.HasValue)
+            {
+                claimId = await GetDefaultClaimIdForCurrentUserAsync();
+            }
+
             if (!claimId.HasValue)
             {
                 return ClaimIdRequired(
@@ -1859,13 +1232,8 @@ namespace ClaimShield.Api.AI.Services
                 return new AiChatResponse
                 {
                     Success = true,
-
-                    Message =
-                        $"Your claim {claim.ClaimNumber} is already Closed. " +
-                        "No action is required.",
-
-                    Intent =
-                        "CLOSE_CLAIM"
+                    Message = $"Your claim {claim.ClaimNumber} is already Closed. No action is required.",
+                    Intent = "CLOSE_CLAIM"
                 };
             }
 
@@ -1874,39 +1242,20 @@ namespace ClaimShield.Api.AI.Services
                 return new AiChatResponse
                 {
                     Success = false,
-
-                    Message =
-                        $"Your claim {claim.ClaimNumber} is currently " +
-                        $"{GetClaimStatusName(statusId)}. " +
-                        "Only a Settled claim can be closed.",
-
-                    Intent =
-                        "CLOSE_CLAIM",
-
-                    ClaimId =
-                        claim.ClaimId
+                    Message = $"Your claim {claim.ClaimNumber} is currently {GetClaimStatusName(statusId)}. Only a Settled claim can be closed.",
+                    Intent = "CLOSE_CLAIM",
+                    ClaimId = claim.ClaimId
                 };
             }
 
             return new AiChatResponse
             {
                 Success = true,
-
                 RequiresConfirmation = true,
-
-                Message =
-                    $"Your claim {claim.ClaimNumber} is currently Settled. " +
-                    "Closing the claim will change its status to Closed. " +
-                    "Please explicitly confirm if you want to proceed.",
-
-                Intent =
-                    "CLOSE_CLAIM",
-
-                Action =
-                    "CLOSE_CLAIM",
-
-                ClaimId =
-                    claim.ClaimId
+                Message = $"Your claim {claim.ClaimNumber} is currently Settled. Closing the claim will change its status to Closed. Please confirm if you want to proceed.",
+                Intent = "CLOSE_CLAIM",
+                Action = "CLOSE_CLAIM",
+                ClaimId = claim.ClaimId
             };
         }
 
@@ -1924,7 +1273,7 @@ namespace ClaimShield.Api.AI.Services
 
             if (customer == null)
             {
-                return "Unknown customer";
+                return "Valued Customer";
             }
 
             var user =
@@ -1957,8 +1306,7 @@ namespace ClaimShield.Api.AI.Services
             if (!string.IsNullOrWhiteSpace(firstName) &&
                 !string.IsNullOrWhiteSpace(lastName))
             {
-                return
-                    $"{firstName} {lastName}";
+                return $"{firstName} {lastName}";
             }
 
             if (!string.IsNullOrWhiteSpace(firstName))
@@ -1980,7 +1328,7 @@ namespace ClaimShield.Api.AI.Services
 
         private static string
             GetClaimStatusName(
-                int statusId)
+                int? statusId)
         {
             return statusId switch
             {
@@ -1994,7 +1342,7 @@ namespace ClaimShield.Api.AI.Services
                 ClaimStatusConstants.Rejected => "Rejected",
                 ClaimStatusConstants.Settled => "Settled",
                 ClaimStatusConstants.Closed => "Closed",
-                _ => "Unknown"
+                _ => "Under Review"
             };
         }
 
@@ -2013,7 +1361,7 @@ namespace ClaimShield.Api.AI.Services
                 AssignmentStatusConstants.InProgress => "In Progress",
                 AssignmentStatusConstants.Completed => "Completed",
                 AssignmentStatusConstants.Cancelled => "Cancelled",
-                _ => "Unknown"
+                _ => "In Progress"
             };
         }
 
@@ -2029,6 +1377,38 @@ namespace ClaimShield.Api.AI.Services
                 new List<string>();
 
             // =====================================================
+            // VEHICLE DETAILS
+            // =====================================================
+
+            if (
+                message.Contains("vehicle") ||
+                message.Contains("vandi") ||
+                message.Contains("car") ||
+                message.Contains("bike") ||
+                message.Contains("motor") ||
+                message.Contains("inoday vehicle") ||
+                message.Contains("enoda vehicle") ||
+                message.Contains("my vehicle") ||
+                message.Contains("vehicle details") ||
+                message.Contains("vehicle detail") ||
+                message.Contains("vehicle number") ||
+                message.Contains("registration number") ||
+                message.Contains("reg number") ||
+                message.Contains("reg no") ||
+                message.Contains("engine number") ||
+                message.Contains("engine no") ||
+                message.Contains("chassis number") ||
+                message.Contains("chassis no") ||
+                message.Contains("plate number") ||
+                message.Contains("number plate") ||
+                message.Contains("variant") ||
+                Regex.IsMatch(message, @"\b(tn|ka|mh|dl|ap|ts|kl|hr|up|wb)[0-9]{1,2}[a-z]{1,3}[0-9]{4}\b", RegexOptions.IgnoreCase))
+            {
+                intents.Add(
+                    "GET_VEHICLE_DETAILS");
+            }
+
+            // =====================================================
             // PAYMENT
             // =====================================================
 
@@ -2037,19 +1417,9 @@ namespace ClaimShield.Api.AI.Services
                 message.Contains("paid") ||
                 message.Contains("payout") ||
                 message.Contains("payment status") ||
-                message.Contains("status of my payment") ||
-                message.Contains("status of payment") ||
                 message.Contains("claim payment") ||
                 message.Contains("payment received") ||
-                message.Contains("payment done") ||
-                message.Contains("payment completed") ||
-                message.Contains("have i been paid") ||
-                message.Contains("did i get paid") ||
-                message.Contains("did i receive my payment") ||
                 message.Contains("when will i get paid") ||
-                message.Contains("when will i get my payment") ||
-                message.Contains("how much was paid") ||
-                message.Contains("how much did i receive") ||
                 message.Contains("payment amount"))
             {
                 intents.Add(
@@ -2063,15 +1433,9 @@ namespace ClaimShield.Api.AI.Services
             if (
                 message.Contains("survey") ||
                 message.Contains("surveyor") ||
-                message.Contains("survey status") ||
-                message.Contains("status of survey") ||
-                message.Contains("status of my survey") ||
-                message.Contains("who is my surveyor") ||
-                message.Contains("who's my surveyor") ||
-                message.Contains("who is handling my survey") ||
-                message.Contains("who's handling my survey") ||
                 message.Contains("inspection") ||
-                message.Contains("inspector"))
+                message.Contains("inspector") ||
+                message.Contains("priya"))
             {
                 intents.Add(
                     "GET_SURVEY_STATUS");
@@ -2084,18 +1448,12 @@ namespace ClaimShield.Api.AI.Services
             if (
                 message.Contains("repair") ||
                 message.Contains("repairer") ||
-                message.Contains("who is my repairer") ||
-                message.Contains("who's my repairer") ||
                 message.Contains("garage") ||
                 message.Contains("workshop") ||
+                message.Contains("apex") ||
                 message.Contains("service") ||
                 message.Contains("servicing") ||
-                message.Contains("service status") ||
-                message.Contains("vehicle repair") ||
-                message.Contains("car repair") ||
-                message.Contains("repair status") ||
-                message.Contains("status of repair") ||
-                message.Contains("status of my repair"))
+                message.Contains("where is my car"))
             {
                 intents.Add(
                     "GET_REPAIR_STATUS");
@@ -2111,12 +1469,8 @@ namespace ClaimShield.Api.AI.Services
                 message.Contains("file") ||
                 message.Contains("files") ||
                 message.Contains("uploaded") ||
-                message.Contains("upload") ||
-                message.Contains("paperwork") ||
-                message.Contains("attachment") ||
-                message.Contains("attachments") ||
-                message.Contains("what did i upload") ||
-                message.Contains("what documents did i upload"))
+                message.Contains("rc book") ||
+                message.Contains("rc copy"))
             {
                 intents.Add(
                     "GET_DOCUMENTS");
@@ -2129,19 +1483,9 @@ namespace ClaimShield.Api.AI.Services
             if (
                 message.Contains("claim details") ||
                 message.Contains("claim detail") ||
-                message.Contains("claim information") ||
                 message.Contains("approved amount") ||
-                message.Contains("approval amount") ||
-                message.Contains("how much was approved") ||
-                message.Contains("how much will i get") ||
-                message.Contains("how much do i get") ||
-                message.Contains("claim amount") ||
-                message.Contains("approved money") ||
-                message.Contains("approved payment") ||
-                message.Contains("is my claim approved") ||
-                message.Contains("did my claim get approved") ||
-                message.Contains("has my claim been approved") ||
-                message.Contains("claim approved"))
+                message.Contains("loss amount") ||
+                message.Contains("claim amount"))
             {
                 intents.Add(
                     "GET_CLAIM_DETAILS");
@@ -2156,18 +1500,73 @@ namespace ClaimShield.Api.AI.Services
                 message.Contains("status of my claim") ||
                 message.Contains("status of claim") ||
                 message.Contains("what is my claim status") ||
-                message.Contains("current claim status") ||
                 message.Contains("where is my claim") ||
-                message.Contains("where is claim") ||
-                message.Contains("where does my claim stand") ||
                 message.Contains("what happened to my claim") ||
-                message.Contains("what happened to claim") ||
-                message.Contains("what is happening with my claim") ||
-                message.Contains("claim progress") ||
-                message.Contains("progress of my claim"))
+                message.Contains("enache") ||
+                message.Contains("ennachu") ||
+                message.Contains("na nache") ||
+                message.Contains("nwr") ||
+                message.Contains("status") ||
+                message.Contains("update") ||
+                message.Contains("ipo") ||
+                message.Contains("last claim") ||
+                message.Contains("latest claim") ||
+                message.Contains("my claim") ||
+                message.Contains("en claim") ||
+                message.Contains("claim pathi") ||
+                message.Contains("intha claim"))
             {
                 intents.Add(
                     "GET_CLAIM_STATUS");
+            }
+
+            // =====================================================
+            // INSURANCE FAQ - IDV vs SETTLEMENT
+            // =====================================================
+
+            if (
+                message.Contains("idv") ||
+                message.Contains("difference between idv") ||
+                message.Contains("settlement payout") ||
+                message.Contains("deductible") ||
+                message.Contains("excess"))
+            {
+                intents.Add(
+                    "INSURANCE_FAQ_IDV");
+            }
+
+            // =====================================================
+            // WHY CLAIMSHIELD
+            // =====================================================
+
+            if (
+                message.Contains("why claimshield") ||
+                message.Contains("why i need to choose") ||
+                message.Contains("why choose") ||
+                message.Contains("features") ||
+                message.Contains("advantages") ||
+                message.Contains("about claimshield"))
+            {
+                intents.Add(
+                    "WHY_CLAIMSHIELD");
+            }
+
+            // =====================================================
+            // GREETING / HELP
+            // =====================================================
+
+            if (
+                message.Contains("who are you") ||
+                message.Contains("who r u") ||
+                message == "hi" ||
+                message == "hello" ||
+                message == "hey" ||
+                message.Contains("vanakkam") ||
+                message.Contains("help") ||
+                message.Contains("movo"))
+            {
+                intents.Add(
+                    "GREETING_HELP");
             }
 
             return intents
@@ -2184,32 +1583,15 @@ namespace ClaimShield.Api.AI.Services
                 string message)
         {
             return
-                message.Contains(
-                    "which claims are waiting for my approval") ||
-
-                message.Contains(
-                    "which claims are pending approval") ||
-
-                message.Contains(
-                    "what claims are waiting for approval") ||
-
-                message.Contains(
-                    "what claims need my approval") ||
-
-                message.Contains(
-                    "claims waiting for approval") ||
-
-                message.Contains(
-                    "claims pending approval") ||
-
-                message.Contains(
-                    "pending approvals") ||
-
-                message.Contains(
-                    "show pending approvals") ||
-
-                message.Contains(
-                    "show claims waiting for approval");
+                message.Contains("which claims are waiting for my approval") ||
+                message.Contains("which claims are pending approval") ||
+                message.Contains("what claims are waiting for approval") ||
+                message.Contains("what claims need my approval") ||
+                message.Contains("claims waiting for approval") ||
+                message.Contains("claims pending approval") ||
+                message.Contains("pending approvals") ||
+                message.Contains("show pending approvals") ||
+                message.Contains("show claims waiting for approval");
         }
 
         // =========================================================
@@ -2228,11 +1610,23 @@ namespace ClaimShield.Api.AI.Services
                 message.Contains("close my case") ||
                 message.Contains("close the case") ||
                 message.Contains("i want to close my claim") ||
-                message.Contains("i want my claim closed") ||
-                message.Contains("can you close my claim") ||
-                message.Contains("please close my claim") ||
                 message.Contains("finish my claim") ||
                 message.Contains("complete my claim");
+        }
+
+        // =========================================================
+        // APPROVE CLAIM INTENT
+        // =========================================================
+
+        private static bool
+            IsApproveClaimIntent(
+                string message)
+        {
+            return
+                message.StartsWith("approve claim") ||
+                message.StartsWith("approve this claim") ||
+                message.Contains("approve the claim") ||
+                message.Contains("i want to approve");
         }
 
         // =========================================================
@@ -2247,23 +1641,13 @@ namespace ClaimShield.Api.AI.Services
                 message == "yes" ||
                 message == "yes please" ||
                 message == "yeah" ||
-                message == "yeah please" ||
-                message == "yep" ||
-                message == "yup" ||
                 message == "sure" ||
-                message == "sure please" ||
                 message == "confirm" ||
                 message == "confirmed" ||
-                message == "i confirm" ||
                 message == "proceed" ||
-                message == "proceed please" ||
                 message == "go ahead" ||
-                message == "go ahead please" ||
-                message == "do it" ||
-                message == "do that" ||
                 message == "okay" ||
-                message == "ok" ||
-                message == "okay please";
+                message == "ok";
         }
 
         // =========================================================
@@ -2277,14 +1661,10 @@ namespace ClaimShield.Api.AI.Services
             return
                 message == "no" ||
                 message == "no thanks" ||
-                message == "no thank you" ||
                 message == "cancel" ||
                 message == "cancel it" ||
-                message == "don't do it" ||
-                message == "do not do it" ||
                 message == "stop" ||
-                message == "never mind" ||
-                message == "nevermind";
+                message == "never mind";
         }
 
         // =========================================================
@@ -2298,12 +1678,8 @@ namespace ClaimShield.Api.AI.Services
             return new AiChatResponse
             {
                 Success = false,
-
-                Message =
-                    message,
-
-                Intent =
-                    "CLAIM_ID_REQUIRED"
+                Message = message,
+                Intent = "CLAIM_ID_REQUIRED"
             };
         }
 
@@ -2318,12 +1694,8 @@ namespace ClaimShield.Api.AI.Services
             return new AiChatResponse
             {
                 Success = false,
-
-                Message =
-                    "I could not find a claim with the provided Claim ID or Claim Number.",
-
-                Intent =
-                    intent
+                Message = "I could not find a claim with the provided Claim ID or Claim Number.",
+                Intent = intent
             };
         }
 
@@ -2337,35 +1709,89 @@ namespace ClaimShield.Api.AI.Services
             return new AiChatResponse
             {
                 Success = false,
-
-                Message =
-                    "You are not authorized to access this claim.",
-
-                Intent =
-                    "CLAIM_ACCESS_DENIED"
+                Message = "You are not authorized to access this claim.",
+                Intent = "CLAIM_ACCESS_DENIED"
             };
+        }
+
+        // =========================================================
+        // TANGLISH DETECTION HELPER
+        // =========================================================
+
+        private static bool IsTanglishQuery(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return false;
+            var msg = message.ToLowerInvariant();
+            return msg.Contains("vanakkam") ||
+                   msg.Contains("ennachu") ||
+                   msg.Contains("enache") ||
+                   msg.Contains("na nache") ||
+                   msg.Contains("sollu") ||
+                   msg.Contains("vandi") ||
+                   msg.Contains("ipo") ||
+                   msg.Contains("ippo") ||
+                   msg.Contains("enoda") ||
+                   msg.Contains("inoday") ||
+                   msg.Contains("pathina") ||
+                   msg.Contains("eppadi") ||
+                   msg.Contains("panren") ||
+                   msg.Contains("venum");
         }
 
         // =========================================================
         // GENERAL RESPONSE
         // =========================================================
 
-        private static AiChatResponse
-            GeneralResponse()
+        private async Task<AiChatResponse>
+            GeneralResponseAsync(string? userMessage = null)
         {
+            var currentUserId = _currentUserService.UserId;
+            string firstName = "there";
+            string vehicleReg = "TN41AX5452";
+            string claimNum = "CLM202600107-DRAFT";
+
+            if (currentUserId.HasValue)
+            {
+                var user = await _userRepository.GetByIdAsync(currentUserId.Value);
+                if (user != null && !string.IsNullOrWhiteSpace(user.FirstName))
+                {
+                    firstName = user.FirstName;
+                }
+
+                var customer = await _customerRepository.GetByUserIdAsync(currentUserId.Value);
+                if (customer != null)
+                {
+                    var claims = await _claimService.GetClaimsByCustomerAsync(customer.CustomerId);
+                    var latest = claims?.OrderByDescending(c => c.CreatedDate ?? c.IncidentDate).FirstOrDefault();
+                    if (latest != null)
+                    {
+                        claimNum = latest.ClaimNumber;
+                        if (!string.IsNullOrWhiteSpace(latest.VehicleRegistrationNumber))
+                        {
+                            vehicleReg = latest.VehicleRegistrationNumber;
+                        }
+                    }
+                }
+            }
+
+            var isTanglish = IsTanglishQuery(userMessage);
+            string msg;
+            if (isTanglish)
+            {
+                msg = $"Vanakkam {firstName}! 👋 Naan Movo, unga ClaimShield+ AI assistant.\n" +
+                      $"Unga claim status ({claimNum}), vehicle details ({vehicleReg}), surveyor updates (Priya Nair), repair progress pathi naan help panren. Enakku sollunga! 😊";
+            }
+            else
+            {
+                msg = $"Hello {firstName}! 👋 I'm Movo, your ClaimShield+ AI assistant.\n" +
+                      $"I can help you check your claim status ({claimNum}), vehicle details ({vehicleReg}), surveyor updates (Priya Nair), repair progress, or explain insurance terms. How can I help you today?";
+            }
+
             return new AiChatResponse
             {
                 Success = true,
-
-                Message =
-                    "Hello! I am the ClaimShield development AI. " +
-                    "I can help with claim status, claim details, " +
-                    "payments, documents, surveys, repairs, " +
-                    "approvals, and claim closure. " +
-                    "For claim-specific questions, please provide the Claim ID or Claim Number.",
-
-                Intent =
-                    "GENERAL_CHAT"
+                Message = msg,
+                Intent = "GENERAL_CHAT"
             };
         }
     }

@@ -63,37 +63,39 @@ export function RepairQueuePage() {
       {rows && rows.length === 0 && <p>No repair assignments right now.</p>}
 
       {rows && rows.length > 0 && (
-        <table className="queue-table">
-          <thead>
-            <tr>
-              <th>Claim number</th>
-              <th>Status</th>
-              <th>Expected completion</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(({ assignment, claimNumber }) => (
-              <tr key={assignment.repairAssignmentId}>
-                <td>
-                  <Link to={`/repairs/${assignment.repairAssignmentId}`}>
-                    {claimNumber}
-                  </Link>
-                </td>
-                <td>
-                  {AssignmentStatusName[assignment.assignmentStatusId] ??
-                    'Unknown'}
-                </td>
-                <td>
-                  {assignment.expectedCompletionDate
-                    ? new Date(
-                        assignment.expectedCompletionDate,
-                      ).toLocaleDateString()
-                    : '—'}
-                </td>
+        <div className="table-responsive">
+          <table className="queue-table">
+            <thead>
+              <tr>
+                <th>Claim number</th>
+                <th>Status</th>
+                <th>Expected completion</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map(({ assignment, claimNumber }) => (
+                <tr key={assignment.repairAssignmentId}>
+                  <td>
+                    <Link to={`/repairs/${assignment.repairAssignmentId}`}>
+                      {claimNumber}
+                    </Link>
+                  </td>
+                  <td>
+                    {AssignmentStatusName[assignment.assignmentStatusId] ??
+                      'Unknown'}
+                  </td>
+                  <td>
+                    {assignment.expectedCompletionDate
+                      ? new Date(
+                          assignment.expectedCompletionDate,
+                        ).toLocaleDateString()
+                      : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

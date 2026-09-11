@@ -50,18 +50,33 @@ export class ApiError extends Error {
   }
 }
 
+let cachedAccessToken: string | null = null
+
+supabase.auth.getSession().then(({ data }) => {
+  cachedAccessToken = data.session?.access_token ?? null
+})
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  cachedAccessToken = session?.access_token ?? null
+})
+
+async function getAccessToken(): Promise<string | null> {
+  if (cachedAccessToken) return cachedAccessToken
+  const { data } = await supabase.auth.getSession()
+  cachedAccessToken = data.session?.access_token ?? null
+  return cachedAccessToken
+}
+
 async function request<T>(
   path: string,
   options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const token = await getAccessToken()
 
   const headers: Record<string, string> = {}
 
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
   }
 
   if (options.body !== undefined) {
@@ -90,14 +105,12 @@ async function request<T>(
 }
 
 async function requestForm<T>(path: string, formData: FormData): Promise<T> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const token = await getAccessToken()
 
   const headers: Record<string, string> = {}
 
-  if (session?.access_token) {
-    headers.Authorization = `Bearer ${session.access_token}`
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
   }
 
   const response = await fetch(`${apiBaseUrl}${path}`, {

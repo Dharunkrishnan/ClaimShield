@@ -45,28 +45,30 @@ export function QueuePage() {
       )}
 
       {items && items.length > 0 && (
-        <table className="queue-table">
-          <thead>
-            <tr>
-              <th><Hash size={14} /> Claim number</th>
-              <th><AlertCircle size={14} /> Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.claimId}>
-                <td>
-                  <Link to={`/claims/${item.claimId}`}>
-                    {item.claimNumber}
-                  </Link>
-                </td>
-                <td>
-                  {QUEUE_REASON_LABEL[item.queueReason] ?? item.queueReason}
-                </td>
+        <div className="table-responsive">
+          <table className="queue-table">
+            <thead>
+              <tr>
+                <th><Hash size={14} /> Claim number</th>
+                <th><AlertCircle size={14} /> Reason</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.claimId}>
+                  <td>
+                    <Link to={`/claims/${item.claimId}`}>
+                      {item.claimNumber}
+                    </Link>
+                  </td>
+                  <td>
+                    {QUEUE_REASON_LABEL[item.queueReason] ?? item.queueReason}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

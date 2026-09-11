@@ -62,36 +62,38 @@ export function AdminPaymentsPage() {
       {payments && payments.length === 0 && <p>No payments recorded yet.</p>}
 
       {payments && payments.length > 0 && (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Claim</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Transaction ref</th>
-              <th>Date</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {payments.map((payment) => (
-              <tr key={payment.paymentId}>
-                <td>
-                  <Link to={`/claims/${payment.claimId}`}>
-                    {claimNumberFor(payment.claimId)}
-                  </Link>
-                </td>
-                <td>{formatCurrency(payment.amount)}</td>
-                <td>{payment.paymentStatus}</td>
-                <td>{payment.transactionReference ?? '—'}</td>
-                <td>{formatDate(payment.paymentDate)}</td>
-                <td>
-                  <PaymentRowActions payment={payment} onDone={() => void load()} />
-                </td>
+        <div className="table-responsive">
+          <table className="data-table queue-table">
+            <thead>
+              <tr>
+                <th>Claim</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Transaction ref</th>
+                <th>Date</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {payments.map((payment) => (
+                <tr key={payment.paymentId}>
+                  <td>
+                    <Link to={`/claims/${payment.claimId}`}>
+                      {claimNumberFor(payment.claimId)}
+                    </Link>
+                  </td>
+                  <td>{formatCurrency(payment.amount)}</td>
+                  <td>{payment.paymentStatus}</td>
+                  <td>{payment.transactionReference ?? '—'}</td>
+                  <td>{formatDate(payment.paymentDate)}</td>
+                  <td>
+                    <PaymentRowActions payment={payment} onDone={() => void load()} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

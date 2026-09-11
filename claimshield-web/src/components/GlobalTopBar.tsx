@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   Search,
   X,
@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   XCircle,
   Wallet,
+  LogOut,
+  User,
+  ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { RoleId } from '../lib/roles'
@@ -44,20 +47,6 @@ const PAGE_LINKS: PageLink[] = [
   { label: 'Authority Limits', path: '/admin/authority-limits', roles: [RoleId.Admin] },
   { label: 'Scoring Rules', path: '/admin/scoring-rules', roles: [RoleId.Admin] },
 ]
-
-// =====================================================================
-// Notifications
-// =====================================================================
-//
-// There is no Notifications table or event log in the backend - these
-// are DERIVED live from each claim's current status, not a persisted
-// history of what happened. That means: only the claim's CURRENT
-// state produces a notification (not every status it passed through),
-// "read" tracking is a local per-browser marker (not server-side), and
-// the "time" shown is the claim's last-updated timestamp, not the
-// actual moment that specific status was reached. This is real,
-// data-driven content - just not a true notification/event system.
-// =====================================================================
 
 const NOTIF_SEEN_KEY = 'claimshield.notifSeen'
 
@@ -129,11 +118,12 @@ function saveSeenIds(ids: Set<string>) {
 
 export function GlobalTopBar({ roleId }: { roleId: number }) {
   const navigate = useNavigate()
-  const { session } = useAuth()
+  const { session, displayName, roleName, signOut } = useAuth()
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [notifOpen, setNotifOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
 
   const [claims, setClaims] = useState<ClaimResponseDto[]>([])
   const [policies, setPolicies] = useState<PolicyResponseDto[]>([])
@@ -143,12 +133,11 @@ export function GlobalTopBar({ roleId }: { roleId: number }) {
 
   const searchRef = useRef<HTMLDivElement>(null)
   const notifRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const lastLoginAt = session?.user.last_sign_in_at
 
-  // Loaded eagerly (not just when search opens) so the notification
-  // bell can show an unread badge without requiring a click first.
   useEffect(() => {
     if (dataLoaded || roleId !== RoleId.Customer) return
 
@@ -177,6 +166,9 @@ export function GlobalTopBar({ roleId }: { roleId: number }) {
       }
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false)
+      }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
       }
     }
 
@@ -251,8 +243,28 @@ export function GlobalTopBar({ roleId }: { roleId: number }) {
     })
   }
 
+  const userInitials = useMemo(() => {
+    if (!displayName) return 'U'
+    const parts = displayName.trim().split(' ')
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+    return displayName.slice(0, 2).toUpperCase()
+  }, [displayName])
+
   return (
     <header className="global-topbar">
+      {/* Mobile Brand Bar (visible on mobile screens) */}
+      <div className="mobile-topbar-brand">
+        <Link to="/" className="mobile-topbar-brand-link">
+          <img
+            src="/claimshield-logo-green.png"
+            alt="ClaimShield+"
+            className="mobile-topbar-logo-img"
+          />
+          <span className="mobile-topbar-brand-title">ClaimShield+</span>
+        </Link>
+      </div>
+
+      {/* Desktop marquee banner */}
       <div className="global-topbar-marquee">
         <div className="global-topbar-marquee-track">
           <span className="global-topbar-marquee-item">
@@ -271,7 +283,8 @@ export function GlobalTopBar({ roleId }: { roleId: number }) {
       </div>
 
       <div className="global-topbar-actions">
-        <div className="global-search" ref={searchRef}>
+        {/* Search */}
+        <div className={`global-search${searchOpen ? ' is-open' : ''}`} ref={searchRef}>
           {searchOpen ? (
             <div className="global-search-box">
               <Search size={15} className="global-search-icon" />
@@ -370,6 +383,7 @@ export function GlobalTopBar({ roleId }: { roleId: number }) {
           )}
         </div>
 
+        {/* Notifications */}
         <div className="global-notif" ref={notifRef}>
           <button
             type="button"
@@ -386,7 +400,17 @@ export function GlobalTopBar({ roleId }: { roleId: number }) {
 
           {notifOpen && (
             <div className="global-notif-panel">
-              <span className="global-notif-panel-title">Notifications</span>
+              <div className="global-notif-panel-header">
+                <span className="global-notif-panel-title">Notifications</span>
+                <button
+                  type="button"
+                  className="global-notif-panel-close"
+                  onClick={() => setNotifOpen(false)}
+                  aria-label="Close notifications"
+                >
+                  <X size={13} />
+                </button>
+              </div>
 
               {notifications.length === 0 ? (
                 <p className="global-notif-empty">You're all caught up — no new notifications.</p>
@@ -415,12 +439,62 @@ export function GlobalTopBar({ roleId }: { roleId: number }) {
           )}
         </div>
 
+        {/* Desktop Last Login indicator */}
         {lastLoginAt && (
           <div className="global-topbar-login">
             <Clock size={14} />
             Last login: {new Date(lastLoginAt).toLocaleString('en-IN')}
           </div>
         )}
+
+        {/* Mobile & Tablet User Profile Menu */}
+        <div className="mobile-user-profile-wrap" ref={profileRef}>
+          <button
+            type="button"
+            className="mobile-user-avatar-btn"
+            onClick={() => setProfileOpen((prev) => !prev)}
+            aria-label="User profile menu"
+            aria-expanded={profileOpen}
+          >
+            <span className="mobile-user-avatar-text">{userInitials}</span>
+            <ChevronDown size={13} className="mobile-user-chevron" />
+          </button>
+
+          {profileOpen && (
+            <div className="mobile-user-menu">
+              <div className="mobile-user-menu-header">
+                <div className="mobile-user-menu-avatar">
+                  <User size={18} />
+                </div>
+                <div className="mobile-user-menu-info">
+                  <span className="mobile-user-menu-name">{displayName}</span>
+                  <span className="mobile-user-menu-role">{roleName}</span>
+                </div>
+              </div>
+
+              {lastLoginAt && (
+                <div className="mobile-user-menu-login">
+                  <Clock size={12} />
+                  <span>Last login: {new Date(lastLoginAt).toLocaleDateString('en-IN')}</span>
+                </div>
+              )}
+
+              <div className="mobile-user-menu-divider" />
+
+              <button
+                type="button"
+                className="mobile-user-menu-signout"
+                onClick={() => {
+                  setProfileOpen(false)
+                  void signOut()
+                }}
+              >
+                <LogOut size={15} />
+                <span>Sign out</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   )

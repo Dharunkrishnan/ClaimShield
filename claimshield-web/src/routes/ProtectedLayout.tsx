@@ -21,6 +21,7 @@ import { useAuth } from '../context/AuthContext'
 import { RoleId, RoleName, type RoleIdValue } from '../lib/roles'
 import { ChatAssistant } from '../components/ChatAssistant'
 import { GlobalTopBar } from '../components/GlobalTopBar'
+import { MobileBottomNav } from '../components/MobileBottomNav'
 
 const SUPPORTED_ROLE_IDS: number[] = [
   RoleId.Customer,
@@ -344,6 +345,8 @@ export function ProtectedLayout() {
       </div>
 
       {roleId === RoleId.Customer && <ChatAssistant />}
+
+      <MobileBottomNav roleId={roleId} />
     </div>
   )
 }
