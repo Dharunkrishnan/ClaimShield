@@ -168,15 +168,17 @@ namespace ClaimShield.Api.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Upload(
-            [FromForm] Guid claimId,
-            [FromForm] int documentTypeId,
-            [FromForm] IFormFile file)
+            [FromForm] UploadClaimDocumentRequest request)
         {
             if (!_currentUserService.UserId.HasValue)
             {
                 return Forbidden(
                     "Unable to determine the logged-in user.");
             }
+
+            var claimId = request.ClaimId;
+            var documentTypeId = request.DocumentTypeId;
+            var file = request.File;
 
             if (!await _claimDocumentService.CanUserAccessClaimAsync(
                     claimId,
