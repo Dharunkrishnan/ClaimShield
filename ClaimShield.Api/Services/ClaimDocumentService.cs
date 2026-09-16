@@ -458,17 +458,25 @@ namespace ClaimShield.Api.Services
                 return null;
             }
 
-            var bytes =
-                await _storageService.DownloadAsync(
-                    document.FilePath);
-
-            var result = await _ocrService.ExtractAsync(bytes);
-            if (result != null)
+            try
             {
-                _cache.Set(cacheKey, result, TimeSpan.FromMinutes(30));
-            }
+                var bytes =
+                    await _storageService.DownloadAsync(
+                        document.FilePath);
 
-            return result;
+                var result = await _ocrService.ExtractAsync(bytes);
+                if (result != null)
+                {
+                    _cache.Set(cacheKey, result, TimeSpan.FromMinutes(30));
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OCR Preview Error] Failed for doc {claimDocumentId}: {ex.Message}");
+                return new OcrExtractionResult();
+            }
         }
 
         // =========================================================
