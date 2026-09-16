@@ -733,6 +733,45 @@ app.MapGet("/api/diagnostics/ocr-libs", () =>
         expectedTesseractExistsInX64 = System.IO.File.Exists(expectedTesseractInX64),
         appBaseDirectory = AppContext.BaseDirectory,
     });
+app.MapGet("/api/diagnostics/test-ocr", () =>
+{
+    var envTessPrefix = Environment.GetEnvironmentVariable("TESSDATA_PREFIX");
+    var searchDirs = new[]
+    {
+        "/app/tessdata",
+        "/usr/share/tesseract-ocr/5/tessdata",
+        "/usr/share/tesseract-ocr/4.00/tessdata",
+        "/usr/share/tessdata",
+        AppContext.BaseDirectory
+    };
+
+    var pathsChecked = searchDirs.Select(d => new
+    {
+        dir = d,
+        exists = Directory.Exists(d),
+        files = Directory.Exists(d) ? Directory.GetFiles(d).Select(Path.GetFileName).ToArray() : Array.Empty<string>()
+    }).ToList();
+
+    string? engineError = null;
+    string? engineSuccess = null;
+
+    try
+    {
+        using var engine = new Tesseract.TesseractEngine("/app/tessdata", "eng", Tesseract.EngineMode.Default);
+        engineSuccess = "TesseractEngine created successfully!";
+    }
+    catch (Exception ex)
+    {
+        engineError = $"{ex.GetType().FullName}: {ex.Message} --> Inner: {ex.InnerException?.Message}";
+    }
+
+    return Results.Ok(new
+    {
+        envTessPrefix,
+        pathsChecked,
+        engineSuccess,
+        engineError
+    });
 });
 
 app.Run();
