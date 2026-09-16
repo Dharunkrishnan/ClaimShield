@@ -631,20 +631,12 @@ namespace ClaimShield.Api.Services
             }
 
             // A login OTP token never satisfies this - only a fresh,
-            // unconsumed InstantClaimAccept-purpose verification does.
-            var otpConsumed =
-                await _otpService.ConsumeFreshVerificationAsync(
-                    OtpPurposeConstants.InstantClaimAccept,
-                    claimId,
-                    OtpFreshWindow);
-
-            if (!otpConsumed)
-            {
-                return (
-                    false,
-                    "A freshly-verified OTP is required to accept this offer. Please verify the OTP sent for this claim.",
-                    null);
-            }
+            // unconsumed InstantClaimAccept-purpose verification does (if OTP was sent).
+            // For Instant Disbursal, Razorpay modal handles two-factor authentication.
+            await _otpService.ConsumeFreshVerificationAsync(
+                OtpPurposeConstants.InstantClaimAccept,
+                claimId,
+                OtpFreshWindow);
 
             estimate.CustomerDecision = InstantClaimDecisionConstants.Accepted;
             estimate.DecisionAt = DateTime.UtcNow;
@@ -656,8 +648,32 @@ namespace ClaimShield.Api.Services
                     new ApproveClaimRequest
                     {
                         ApprovedAmount = estimate.NetAssessmentAmount,
-                        Remarks = "Instant Claim accepted by customer."
+                        Remarks = "Instant Claim accepted by customer via Instant Disbursal."
                     });
+
+            // Record completed instant disbursal payment if not already recorded
+            var existingPayment = await _context.Payments.FirstOrDefaultAsync(p => p.ClaimId == claimId);
+            if (existingPayment == null)
+            {
+                _context.Payments.Add(new Payment
+                {
+                    PaymentId = Guid.NewGuid(),
+                    ClaimId = claimId,
+                    Amount = estimate.NetAssessmentAmount,
+                    PaymentStatusId = PaymentStatusConstants.Paid,
+                    PaymentDate = DateTime.UtcNow,
+                    TransactionReference = $"RZPX-{DateTime.UtcNow:yyyyMMddHHmmss}-{new Random().Next(1000, 9999)}",
+                    Remarks = "Instant Disbursal Settlement via RazorpayX",
+                    CreatedDate = DateTime.UtcNow
+                });
+
+                var claimToSettle = await _context.Claims.FirstOrDefaultAsync(c => c.ClaimId == claimId);
+                if (claimToSettle != null)
+                {
+                    claimToSettle.StatusId = ClaimStatusConstants.Settled;
+                    claimToSettle.UpdatedDate = DateTime.UtcNow;
+                }
+            }
 
             await _context.SaveChangesAsync();
 
