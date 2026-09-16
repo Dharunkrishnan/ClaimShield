@@ -2,7 +2,6 @@
 **/obj/
 **/*.user
 **/node_modules/
-**/tessdata/
 **/dist/
 **/dist-ssr/
 ClaimShield.Api/appsettings.Development.json

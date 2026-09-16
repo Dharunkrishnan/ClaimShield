@@ -74,39 +74,79 @@ namespace ClaimShield.Api.Services
         public TesseractOcrService(
             IWebHostEnvironment environment)
         {
-            _tessDataPath =
-                Path.Combine(environment.ContentRootPath, "tessdata");
+            _tessDataPath = ResolveTessDataPath(environment);
 
             // Pre-warm an engine in the background pool for instant first-request response
             Task.Run(() =>
             {
                 try
                 {
-                    if (Directory.Exists(_tessDataPath))
+                    if (Directory.Exists(_tessDataPath) && File.Exists(Path.Combine(_tessDataPath, "eng.traineddata")))
                     {
                         var engine = new TesseractEngine(_tessDataPath, "eng", EngineMode.Default);
                         _enginePool.Add(engine);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Fallback to on-demand instantiation if pre-warm fails
+                    Console.WriteLine($"[OCR] Pre-warm failed: {ex.Message}");
                 }
             });
         }
 
-        private TesseractEngine RentEngine()
+        private static string ResolveTessDataPath(IWebHostEnvironment environment)
+        {
+            var candidates = new[]
+            {
+                Path.Combine(environment.ContentRootPath, "tessdata"),
+                Path.Combine(AppContext.BaseDirectory, "tessdata"),
+                Environment.GetEnvironmentVariable("TESSDATA_PREFIX") ?? string.Empty,
+                "/app/tessdata",
+                "/usr/share/tesseract-ocr/5/tessdata",
+                "/usr/share/tesseract-ocr/4.00/tessdata",
+                "/usr/share/tessdata",
+                "/usr/local/share/tessdata"
+            };
+
+            foreach (var candidate in candidates)
+            {
+                if (!string.IsNullOrWhiteSpace(candidate) && Directory.Exists(candidate))
+                {
+                    if (File.Exists(Path.Combine(candidate, "eng.traineddata")))
+                    {
+                        Console.WriteLine($"[OCR] Using verified tessdata at: {candidate}");
+                        return candidate;
+                    }
+                }
+            }
+
+            var fallback = Path.Combine(environment.ContentRootPath, "tessdata");
+            Console.WriteLine($"[OCR] Warning: eng.traineddata not found in candidate paths. Using: {fallback}");
+            return fallback;
+        }
+
+        private TesseractEngine? RentEngine()
         {
             if (_enginePool.TryTake(out var engine))
             {
                 return engine;
             }
 
-            return new TesseractEngine(_tessDataPath, "eng", EngineMode.Default);
+            try
+            {
+                return new TesseractEngine(_tessDataPath, "eng", EngineMode.Default);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OCR Error] Failed to create TesseractEngine at '{_tessDataPath}': {ex.Message}");
+                return null;
+            }
         }
 
-        private void ReturnEngine(TesseractEngine engine)
+        private void ReturnEngine(TesseractEngine? engine)
         {
+            if (engine == null) return;
+
             if (_disposed || _enginePool.Count >= 4)
             {
                 engine.Dispose();
@@ -127,12 +167,19 @@ namespace ClaimShield.Api.Services
                     return new OcrExtractionResult();
                 }
 
-                // 1. Pre-process / optimize image size (downscale if overly massive, e.g. 12MP phone photo)
-                byte[] processedBytes = NormalizeImageResolution(imageBytes);
-
-                var engine = RentEngine();
                 try
                 {
+                    // 1. Pre-process / optimize image size (downscale if overly massive, e.g. 12MP phone photo)
+                    byte[] processedBytes = NormalizeImageResolution(imageBytes);
+
+                    var engine = RentEngine();
+                    if (engine == null)
+                    {
+                        return new OcrExtractionResult();
+                    }
+
+                    try
+                    {
                     string rawText = string.Empty;
                     decimal confidence = 0m;
 
@@ -184,8 +231,14 @@ namespace ClaimShield.Api.Services
                 {
                     ReturnEngine(engine);
                 }
-            });
-        }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OCR Error] ExtractAsync unhandled exception: {ex.Message}");
+                return new OcrExtractionResult();
+            }
+        });
+    }
 
         private static byte[] NormalizeImageResolution(byte[] imageBytes)
         {
