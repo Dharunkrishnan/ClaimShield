@@ -26,7 +26,7 @@ namespace ClaimShield.Api.Services
                 configuration["Supabase:Url"];
 
             var serviceRoleKey =
-                configuration["Supabase:ServiceRoleKey"];
+                configuration["Supabase:ServiceRoleKey"]?.Trim().Trim('"', '\'');
 
             var bucket =
                 configuration["Supabase:DocumentsBucket"] ?? "claim-documents";
@@ -41,6 +41,12 @@ namespace ClaimShield.Api.Services
             {
                 throw new InvalidOperationException(
                     "Supabase:ServiceRoleKey is not configured.");
+            }
+
+            if (serviceRoleKey.StartsWith("sb_publishable_"))
+            {
+                throw new InvalidOperationException(
+                    "Supabase:ServiceRoleKey is configured with a publishable key ('sb_publishable_...'). Supabase Storage requires the secret 'service_role' JWT key (which starts with 'eyJhbGci...'). Please update Supabase__ServiceRoleKey in your Render environment variables.");
             }
 
             _bucket = bucket;

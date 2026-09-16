@@ -39,7 +39,7 @@ import type {
 } from './types'
 
 const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL || 'https://claimshield-api-h21c.onrender.com'
+  import.meta.env.VITE_API_BASE_URL || 'https://claimshield-api-1lnn.onrender.com'
 
 export class ApiError extends Error {
   status: number

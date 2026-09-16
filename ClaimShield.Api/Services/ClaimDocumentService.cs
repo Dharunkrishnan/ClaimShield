@@ -358,12 +358,19 @@ namespace ClaimShield.Api.Services
             var objectPath =
                 $"{claimId}/{storedFileName}";
 
-            await using (var stream = file.OpenReadStream())
+            try
             {
-                await _storageService.UploadAsync(
-                    objectPath,
-                    stream,
-                    file.ContentType);
+                await using (var stream = file.OpenReadStream())
+                {
+                    await _storageService.UploadAsync(
+                        objectPath,
+                        stream,
+                        file.ContentType);
+                }
+            }
+            catch (Exception ex)
+            {
+                return (false, $"Document upload failed: {ex.Message}", null);
             }
 
             var document = new ClaimDocument

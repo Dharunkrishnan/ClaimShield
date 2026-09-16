@@ -98,7 +98,18 @@ builder.Services
 
                 ValidateIssuerSigningKey = true
             };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"[JWT AuthFailed] Exception: {context.Exception}");
+                return Task.CompletedTask;
+            }
+        };
     });
+
+Console.WriteLine($"[STARTUP] Configured Supabase Auth Issuer: {supabaseAuthIssuer}");
 
 // ============================================================
 // AUTHORIZATION
@@ -593,6 +604,28 @@ var app =
 // ============================================================
 
 app.UseCors("ClaimShieldPolicy");
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        if (!context.Response.HasStarted)
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new
+            {
+                success = false,
+                message = "An unexpected server error occurred.",
+                error = ex.Message
+            });
+        }
+    }
+});
 
 // ============================================================
 // DEFAULT FILES
