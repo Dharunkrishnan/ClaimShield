@@ -733,6 +733,8 @@ app.MapGet("/api/diagnostics/ocr-libs", () =>
         expectedTesseractExistsInX64 = System.IO.File.Exists(expectedTesseractInX64),
         appBaseDirectory = AppContext.BaseDirectory,
     });
+});
+
 app.MapGet("/api/diagnostics/test-ocr", () =>
 {
     var envTessPrefix = Environment.GetEnvironmentVariable("TESSDATA_PREFIX");
