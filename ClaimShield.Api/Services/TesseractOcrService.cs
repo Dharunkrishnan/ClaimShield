@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 using ClaimShield.Api.Interfaces.Services;
@@ -26,6 +28,42 @@ namespace ClaimShield.Api.Services
 
     public class TesseractOcrService : IOcrService, IDisposable
     {
+        static TesseractOcrService()
+        {
+            // On Linux (especially modern distros with glibc >= 2.34 like Debian 12 Bookworm),
+            // libdl was merged into libc.so.6, and libdl.so may not be resolved
+            // automatically by legacy InteropDotNet P/Invoke calls.
+            // This runtime resolver intercepts [DllImport("libdl")] on Tesseract's assembly
+            // and maps it to libdl.so.2, libdl.so, or libc.so.6.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                try
+                {
+                    NativeLibrary.SetDllImportResolver(typeof(TesseractEngine).Assembly, (libraryName, assembly, searchPath) =>
+                    {
+                        if (libraryName == "libdl")
+                        {
+                            string[] candidates = { "libdl.so.2", "libdl.so", "libc.so.6", "libc.so", "/app/libdl.so" };
+                            foreach (var candidate in candidates)
+                            {
+                                if (NativeLibrary.TryLoad(candidate, assembly, searchPath, out var handle))
+                                {
+                                    Console.WriteLine($"[OCR Resolver] Mapped 'libdl' to '{candidate}'");
+                                    return handle;
+                                }
+                            }
+                        }
+                        return IntPtr.Zero;
+                    });
+                    Console.WriteLine("[OCR Resolver] Registered NativeLibrary DllImportResolver for Tesseract assembly.");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[OCR Resolver Warning] Could not register DllImportResolver: {ex.Message}");
+                }
+            }
+        }
+
         private static readonly Regex RegNumberPattern =
             new(
                 @"[A-Z]{2}[\s-]?[0-9]{1,2}[\s-]?[A-Z]{1,3}[\s-]?[0-9]{4}",

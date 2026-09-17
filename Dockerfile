@@ -20,9 +20,13 @@ WORKDIR /app
 # Prevent inotify limit crash on container platforms (Render, Railway, etc.)
 ENV DOTNET_USE_POLLING_FILE_WATCHER=true
 
-# Install native Tesseract, Leptonica, and English traineddata
+# Install native dependencies:
+# - libc6-dev: provides libdl.so / dynamic linker headers on glibc >= 2.34 (Debian 12 Bookworm)
+# - tesseract-ocr, tesseract-ocr-eng: core engine and english language models
+# - libtesseract-dev, libleptonica-dev: native C++ libraries (libtesseract.so, liblept.so)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        libc6-dev \
         tesseract-ocr \
         tesseract-ocr-eng \
         libtesseract-dev \
@@ -33,16 +37,25 @@ RUN apt-get update \
 COPY --from=build /app/publish .
 
 # Tesseract .NET wrapper (charlesw/tesseract 5.2.0) requires:
-# 1. Leptonica native library: 'libleptonica-1.82.0.so' (or 'liblept.so')
-# 2. Tesseract native library: 'libtesseract50.so' (or 'libtesseract.so')
+# 1. libdl: 'libdl.so' (or 'libdl.so.2') for dynamic loading via InteropDotNet
+# 2. Leptonica native library: 'libleptonica-1.82.0.so' (or 'liblept.so')
+# 3. Tesseract native library: 'libtesseract50.so' (or 'libtesseract.so')
 # InteropDotNet searches AppContext.BaseDirectory (/app), the /app/x64 folder, and system lib paths.
 # We dynamically locate the installed libraries and link/copy them to all expected locations.
-RUN LEPT=$(find /usr/lib -name "liblept.so*" | head -n 1) \
-    && TESS=$(find /usr/lib -name "libtesseract.so*" | head -n 1) \
+RUN LIBDL=$(find /lib /usr/lib -name "libdl.so*" 2>/dev/null | head -n 1) \
+    && LEPT=$(find /usr/lib -name "liblept.so*" 2>/dev/null | head -n 1) \
+    && TESS=$(find /usr/lib -name "libtesseract.so*" 2>/dev/null | head -n 1) \
+    && echo "Found libdl: $LIBDL" \
     && echo "Found Leptonica: $LEPT" \
     && echo "Found Tesseract: $TESS" \
-    && ln -sf "$LEPT" /usr/lib/x86_64-linux-gnu/libleptonica-1.82.0.so \
-    && ln -sf "$TESS" /usr/lib/x86_64-linux-gnu/libtesseract50.so \
+    && if [ -n "$LIBDL" ]; then \
+         ln -sf "$LIBDL" /usr/lib/x86_64-linux-gnu/libdl.so 2>/dev/null || true; \
+         mkdir -p /app/x64; \
+         cp -P "$LIBDL" /app/libdl.so 2>/dev/null || true; \
+         cp -P "$LIBDL" /app/x64/libdl.so 2>/dev/null || true; \
+       fi \
+    && ln -sf "$LEPT" /usr/lib/x86_64-linux-gnu/libleptonica-1.82.0.so 2>/dev/null || true \
+    && ln -sf "$TESS" /usr/lib/x86_64-linux-gnu/libtesseract50.so 2>/dev/null || true \
     && ldconfig \
     && mkdir -p /app/x64 \
     && cp -P "$LEPT" /app/libleptonica-1.82.0.so \
