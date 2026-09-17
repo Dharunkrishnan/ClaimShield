@@ -465,7 +465,11 @@ namespace ClaimShield.Api.Services
                         document.FilePath);
 
                 var result = await _ocrService.ExtractAsync(bytes);
-                if (result != null)
+                if (result != null && (!string.IsNullOrWhiteSpace(result.RegistrationNumber) ||
+                                       !string.IsNullOrWhiteSpace(result.ChassisNumber) ||
+                                       !string.IsNullOrWhiteSpace(result.EngineNumber) ||
+                                       !string.IsNullOrWhiteSpace(result.DrivingLicenceNumber) ||
+                                       !string.IsNullOrWhiteSpace(result.RawText)))
                 {
                     _cache.Set(cacheKey, result, TimeSpan.FromMinutes(30));
                 }

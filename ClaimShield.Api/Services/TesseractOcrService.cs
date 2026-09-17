@@ -68,38 +68,62 @@ namespace ClaimShield.Api.Services
         };
 
         private readonly string _tessDataPath;
+        private readonly ILogger<TesseractOcrService> _logger;
         private readonly ConcurrentBag<TesseractEngine> _enginePool = new();
         private bool _disposed;
 
         public TesseractOcrService(
-            IWebHostEnvironment environment)
+            IWebHostEnvironment environment,
+            ILogger<TesseractOcrService> logger)
         {
-            _tessDataPath = ResolveTessDataPath(environment);
+            _logger = logger;
 
-            // Pre-warm an engine in the background pool for instant first-request response
+            // 1. Explicitly point Tesseract wrapper's Interop loader to AppContext.BaseDirectory
+            try
+            {
+                TesseractEnviornment.CustomSearchPath = AppContext.BaseDirectory;
+                _logger.LogInformation("[OCR Init] Configured TesseractEnviornment.CustomSearchPath to: {Path}", AppContext.BaseDirectory);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[OCR Init] Could not set TesseractEnviornment.CustomSearchPath: {Message}", ex.Message);
+            }
+
+            // 2. Resolve verified tessdata path
+            _tessDataPath = ResolveTessDataPath(environment, _logger);
+
+            // 3. Pre-warm an engine in the background pool for instant first-request response
             Task.Run(() =>
             {
                 try
                 {
-                    if (Directory.Exists(_tessDataPath) && File.Exists(Path.Combine(_tessDataPath, "eng.traineddata")))
+                    var trainedDataPath = Path.Combine(_tessDataPath, "eng.traineddata");
+                    if (Directory.Exists(_tessDataPath) && File.Exists(trainedDataPath))
                     {
+                        var size = new FileInfo(trainedDataPath).Length;
+                        _logger.LogInformation("[OCR Pre-warm] Starting TesseractEngine at '{Path}' (eng.traineddata: {Size} bytes)", _tessDataPath, size);
                         var engine = new TesseractEngine(_tessDataPath, "eng", EngineMode.Default);
                         _enginePool.Add(engine);
+                        _logger.LogInformation("[OCR Pre-warm] Pre-warmed TesseractEngine added to pool.");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[OCR Pre-warm] eng.traineddata not found at '{Path}'. Pre-warm skipped.", _tessDataPath);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[OCR] Pre-warm failed: {ex.Message}");
+                    _logger.LogError(ex, "[OCR Pre-warm Error] Failed to pre-warm TesseractEngine: {Message}", ex.Message);
                 }
             });
         }
 
-        private static string ResolveTessDataPath(IWebHostEnvironment environment)
+        private static string ResolveTessDataPath(IWebHostEnvironment environment, ILogger logger)
         {
             var candidates = new[]
             {
-                Path.Combine(environment.ContentRootPath, "tessdata"),
                 Path.Combine(AppContext.BaseDirectory, "tessdata"),
+                Path.Combine(environment.ContentRootPath, "tessdata"),
                 Environment.GetEnvironmentVariable("TESSDATA_PREFIX") ?? string.Empty,
                 "/app/tessdata",
                 "/usr/share/tesseract-ocr/5/tessdata",
@@ -112,16 +136,18 @@ namespace ClaimShield.Api.Services
             {
                 if (!string.IsNullOrWhiteSpace(candidate) && Directory.Exists(candidate))
                 {
-                    if (File.Exists(Path.Combine(candidate, "eng.traineddata")))
+                    var trainedDataFile = Path.Combine(candidate, "eng.traineddata");
+                    if (File.Exists(trainedDataFile))
                     {
-                        Console.WriteLine($"[OCR] Using verified tessdata at: {candidate}");
+                        var size = new FileInfo(trainedDataFile).Length;
+                        logger.LogInformation("[OCR Init] Using verified tessdata at: '{Candidate}' (eng.traineddata: {Size} bytes)", candidate, size);
                         return candidate;
                     }
                 }
             }
 
-            var fallback = Path.Combine(environment.ContentRootPath, "tessdata");
-            Console.WriteLine($"[OCR] Warning: eng.traineddata not found in candidate paths. Using: {fallback}");
+            var fallback = Path.Combine(AppContext.BaseDirectory, "tessdata");
+            logger.LogWarning("[OCR Init] Warning: eng.traineddata not found in candidate paths. Falling back to: '{Fallback}'", fallback);
             return fallback;
         }
 
@@ -134,11 +160,13 @@ namespace ClaimShield.Api.Services
 
             try
             {
+                _logger.LogInformation("[OCR Engine] Instantiating new TesseractEngine from '{Path}'", _tessDataPath);
                 return new TesseractEngine(_tessDataPath, "eng", EngineMode.Default);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[OCR Error] Failed to create TesseractEngine at '{_tessDataPath}': {ex.Message}");
+                _logger.LogError(ex, "[OCR Error] Failed to create TesseractEngine at '{Path}': {Type}: {Message}",
+                    _tessDataPath, ex.GetType().FullName, ex.Message);
                 return null;
             }
         }
@@ -164,8 +192,11 @@ namespace ClaimShield.Api.Services
             {
                 if (imageBytes == null || imageBytes.Length == 0)
                 {
+                    _logger.LogWarning("[OCR Extract] Empty or null image bytes received.");
                     return new OcrExtractionResult();
                 }
+
+                _logger.LogInformation("[OCR Extract] Processing image ({Bytes} bytes)", imageBytes.Length);
 
                 try
                 {
@@ -175,70 +206,81 @@ namespace ClaimShield.Api.Services
                     var engine = RentEngine();
                     if (engine == null)
                     {
+                        _logger.LogError("[OCR Extract] Unable to acquire a TesseractEngine instance. Check native libraries and tessdata.");
                         return new OcrExtractionResult();
                     }
 
                     try
                     {
-                    string rawText = string.Empty;
-                    decimal confidence = 0m;
+                        string rawText = string.Empty;
+                        decimal confidence = 0m;
 
-                    try
-                    {
-                        using var img = Pix.LoadFromMemory(processedBytes);
-                        using var page = engine.Process(img);
-                        rawText = page.GetText() ?? string.Empty;
-                        confidence = (decimal)page.GetMeanConfidence();
-                    }
-                    catch
-                    {
-                        // Fall through to localization
-                    }
-
-                    var regNo = ParseIndianPlate(rawText);
-                    var ownerName = ExtractOwnerName(rawText);
-                    var chassisNo = ExtractChassisNumber(rawText);
-                    var engineNo = ExtractEngineNumber(rawText);
-                    var dlNo = ExtractDrivingLicenceNumber(rawText);
-
-                    // 2. If plate number wasn't found from full image (e.g. uncropped vehicle front photo),
-                    // run optimized ALPR crop scanning.
-                    if (string.IsNullOrWhiteSpace(regNo))
-                    {
-                        var localized = LocateAndExtractPlate(processedBytes, engine);
-                        if (!string.IsNullOrWhiteSpace(localized.Plate))
+                        try
                         {
-                            regNo = localized.Plate;
-                            if (localized.Confidence > confidence)
+                            using var img = Pix.LoadFromMemory(processedBytes);
+                            using var page = engine.Process(img);
+                            rawText = page.GetText() ?? string.Empty;
+                            confidence = (decimal)page.GetMeanConfidence();
+                            _logger.LogInformation("[OCR Extract] Full-image text extraction succeeded. Length: {Len}, Mean confidence: {Conf:P1}",
+                                rawText.Length, confidence / 100m);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "[OCR Extract] Full-image Pix.LoadFromMemory or Process failed: {Type}: {Message}. Falling through to ALPR localization.",
+                                ex.GetType().FullName, ex.Message);
+                        }
+
+                        var regNo = ParseIndianPlate(rawText);
+                        var ownerName = ExtractOwnerName(rawText);
+                        var chassisNo = ExtractChassisNumber(rawText);
+                        var engineNo = ExtractEngineNumber(rawText);
+                        var dlNo = ExtractDrivingLicenceNumber(rawText);
+
+                        // 2. If plate number wasn't found from full image (e.g. uncropped vehicle front photo),
+                        // run optimized ALPR crop scanning.
+                        if (string.IsNullOrWhiteSpace(regNo))
+                        {
+                            _logger.LogInformation("[OCR Extract] Plate not detected in full image. Running ALPR region crop scanning.");
+                            var localized = LocateAndExtractPlate(processedBytes, engine);
+                            if (!string.IsNullOrWhiteSpace(localized.Plate))
                             {
-                                confidence = localized.Confidence;
+                                regNo = localized.Plate;
+                                if (localized.Confidence > confidence)
+                                {
+                                    confidence = localized.Confidence;
+                                }
+                                _logger.LogInformation("[OCR Extract] ALPR region crop found plate: '{Plate}' (Confidence: {Conf:P1})",
+                                    regNo, confidence / 100m);
                             }
                         }
-                    }
 
-                    return new OcrExtractionResult
+                        _logger.LogInformation("[OCR Extract Summary] RegNo: '{RegNo}', Chassis: '{Chassis}', Engine: '{Engine}', Owner: '{Owner}', Confidence: {Conf:P1}",
+                            regNo ?? "<null>", chassisNo ?? "<null>", engineNo ?? "<null>", ownerName ?? "<null>", confidence / 100m);
+
+                        return new OcrExtractionResult
+                        {
+                            RawText = rawText,
+                            RegistrationNumber = regNo,
+                            OwnerName = ownerName,
+                            ChassisNumber = chassisNo,
+                            EngineNumber = engineNo,
+                            DrivingLicenceNumber = dlNo,
+                            Confidence = confidence
+                        };
+                    }
+                    finally
                     {
-                        RawText = rawText,
-                        RegistrationNumber = regNo,
-                        OwnerName = ownerName,
-                        ChassisNumber = chassisNo,
-                        EngineNumber = engineNo,
-                        DrivingLicenceNumber = dlNo,
-                        Confidence = confidence
-                    };
+                        ReturnEngine(engine);
+                    }
                 }
-                finally
+                catch (Exception ex)
                 {
-                    ReturnEngine(engine);
+                    _logger.LogError(ex, "[OCR Error] ExtractAsync unhandled exception: {Type}: {Message}",
+                        ex.GetType().FullName, ex.Message);
+                    return new OcrExtractionResult();
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[OCR Error] ExtractAsync unhandled exception: {ex.Message}");
-                return new OcrExtractionResult();
-            }
-        });
-    }
+            });
+        }
 
         private static byte[] NormalizeImageResolution(byte[] imageBytes)
         {
