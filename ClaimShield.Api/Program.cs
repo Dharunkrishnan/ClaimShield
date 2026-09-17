@@ -18,6 +18,9 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Initialize Tesseract & Leptonica native dependencies early before services start
+TesseractOcrService.InitializeNativeEnvironment();
+
 // ============================================================
 // CONTROLLERS
 // ============================================================
@@ -737,6 +740,9 @@ app.MapGet("/api/diagnostics/ocr-libs", () =>
 
 app.MapGet("/api/diagnostics/test-ocr", () =>
 {
+    TesseractOcrService.InitializeNativeEnvironment();
+    var (leptHandle, tessHandle) = TesseractOcrService.GetNativeHandles();
+
     var envTessPrefix = Environment.GetEnvironmentVariable("TESSDATA_PREFIX");
     var searchDirs = new[]
     {
@@ -744,7 +750,8 @@ app.MapGet("/api/diagnostics/test-ocr", () =>
         "/usr/share/tesseract-ocr/5/tessdata",
         "/usr/share/tesseract-ocr/4.00/tessdata",
         "/usr/share/tessdata",
-        AppContext.BaseDirectory
+        AppContext.BaseDirectory,
+        Path.Combine(AppContext.BaseDirectory, "x64")
     };
 
     var pathsChecked = searchDirs.Select(d => new
@@ -770,6 +777,8 @@ app.MapGet("/api/diagnostics/test-ocr", () =>
     return Results.Ok(new
     {
         envTessPrefix,
+        leptHandle = leptHandle.ToString(),
+        tessHandle = tessHandle.ToString(),
         pathsChecked,
         engineSuccess,
         engineError

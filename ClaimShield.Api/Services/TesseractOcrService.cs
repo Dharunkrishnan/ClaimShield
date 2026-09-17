@@ -28,15 +28,125 @@ namespace ClaimShield.Api.Services
 
     public class TesseractOcrService : IOcrService, IDisposable
     {
+        private static int _nativeInitialized = 0;
+        private static IntPtr _leptHandle = IntPtr.Zero;
+        private static IntPtr _tessHandle = IntPtr.Zero;
+
         static TesseractOcrService()
         {
-            // On Linux (especially modern distros with glibc >= 2.34 like Debian 12 Bookworm),
-            // libdl was merged into libc.so.6, and libdl.so may not be resolved
-            // automatically by legacy InteropDotNet P/Invoke calls.
-            // This runtime resolver intercepts [DllImport("libdl")] on Tesseract's assembly
-            // and maps it to libdl.so.2, libdl.so, or libc.so.6.
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            InitializeNativeEnvironment();
+        }
+
+        public static (IntPtr lept, IntPtr tess) GetNativeHandles() => (_leptHandle, _tessHandle);
+
+        public static void InitializeNativeEnvironment()
+        {
+            if (Interlocked.Exchange(ref _nativeInitialized, 1) == 1)
             {
+                return; // Already initialized
+            }
+
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                return;
+            }
+
+            try
+            {
+                // 1. Point Tesseract CustomSearchPath to AppContext.BaseDirectory
+                try
+                {
+                    TesseractEnviornment.CustomSearchPath = AppContext.BaseDirectory;
+                    Console.WriteLine($"[OCR Init] Set TesseractEnviornment.CustomSearchPath to: '{AppContext.BaseDirectory}'");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[OCR Init Warning] Could not set CustomSearchPath: {ex.Message}");
+                }
+
+                // 2. Preload Leptonica
+                string[] leptCandidates =
+                {
+                    "/usr/lib/x86_64-linux-gnu/liblept.so.5",
+                    "/usr/lib/x86_64-linux-gnu/libleptonica-1.82.0.so",
+                    "/usr/lib/x86_64-linux-gnu/libleptonica.so",
+                    "/usr/lib/x86_64-linux-gnu/liblept.so",
+                    "/app/x64/libleptonica-1.82.0.so",
+                    "/app/libleptonica-1.82.0.so",
+                    "liblept.so.5",
+                    "liblept.so",
+                    "libleptonica-1.82.0.so"
+                };
+
+                foreach (var candidate in leptCandidates)
+                {
+                    if (NativeLibrary.TryLoad(candidate, out var handle))
+                    {
+                        _leptHandle = handle;
+                        Console.WriteLine($"[OCR Init] Successfully preloaded Leptonica from '{candidate}' (handle: {handle})");
+                        break;
+                    }
+                }
+
+                // 3. Preload Tesseract
+                string[] tessCandidates =
+                {
+                    "/usr/lib/x86_64-linux-gnu/libtesseract.so.5",
+                    "/usr/lib/x86_64-linux-gnu/libtesseract50.so",
+                    "/usr/lib/x86_64-linux-gnu/libtesseract.so",
+                    "/app/x64/libtesseract50.so",
+                    "/app/libtesseract50.so",
+                    "libtesseract.so.5",
+                    "libtesseract.so",
+                    "libtesseract50.so"
+                };
+
+                foreach (var candidate in tessCandidates)
+                {
+                    if (NativeLibrary.TryLoad(candidate, out var handle))
+                    {
+                        _tessHandle = handle;
+                        Console.WriteLine($"[OCR Init] Successfully preloaded Tesseract from '{candidate}' (handle: {handle})");
+                        break;
+                    }
+                }
+
+                // 4. Inject handles directly into InteropDotNet.LibraryLoader.Instance.loadedAssemblies
+                try
+                {
+                    var loaderType = typeof(TesseractEngine).Assembly.GetType("InteropDotNet.LibraryLoader");
+                    var instanceProp = loaderType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                    var loaderInstance = instanceProp?.GetValue(null);
+                    if (loaderInstance != null)
+                    {
+                        var loadedAssembliesField = loaderType?.GetField("loadedAssemblies", BindingFlags.NonPublic | BindingFlags.Instance);
+                        if (loadedAssembliesField?.GetValue(loaderInstance) is Dictionary<string, IntPtr> loadedMap)
+                        {
+                            if (_leptHandle != IntPtr.Zero)
+                            {
+                                loadedMap["libleptonica-1.82.0.so"] = _leptHandle;
+                                loadedMap["leptonica-1.82.0"] = _leptHandle;
+                                loadedMap["libleptonica.so"] = _leptHandle;
+                                loadedMap["liblept.so"] = _leptHandle;
+                                loadedMap["liblept.so.5"] = _leptHandle;
+                            }
+                            if (_tessHandle != IntPtr.Zero)
+                            {
+                                loadedMap["libtesseract50.so"] = _tessHandle;
+                                loadedMap["tesseract50"] = _tessHandle;
+                                loadedMap["libtesseract.so"] = _tessHandle;
+                                loadedMap["libtesseract.so.5"] = _tessHandle;
+                            }
+                            Console.WriteLine($"[OCR Init] Successfully injected preloaded handles into InteropDotNet.LibraryLoader (map count: {loadedMap.Count})");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[OCR Init Warning] Could not inject into LibraryLoader: {ex.Message}");
+                }
+
+                // 5. Register NativeLibrary DllImportResolver for Tesseract's assembly
                 try
                 {
                     NativeLibrary.SetDllImportResolver(typeof(TesseractEngine).Assembly, (libraryName, assembly, searchPath) =>
@@ -47,20 +157,39 @@ namespace ClaimShield.Api.Services
                             foreach (var candidate in candidates)
                             {
                                 if (NativeLibrary.TryLoad(candidate, assembly, searchPath, out var handle))
-                                {
-                                    Console.WriteLine($"[OCR Resolver] Mapped 'libdl' to '{candidate}'");
                                     return handle;
-                                }
+                            }
+                        }
+                        else if (libraryName.Contains("leptonica") || libraryName.Contains("lept"))
+                        {
+                            if (_leptHandle != IntPtr.Zero) return _leptHandle;
+                            foreach (var candidate in leptCandidates)
+                            {
+                                if (NativeLibrary.TryLoad(candidate, assembly, searchPath, out var handle))
+                                    return handle;
+                            }
+                        }
+                        else if (libraryName.Contains("tesseract"))
+                        {
+                            if (_tessHandle != IntPtr.Zero) return _tessHandle;
+                            foreach (var candidate in tessCandidates)
+                            {
+                                if (NativeLibrary.TryLoad(candidate, assembly, searchPath, out var handle))
+                                    return handle;
                             }
                         }
                         return IntPtr.Zero;
                     });
-                    Console.WriteLine("[OCR Resolver] Registered NativeLibrary DllImportResolver for Tesseract assembly.");
+                    Console.WriteLine("[OCR Init] Registered NativeLibrary DllImportResolver for Tesseract assembly.");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[OCR Resolver Warning] Could not register DllImportResolver: {ex.Message}");
+                    Console.WriteLine($"[OCR Init Warning] Could not register DllImportResolver: {ex.Message}");
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OCR Init Critical] Error during InitializeNativeEnvironment: {ex}");
             }
         }
 
@@ -115,6 +244,9 @@ namespace ClaimShield.Api.Services
             ILogger<TesseractOcrService> logger)
         {
             _logger = logger;
+
+            // 0. Ensure native libraries and InteropLoader handles are initialized
+            InitializeNativeEnvironment();
 
             // 1. Explicitly point Tesseract wrapper's Interop loader to AppContext.BaseDirectory
             try

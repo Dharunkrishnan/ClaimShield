@@ -24,6 +24,7 @@ ENV DOTNET_USE_POLLING_FILE_WATCHER=true
 # - libc6-dev: provides libdl.so / dynamic linker headers on glibc >= 2.34 (Debian 12 Bookworm)
 # - tesseract-ocr, tesseract-ocr-eng: core engine and english language models
 # - libtesseract-dev, libleptonica-dev: native C++ libraries (libtesseract.so, liblept.so)
+# - image runtime libraries: libjpeg62-turbo, libpng16-16, libtiff6, libwebp7, libopenjp2-7, libgif7, zlib1g
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libc6-dev \
@@ -31,6 +32,13 @@ RUN apt-get update \
         tesseract-ocr-eng \
         libtesseract-dev \
         libleptonica-dev \
+        libjpeg62-turbo \
+        libpng16-16 \
+        libtiff6 \
+        libwebp7 \
+        libopenjp2-7 \
+        libgif7 \
+        zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy compiled .NET app
@@ -41,28 +49,36 @@ COPY --from=build /app/publish .
 # 2. Leptonica native library: 'libleptonica-1.82.0.so' (or 'liblept.so')
 # 3. Tesseract native library: 'libtesseract50.so' (or 'libtesseract.so')
 # InteropDotNet searches AppContext.BaseDirectory (/app), the /app/x64 folder, and system lib paths.
-# We dynamically locate the installed libraries and link/copy them to all expected locations.
+# We copy real ELF binaries (using cp -L to dereference symlinks so they never dangle) into /app and /app/x64.
 RUN LIBDL=$(find /lib /usr/lib -name "libdl.so*" 2>/dev/null | head -n 1) \
-    && LEPT=$(find /usr/lib -name "liblept.so*" 2>/dev/null | head -n 1) \
-    && TESS=$(find /usr/lib -name "libtesseract.so*" 2>/dev/null | head -n 1) \
+    && LEPT=$(find /usr/lib -name "liblept.so.5*" -o -name "liblept.so*" 2>/dev/null | head -n 1) \
+    && TESS=$(find /usr/lib -name "libtesseract.so.5*" -o -name "libtesseract.so*" 2>/dev/null | head -n 1) \
     && echo "Found libdl: $LIBDL" \
     && echo "Found Leptonica: $LEPT" \
     && echo "Found Tesseract: $TESS" \
+    && mkdir -p /app/x64 /app/tessdata \
     && if [ -n "$LIBDL" ]; then \
          ln -sf "$LIBDL" /usr/lib/x86_64-linux-gnu/libdl.so 2>/dev/null || true; \
-         mkdir -p /app/x64; \
-         cp -P "$LIBDL" /app/libdl.so 2>/dev/null || true; \
-         cp -P "$LIBDL" /app/x64/libdl.so 2>/dev/null || true; \
+         cp -L "$LIBDL" /app/libdl.so 2>/dev/null || true; \
+         cp -L "$LIBDL" /app/x64/libdl.so 2>/dev/null || true; \
        fi \
-    && ln -sf "$LEPT" /usr/lib/x86_64-linux-gnu/libleptonica-1.82.0.so 2>/dev/null || true \
-    && ln -sf "$TESS" /usr/lib/x86_64-linux-gnu/libtesseract50.so 2>/dev/null || true \
+    && if [ -n "$LEPT" ]; then \
+         ln -sf "$LEPT" /usr/lib/x86_64-linux-gnu/libleptonica-1.82.0.so 2>/dev/null || true; \
+         ln -sf "$LEPT" /usr/lib/x86_64-linux-gnu/libleptonica.so 2>/dev/null || true; \
+         cp -L "$LEPT" /app/libleptonica-1.82.0.so 2>/dev/null || true; \
+         cp -L "$LEPT" /app/x64/libleptonica-1.82.0.so 2>/dev/null || true; \
+         cp -L /usr/lib/x86_64-linux-gnu/liblept.so* /app/ 2>/dev/null || true; \
+         cp -L /usr/lib/x86_64-linux-gnu/liblept.so* /app/x64/ 2>/dev/null || true; \
+       fi \
+    && if [ -n "$TESS" ]; then \
+         ln -sf "$TESS" /usr/lib/x86_64-linux-gnu/libtesseract50.so 2>/dev/null || true; \
+         ln -sf "$TESS" /usr/lib/x86_64-linux-gnu/libtesseract.so 2>/dev/null || true; \
+         cp -L "$TESS" /app/libtesseract50.so 2>/dev/null || true; \
+         cp -L "$TESS" /app/x64/libtesseract50.so 2>/dev/null || true; \
+         cp -L /usr/lib/x86_64-linux-gnu/libtesseract.so* /app/ 2>/dev/null || true; \
+         cp -L /usr/lib/x86_64-linux-gnu/libtesseract.so* /app/x64/ 2>/dev/null || true; \
+       fi \
     && ldconfig \
-    && mkdir -p /app/x64 \
-    && cp -P "$LEPT" /app/libleptonica-1.82.0.so \
-    && cp -P "$TESS" /app/libtesseract50.so \
-    && cp -P "$LEPT" /app/x64/libleptonica-1.82.0.so \
-    && cp -P "$TESS" /app/x64/libtesseract50.so \
-    && mkdir -p /app/tessdata \
     && cp -rf /usr/share/tesseract-ocr/*/tessdata/* /app/tessdata/ 2>/dev/null || true \
     && cp -rf /usr/share/tessdata/* /app/tessdata/ 2>/dev/null || true
 
