@@ -584,8 +584,10 @@ button:disabled {
   transition: background-color 0.15s ease;
 }
 
-.claim360-edit-link:hover {
-  background: rgba(37, 99, 199, 0.08);
+.claim360-edit-link:hover,
+.claim360-edit-link:active {
+  background: var(--color-primary);
+  color: #ffffff;
 }
 
 .claim360-empty-state {
@@ -3952,6 +3954,40 @@ button:disabled {
   }
 }
 
+@media (max-width: 640px) {
+  .handler-stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .handler-stat-cards button.stat-card:nth-child(4n) {
+    border-right: 1px solid var(--color-border);
+  }
+
+  .handler-stat-cards button.stat-card:nth-child(2n) {
+    border-right: none;
+  }
+
+  .handler-stat-cards button.stat-card:nth-child(-n+4) {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .handler-stat-cards button.stat-card:nth-child(n+5):nth-child(-n+6) {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .handler-stat-cards button.stat-card {
+    padding: 0.75rem 0.4rem;
+  }
+
+  .handler-stat-cards button.stat-card .stat-card-value {
+    font-size: 1rem;
+  }
+
+  .handler-stat-cards button.stat-card .stat-card-label {
+    font-size: 0.6rem;
+  }
+}
+
 /* =====================================================================
    My Claims filter tabs - locked to a 4x2 grid
    ===================================================================== */
@@ -4548,6 +4584,27 @@ button:disabled {
   gap: 1.1rem;
   overflow-x: auto;
   padding-bottom: 2px;
+}
+
+@media (max-width: 640px) {
+
+  /* Horizontal scroll through form fields is awkward on a real phone
+     (easy to miss a field, hard to type into a partially-visible
+     input) - unlike the lifecycle stepper's horizontal scroll, which
+     is a familiar nav pattern, these are data-entry fields, so they
+     wrap and stack instead. */
+  .survey-damage-top-row {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .survey-damage-top-row .survey-field:not(.survey-field-checkbox) {
+    flex: 1 1 100%;
+  }
+
+  .survey-damage-top-row .survey-field-checkbox {
+    max-width: none;
+  }
 }
 
 .survey-damage-top-row .survey-field:not(.survey-field-checkbox) {
@@ -8483,196 +8540,658 @@ button.repair-auth-close-deny-btn-danger:hover {
 }
 
 /* =====================================================================
-   Surveyor Portal - premium polish pass (page headers, empty states,
-   sticky assessment actions, focus-visible, reduced motion, small-
-   screen safety net). Additive only - existing rules above are left
-   untouched; this section only styles new markup/classes or adds
-   states (:focus-visible, prefers-reduced-motion) that had no coverage
-   anywhere else in this file.
+   Mobile slide-out sidebar drawer (staff-facing layout).
+
+   The sidebar's own inline styles (width/flex, set based on the
+   `collapsed` state) have higher specificity than a plain class
+   selector, so every rule here that needs to override them on mobile
+   uses !important - same pattern already established elsewhere in
+   this file (search "CLAIM DETAIL FINAL LAYOUT") for the identical
+   reason.
+
+   Below this breakpoint, the sidebar is never a permanent column
+   (there's no room on a real phone for even the 64px collapsed
+   state) - it's either fully off-screen or a full overlay on top of
+   the content.
    ===================================================================== */
 
-/* Reusable empty-state block - icon + message, used wherever a list or
-   table can genuinely be empty (Claims, Reports, Notifications). */
-.empty-state {
+.app-mobile-menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin: 0 0.5rem 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.app-mobile-menu-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.app-mobile-menu-backdrop {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .app-mobile-menu-toggle {
+    display: inline-flex;
+  }
+
+  .app-shell-sidebar>.app-body-with-sidebar>.app-sidebar {
+    position: fixed !important;
+    top: 64px !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    z-index: 500 !important;
+    width: 80vw !important;
+    max-width: 300px !important;
+    min-width: 0 !important;
+    flex-basis: auto !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.22s ease !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  .app-shell-sidebar>.app-body-with-sidebar>.app-sidebar.app-sidebar-mobile-open {
+    transform: translateX(0) !important;
+  }
+
+  /* Collapsed state (icons-only) is a desktop-specific concept -
+     on mobile the drawer is always full width when open, regardless
+     of whether "collapsed" happens to be true from a prior desktop
+     session. */
+  .app-shell-sidebar>.app-body-with-sidebar>.app-sidebar.app-sidebar-collapsed {
+    width: 80vw !important;
+    max-width: 300px !important;
+  }
+
+  .app-shell-sidebar>.app-body-with-sidebar>.app-sidebar.app-sidebar-collapsed nav a span {
+    display: inline !important;
+  }
+
+  .app-sidebar-toggle {
+    /* Desktop-only expand/collapse control - the mobile drawer opens/
+       closes via the header hamburger button instead. */
+    display: none !important;
+  }
+
+  .app-mobile-menu-backdrop {
+    display: block;
+    position: fixed;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 499;
+  }
+
+  /* Main content always takes the full width on mobile - the drawer
+     overlays on top of it rather than pushing it aside. */
+  .app-shell-sidebar>.app-body-with-sidebar>.app-main {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .app-header-slim .header-user {
+    display: none;
+  }
+}
+
+/* =====================================================================
+   Claim workflow sidebar mode - shown instead of the normal role-based
+   nav while inside a specific claim's pages (/claims/<id>/...). Reuses
+   the same navy sidebar shell (.app-sidebar) - only the <nav> content
+   swaps.
+
+   Uses .current-page rather than .active for the highlighted stage -
+   the pre-existing .app-sidebar nav a.active rule (styling normal
+   nav-link selection) also matches any <a class="active"> inside
+   .app-sidebar nav, which includes these stage links too. Reusing
+   "active" produced two conflicting highlight styles stacking on the
+   same element at once (a full-width blue background from the old
+   rule, plus this file's own inner highlight) - a distinct class name
+   avoids the collision entirely instead of fighting it with
+   specificity.
+   ===================================================================== */
+
+.app-sidebar-claim-nav {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.5rem;
+}
+
+.app-sidebar-exit-claim {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  margin-bottom: 0.5rem;
+  color: #b8c6dc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.app-sidebar-exit-claim:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.app-sidebar-claim-number {
+  margin: 0 0 0.6rem;
+  padding: 0 0.9rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.app-sidebar-claim-stage {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0 0.9rem;
+  color: #7f8ea6;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+}
+
+/* Collapsed sidebar (64px, icon-only) - center the stage icons in the
+   narrow column instead of the wider padding/left-aligned layout used
+   at full width, matching how the normal nav links already collapse
+   down to icon-only via .app-sidebar-collapsed elsewhere. */
+.app-sidebar-collapsed .app-sidebar-claim-nav {
+  align-items: center;
+}
+
+.app-sidebar-collapsed .app-sidebar-exit-claim,
+.app-sidebar-collapsed .app-sidebar-claim-stage {
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+}
+
+.app-sidebar-collapsed .app-sidebar-claim-stage-rail {
+  padding-top: 0;
+}
+
+/* The pre-existing .app-sidebar-collapsed nav a span rule (hiding the
+   text-label span on normal collapsed nav links) matches ANY span
+   nested inside an <a> in this sidebar - not just direct children.
+   That catches every span in this structure (the rail, the icon
+   circle, the connector, the number text), since all of them are
+   spans-inside-an-a too. Without restoring all of them explicitly,
+   the entire icon column disappears when collapsed, not just the
+   text labels that rule was actually meant to hide. */
+.app-sidebar-collapsed .app-sidebar-claim-stage-rail,
+.app-sidebar-collapsed .app-sidebar-claim-stage-icon,
+.app-sidebar-collapsed .app-sidebar-claim-stage-connector {
+  display: flex !important;
+}
+
+.app-sidebar-collapsed .app-sidebar-claim-stage-arrow {
+  display: block !important;
+}
+
+.app-sidebar-collapsed .app-sidebar-claim-stage-number {
+  display: inline !important;
+}
+
+.app-sidebar-claim-stage>span:last-child {
+  padding: 0.55rem 0;
+}
+.app-sidebar-claim-stage-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-sidebar-claim-stage-timestamp {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #7f8ea6;
+  margin-top: 2px;
+}
+
+.app-sidebar-claim-stage:hover {
+  color: #ffffff;
+  background: none;
+}
+
+.app-sidebar-claim-stage:hover .app-sidebar-claim-stage-icon {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.app-sidebar-claim-stage.current-page {
+  color: #ffffff;
+  background: none;
+}
+
+.app-sidebar-claim-stage.unreachable {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.app-sidebar-claim-stage.unreachable:hover {
+  color: #7f8ea6;
+}
+
+.app-sidebar-claim-stage.unreachable:hover .app-sidebar-claim-stage-icon {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Icon + connector, stacked vertically so the connector sits directly
+   below the circle, running down toward the next stage's circle. */
+.app-sidebar-claim-stage-rail {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  padding: 2.5rem 1.5rem;
-  text-align: center;
-  color: var(--color-muted);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-lg);
-  background: #fbfcfe;
-}
-
-.empty-state-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 50%;
-  background: var(--color-info-light);
-  color: var(--color-primary);
-}
-
-.empty-state-title {
-  color: var(--color-text);
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.empty-state p {
-  margin: 0;
-  font-size: 0.85rem;
-  max-width: 32rem;
-}
-
-/* Non-interactive icon badge in front of a list row (e.g. each
-   notification in the Notifications timeline) - distinct from
-   .icon-button above, which is a clickable control meant for a dark
-   header background. */
-.notification-bell-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
   flex-shrink: 0;
-  margin-right: 0.6rem;
+  padding-top: 0.55rem;
+}
+
+.app-sidebar-claim-stage-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
   border-radius: 50%;
-  background: var(--color-info-light);
-  color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.1);
+  color: inherit;
 }
 
-/* Sticky action bar for the Survey & Assessment workflow - stays
-   reachable at the bottom of the scroll region while the form itself
-   runs long, mirroring .claim-detail-sticky-header's sticky-top
-   treatment elsewhere in this file, anchored to the bottom instead. */
-.survey-actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 40;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(6px);
-  border-top: 1px solid var(--color-border);
-  box-shadow: 0 -8px 20px -12px rgba(20, 24, 30, 0.18);
+.app-sidebar-claim-stage-icon.complete {
+  background: #16834b;
+  color: #ffffff;
 }
 
-/* Utility-vs-primary hierarchy for the Claim 360 title-row actions -
-   Track Claim / Documents / Recent Activity read as secondary/outline
-   actions, "Continue to Claim Workflow" stays the one primary action
-   a Surveyor takes from this row. */
-.claim360-title-row button {
-  background: var(--color-surface);
-  color: var(--color-primary-dark);
-  border: 1.5px solid var(--color-border);
+.app-sidebar-claim-stage-icon.rejected {
+  background: #d64545;
+  color: #ffffff;
+}
+
+.app-sidebar-claim-stage-number {
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* The connector itself - a vertical line with a small downward arrow
+   glyph at its end, rather than a plain flat line with no direction
+   cue (this layout's vertical equivalent of the horizontal stepper's
+   "›" arrows). */
+.app-sidebar-claim-stage-connector {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 2px;
+  flex: 1 1 auto;
+  min-height: 24px;
+  margin: 2px 0;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.app-sidebar-claim-stage-connector.complete {
+  background: #16834b;
+}
+
+.app-sidebar-claim-stage-arrow {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba(255, 255, 255, 0.35);
+}
+
+.app-sidebar-claim-stage-connector.complete .app-sidebar-claim-stage-arrow {
+  border-top-color: #16834b;
+}
+.app-sidebar-claim-stage.current-page .app-sidebar-claim-stage-icon {
+  animation: claim-stage-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes claim-stage-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 199, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(37, 99, 199, 0);
+  }
+}
+/* =====================================================================
+   Verification Seal stepper - shield-shaped stage badges instead of
+   plain circles, echoing the app's own ShieldCheck logo. Replaces the
+   previous .app-sidebar-claim-stage-icon (circle) and
+   .app-sidebar-claim-stage-connector/-arrow (flat line + triangle)
+   rules with this shield + diagonal "ribbon" version.
+   ===================================================================== */
+
+.app-sidebar-claim-stage-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.app-sidebar-claim-stage-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.app-sidebar-claim-stage-shield-fill {
+  fill: rgba(255, 255, 255, 0.12);
+  transition: fill 0.3s ease;
+}
+
+.app-sidebar-claim-stage-icon.complete .app-sidebar-claim-stage-shield-fill {
+  fill: #16834b;
+}
+
+.app-sidebar-claim-stage-icon.rejected .app-sidebar-claim-stage-shield-fill {
+  fill: #d64545;
+}
+
+.app-sidebar-claim-stage-icon.active .app-sidebar-claim-stage-shield-fill {
+  fill: #d9a441;
+}
+
+/* Warm gold pulse on the active stage - distinct from blue, reads as
+   "currently being verified/stamped" rather than reusing the same
+   blue used for links/buttons elsewhere in the sidebar. */
+.app-sidebar-claim-stage-icon.active {
+  animation: claim-stage-seal-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes claim-stage-seal-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(217, 164, 65, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(217, 164, 65, 0.85));
+  }
+}
+
+/* Checkmark/X pops in with a spring bounce when the shield fills in,
+   rather than silently appearing at full size. */
+.app-sidebar-claim-stage-check {
+  animation: claim-stage-shield-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes claim-stage-shield-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.app-sidebar-claim-stage-number {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -46%);
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Diagonal-striped "ribbon" connector instead of a flat line -
+   suggests motion/in-progress rather than a static divider. */
+.app-sidebar-claim-stage-connector {
+  width: 3px;
+  flex: 1 1 auto;
+  min-height: 14px;
+  margin: 2px 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.14) 0px,
+    rgba(255, 255, 255, 0.14) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  transition: background 0.5s ease;
+}
+
+.app-sidebar-claim-stage-connector.complete {
+  background: #16834b;
+}
+/* =====================================================================
+   Verification Seal stepper - FORCED OVERRIDE VERSION.
+
+   The Inspection (complete) and upcoming stages were still rendering
+   as plain circles while the active stage correctly showed the
+   shield - meaning the old .app-sidebar-claim-stage-icon and
+   .app-sidebar-claim-stage-icon.complete rules (background,
+   border-radius: 50%, fixed width/height on the OUTER span) are
+   still present somewhere in the file and winning for those two
+   states specifically, most likely a source-order issue rather than
+   a missing deletion. Every property the old circle rules could set
+   is forced with !important here so this version wins unconditionally,
+   regardless of where either rule sits in the file.
+   ===================================================================== */
+
+.app-sidebar-claim-stage-icon {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 22px !important;
+  flex-shrink: 0 !important;
+  background: none !important;
+  border-radius: 0 !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.app-sidebar-claim-stage:focus .app-sidebar-claim-stage-icon,
+.app-sidebar-claim-stage:focus-visible .app-sidebar-claim-stage-icon {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.app-sidebar-claim-stage-icon svg {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+.app-sidebar-claim-stage-shield-fill {
+  fill: rgba(255, 255, 255, 0.12);
+  transition: fill 0.3s ease;
+}
+
+.app-sidebar-claim-stage-icon.complete .app-sidebar-claim-stage-shield-fill {
+  fill: #16834b;
+}
+
+.app-sidebar-claim-stage-icon.rejected .app-sidebar-claim-stage-shield-fill {
+  fill: #d64545;
+}
+
+.app-sidebar-claim-stage-icon.active .app-sidebar-claim-stage-shield-fill {
+  fill: #d9a441;
+}
+
+.app-sidebar-claim-stage-icon.active {
+  animation: claim-stage-seal-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes claim-stage-seal-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(217, 164, 65, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(217, 164, 65, 0.85));
+  }
+}
+
+.app-sidebar-claim-stage-check {
+  animation: claim-stage-shield-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes claim-stage-shield-pop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.app-sidebar-claim-stage-number {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -46%) !important;
+  font-size: 0.55rem !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+  background: none !important;
+}
+
+.app-sidebar-claim-stage-connector {
+  position: relative !important;
+  display: flex !important;
+  justify-content: center !important;
+  width: 3px !important;
+  flex: 1 1 auto !important;
+  min-height: 10px !important;
+  margin: 1px 0 !important;
+  border-radius: 0 !important;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(255, 255, 255, 0.14) 0px,
+    rgba(255, 255, 255, 0.14) 3px,
+    transparent 3px,
+    transparent 6px
+  ) !important;
+  transition: background 0.5s ease !important;
+}
+
+.app-sidebar-claim-stage-connector.complete {
+  background: #16834b !important;
+}
+
+.app-sidebar-claim-stage-arrow {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid rgba(255, 255, 255, 0.4);
+  transition: border-top-color 0.5s ease;
+}
+
+.app-sidebar-claim-stage-connector.complete .app-sidebar-claim-stage-arrow {
+  border-top-color: #16834b;
+  animation: claim-stage-arrow-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes claim-stage-arrow-bounce {
+  0% {
+    transform: translateX(-50%) translateY(-6px);
+    opacity: 0;
+  }
+  60% {
+    transform: translateX(-50%) translateY(2px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+/* =====================================================================
+   Modern sidebar nav - morphing active pill (Framer Motion layoutId,
+   see SidebarLink in ProtectedLayout.tsx), icon scale + row slide on
+   hover, and a staggered fade-in on mount.
+
+   .app-sidebar nav a.active's own background is REMOVED here - the
+   .sidebar-active-pill element now renders that same visual instead,
+   positioned absolutely behind the link's content. Keeping both would
+   double up the background (the pill animating on top of a second,
+   static gradient that never moves).
+   ===================================================================== */
+
+.app-sidebar nav a {
+  position: relative;
+  overflow: hidden;
+}
+
+.app-sidebar nav a.active {
+  background: none;
   box-shadow: none;
 }
 
-.claim360-title-row button:hover {
-  background: var(--color-primary);
-  color: #ffffff;
-  border-color: var(--color-primary);
-  box-shadow: none;
+.app-sidebar nav a:hover {
+  transform: translateX(3px);
 }
 
-.claim360-title-row button:last-of-type {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
-  color: #ffffff;
-  border: none;
-  box-shadow: var(--shadow-card);
+.app-sidebar nav a:hover .sidebar-link-content svg {
+  transform: scale(1.15);
 }
 
-.claim360-title-row button:last-of-type:hover {
-  background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+.sidebar-link-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.sidebar-link-content svg {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-active-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   box-shadow: 0 4px 12px rgba(37, 99, 199, 0.25);
-}
-
-/* Accessible focus rings for interactive elements that previously only
-   had a :hover affordance - keyboard users get the same visual cue
-   mouse users already get on hover. */
-.queue-table tbody tr.clickable-row:focus-visible,
-.claim-row:focus-visible,
-.stat-card:focus-visible,
-.queue-filter-tab:focus-visible,
-.sortable-th:focus-visible,
-.app-sidebar nav a:focus-visible,
-.app-header nav a:focus-visible,
-.icon-button:focus-visible,
-.upload-card:focus-visible,
-.claims-pagination-button:focus-visible,
-.survey-icon-button:focus-visible,
-.claim360-edit-link:focus-visible {
-  outline: 2.5px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-/* Respect the OS-level "reduce motion" preference across the whole
-   app. Every animation/transition collapses to an effectively-instant
-   state change (0.01ms rather than "none", so JS that listens for
-   transitionend still fires) - except genuine loading indicators
-   (spinners/skeletons), which keep running at their normal speed since
-   they communicate real, ongoing state rather than decorative motion. */
-@media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-
-  .spinner {
-    animation-duration: 0.7s !important;
-    animation-iteration-count: infinite !important;
-  }
-
-  .skeleton {
-    animation-duration: 1.4s !important;
-    animation-iteration-count: infinite !important;
-  }
-
-  .csd-spin,
-  .surveyor-spin {
-    animation-duration: 0.8s !important;
-    animation-iteration-count: infinite !important;
-  }
-}
-
-/* Small-screen safety net for pages built on the shared
-   .card/.queue-table/.handler-queue-header primitives (Claims,
-   Reports, Notifications, Help, Track Claim) that don't already define
-   their own bespoke breakpoints. */
-@media (max-width: 640px) {
-  .handler-queue-header {
-    align-items: stretch;
-  }
-
-  .handler-queue-controls {
-    width: 100%;
-  }
-
-  .handler-search-wrap,
-  .handler-queue-search {
-    width: 100%;
-  }
-
-  .queue-filter-tabs-grid {
-    justify-content: flex-start;
-  }
-
-  .survey-actions {
-    padding: 0.9rem 1rem;
-  }
-
-  .survey-actions .survey-action-primary,
-  .survey-actions .survey-action-secondary {
-    flex: 1 1 auto;
-    justify-content: center;
-  }
+  z-index: 0;
 }

@@ -5,6 +5,7 @@ import type {
   AuditLogResponseDto,
   AuthorityLimitResponseDto,
   ClaimDecisionResponseDto,
+  ClaimDecisionStageTimestampDto,
   ClaimDocumentResponseDto,
   ClaimQueueItemResponseDto,
   ClaimResponseDto,
@@ -435,6 +436,15 @@ export const getLatestDecision = (claimId: string) =>
 export const getDecisionHistory = (claimId: string) =>
   request<ClaimDecisionResponseDto[]>(
     `/api/ClaimDecisions/claim/${claimId}/history`,
+  )
+
+// Narrower than getDecisionHistory above (role/decision/date only, no
+// reasoning or AI-scoring data) - open to Surveyor and Repairer too,
+// not just Approver/Admin. Used by the claim-workflow sidebar
+// (ProtectedLayout.tsx) for per-stage "completed on" timestamps.
+export const getClaimDecisionStageTimestamps = (claimId: string) =>
+  request<ClaimDecisionStageTimestampDto[]>(
+    `/api/ClaimDecisions/claim/${claimId}/stage-timestamps`,
   )
 
 export const submitSurveyorDecision = (

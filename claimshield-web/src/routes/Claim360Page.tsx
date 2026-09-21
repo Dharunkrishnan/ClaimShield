@@ -551,7 +551,7 @@ export function Claim360Page() {
             </InfoCard>
 
             {policy && (
-              <InfoCard title="Policy Details" onEdit={() => setEditing('policy')} tint>
+              <InfoCard title="Policy Details" tint>
                 <div className="detail-panel-col">
                   <InfoRow label="Policy number" value={policy.policyNumber} />
                   <InfoRow label="Policy holder name" value={claim.customerName ?? '—'} />

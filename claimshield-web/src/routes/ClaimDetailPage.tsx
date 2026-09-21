@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useOutletContext } from 'react-router-dom'
 import { CreatePaymentForm } from '../components/CreatePaymentForm'
 import {
   ApiError,
@@ -56,7 +56,7 @@ import { ClaimSettlementCard } from '../components/ClaimSettlementCard'
 import { InvoiceParticularsCard } from '../components/InvoiceParticularsCard'
 import { ApprovalSummaryCard } from '../components/ApprovalSummaryCard'
 import { ClaimStatusBadge } from '../components/StatusBadge'
-import { ClaimLifecycleStepper, STAGE_PATHS, getReachableStageIndex } from '../components/ClaimLifecycleStepper'
+import { STAGE_PATHS, getReachableStageIndex } from '../components/ClaimLifecycleStepper'
 import { TextareaWithMic } from '../components/TextareaWithMic'
 
 
@@ -103,7 +103,11 @@ function BandBadge({ bandName }: { bandName: string }) {
 
 export function ClaimDetailPage() {
   const { claimId, stage: stageParam } = useParams<{ claimId: string; stage?: string }>()
-  const navigate = useNavigate()
+const navigate = useNavigate()
+
+const { refreshClaimWorkflow } = useOutletContext<{
+  refreshClaimWorkflow: () => Promise<void>
+}>()
   const stage = (stageParam ?? 'inspection') as (typeof STAGE_PATHS)[number]
   const { roleId, session } = useAuth()
   const currentUserId = session?.user.id ?? null
@@ -165,14 +169,12 @@ export function ClaimDetailPage() {
     void loadAll()
   }, [loadAll])
 
-  const handleStageClick = (index: number) => {
-    if (!claimId) return
-    navigate(`/claims/${claimId}/${STAGE_PATHS[index]}`)
-  }
-
   // Guard against reaching a stage's page a claim hasn't actually
   // gotten to yet - via a typed URL, browser back/forward, or a stale
-  // link - not just via the stepper's own (already-disabled) clicks.
+  // link. Stage navigation itself now happens entirely through the
+  // sidebar's vertical stage list (see ProtectedLayout.tsx) rather
+  // than a stepper rendered on this page, but this safety check still
+  // belongs here regardless of how the person got to the URL.
   useEffect(() => {
     if (loading || !claim || !claimId) return
     const requestedIndex = STAGE_PATHS.indexOf(stage)
@@ -343,14 +345,6 @@ export function ClaimDetailPage() {
             })()}
           </div>
         </div>
-
-        <ClaimLifecycleStepper
-          statusId={claim.statusId}
-          payments={payments}
-          repairAuthorizationStatusId={claim.repairAuthorizationStatusId}
-          liabilitySubmitted={claim.liabilitySubmitted}
-          onStepClick={handleStageClick}
-        />
       </div>
 
       {stage === 'inspection' && (

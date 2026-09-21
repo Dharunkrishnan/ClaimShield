@@ -1263,6 +1263,35 @@ namespace ClaimShield.Api.Services
             return result;
         }
 
+        // =========================================================
+        // STAGE TIMESTAMPS (role/decision/date only)
+        //
+        // Narrower than GetHistoryAsync above - projected straight at
+        // the database (Reasoning/AiScoresSnapshot are never selected,
+        // not merely omitted from the output afterwards), so this is
+        // safe to expose to roles that ClaimDecisionsController.
+        // GetHistory deliberately keeps Approver/Admin-only. Backs the
+        // claim-workflow sidebar's per-stage "completed on" timestamps
+        // (ProtectedLayout.tsx), which every sidebar role needs to be
+        // able to read for a claim they can otherwise already view.
+        // =========================================================
+
+        public async Task<IEnumerable<ClaimDecisionStageTimestampDto>> GetStageTimestampsAsync(
+            Guid claimId)
+        {
+            return await _context.ClaimDecisions
+                .Where(x => x.ClaimId == claimId)
+                .OrderByDescending(x => x.DecisionDate)
+                .Select(
+                    x => new ClaimDecisionStageTimestampDto
+                    {
+                        RoleId = x.RoleId,
+                        Decision = x.Decision,
+                        DecisionDate = x.DecisionDate
+                    })
+                .ToListAsync();
+        }
+
         // Batched Customer -> User display-name lookup, avoiding an N+1
         // query per queue row.
         private async Task<Dictionary<Guid, string>> GetCustomerNamesAsync(

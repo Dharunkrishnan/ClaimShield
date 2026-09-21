@@ -43,7 +43,7 @@ export const STAGE_PATHS = [
   'closure',
 ] as const
 
-type StageState =
+export type StageState =
   | 'complete'
   | 'active'
   | 'upcoming'
@@ -195,6 +195,35 @@ export function getReachableStageIndex(
   return 0
 }
 
+// Exported alongside getReachableStageIndex so other UI (the
+// ProtectedLayout claim-workflow sidebar) can render the exact same
+// complete/active/upcoming/rejected state per stage, rather than
+// reconstructing an approximation of it from a single reachable-index
+// number - the two are NOT interchangeable. A fully Closed claim has
+// every stage "complete" (all six), but getReachableStageIndex still
+// only returns a single index (5, the last one) - deriving "is this
+// stage complete" as `index < reachableIndex` from that number alone
+// incorrectly excludes the final stage itself.
+export function getClaimStageStates(
+  statusId: number | null,
+  payments: PaymentResponseDto[],
+  repairAuthorizationStatusId?: number | null,
+  liabilitySubmitted?: boolean,
+): StageState[] {
+  const hasPendingOrProcessingPayment = payments.some(
+    (payment) =>
+      payment.paymentStatusId === PaymentStatus.Pending ||
+      payment.paymentStatusId === PaymentStatus.Processing,
+  )
+
+  return getStageStates(
+    statusId,
+    hasPendingOrProcessingPayment,
+    repairAuthorizationStatusId,
+    liabilitySubmitted,
+  )
+}
+
 // ================================================================
 // LIFECYCLE STEPPER
 // ================================================================
@@ -259,9 +288,9 @@ export function ClaimLifecycleStepper({
   const fillPercent =
     STAGES.length > 1
       ? (
-          Math.max(effectiveIndex, 0) /
-          (STAGES.length - 1)
-        ) * 100
+        Math.max(effectiveIndex, 0) /
+        (STAGES.length - 1)
+      ) * 100
       : 0
 
   // ==============================================================

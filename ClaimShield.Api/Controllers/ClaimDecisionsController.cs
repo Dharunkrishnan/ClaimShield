@@ -46,6 +46,12 @@ namespace ClaimShield.Api.Controllers
                 RoleConstants.Surveyor,
                 StringComparison.OrdinalIgnoreCase);
 
+        private bool IsRepairer =>
+            string.Equals(
+                _currentUserService.RoleName,
+                RoleConstants.Repairer,
+                StringComparison.OrdinalIgnoreCase);
+
         private static IActionResult Forbidden(
             string message)
         {
@@ -157,6 +163,40 @@ namespace ClaimShield.Api.Controllers
                     claimId);
 
             return Ok(history);
+        }
+
+        // =========================================================
+        // STAGE TIMESTAMPS (role/decision/date only)
+        //
+        // Deliberately narrower than the /history endpoint above - no
+        // Reasoning or AiScoresSnapshot - so it's open to any role
+        // that can otherwise view a claim, not just Approver/Admin.
+        // Backs the claim-workflow sidebar's per-stage "completed on"
+        // timestamps (ProtectedLayout.tsx), which a Surveyor or
+        // Repairer needs just as much as an Approver/Admin does - only
+        // the full reasoning/AI-scoring detail in /history stays
+        // restricted.
+        // GET: api/ClaimDecisions/claim/{claimId}/stage-timestamps
+        // =========================================================
+
+        [HttpGet("claim/{claimId:guid}/stage-timestamps")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetStageTimestamps(
+            Guid claimId)
+        {
+            if (!IsAdmin && !IsApprover && !IsSurveyor && !IsRepairer)
+            {
+                return Forbidden(
+                    "You are not authorized to view claim decisions.");
+            }
+
+            var timestamps =
+                await _claimDecisionService.GetStageTimestampsAsync(
+                    claimId);
+
+            return Ok(timestamps);
         }
 
         // =========================================================

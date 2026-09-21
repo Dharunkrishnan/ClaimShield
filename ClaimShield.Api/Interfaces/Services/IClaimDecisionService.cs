@@ -10,6 +10,14 @@ namespace ClaimShield.Api.Interfaces.Services
         Task<IEnumerable<ClaimDecisionResponseDto>> GetHistoryAsync(
             Guid claimId);
 
+        // Role/Decision/DecisionDate only - no Reasoning or
+        // AiScoresSnapshot - so this is safe for roles (Surveyor,
+        // Repairer) that GetHistoryAsync's own endpoint deliberately
+        // keeps restricted to Approver/Admin. See
+        // ClaimDecisionStageTimestampDto for why.
+        Task<IEnumerable<ClaimDecisionStageTimestampDto>> GetStageTimestampsAsync(
+            Guid claimId);
+
         Task<IEnumerable<ClaimQueueItemResponseDto>> GetMyQueueAsync(
             Guid userId,
             int roleId);

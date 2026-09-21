@@ -141,6 +141,18 @@ export interface ClaimDecisionResponseDto {
   escalated: boolean
 }
 
+// Deliberately narrower than ClaimDecisionResponseDto above - role,
+// decision, and date only, no reasoning/AI-scoring data - backed by
+// /api/ClaimDecisions/claim/{claimId}/stage-timestamps, which (unlike
+// /history) is open to Surveyor and Repairer too. Used by the claim-
+// workflow sidebar (ProtectedLayout.tsx) for per-stage "completed on"
+// timestamps only.
+export interface ClaimDecisionStageTimestampDto {
+  roleId: number
+  decision: number
+  decisionDate: string
+}
+
 export interface ClaimQueueItemResponseDto {
   claimId: string
   claimNumber: string
