@@ -1,5 +1,7 @@
+using ClaimShield.Api.Authentication;
 using ClaimShield.Api.Constants;
 using ClaimShield.Api.Interfaces.Services;
+using ClaimShield.Api.Models.DTOs.Ocr;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,15 +24,45 @@ namespace ClaimShield.Api.Controllers
     // the RC-vs-plate match logic on it.
     [ApiController]
     [Route("api/Ocr")]
-    [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Admin}")]
+    [Authorize(Roles = $"{RoleConstants.Surveyor},{RoleConstants.Approver},{RoleConstants.Admin}")]
     public class OcrController : ControllerBase
     {
         private readonly IOcrService _ocrService;
+        private readonly IClaimDocumentService _claimDocumentService;
+        private readonly ICurrentUserService _currentUserService;
 
         public OcrController(
-            IOcrService ocrService)
+            IOcrService ocrService,
+            IClaimDocumentService claimDocumentService,
+            ICurrentUserService currentUserService)
         {
             _ocrService = ocrService;
+            _claimDocumentService = claimDocumentService;
+            _currentUserService = currentUserService;
+        }
+
+        private int CurrentRoleId =>
+            _currentUserService.RoleName switch
+            {
+                RoleConstants.Customer => RoleConstants.CustomerId,
+                RoleConstants.Repairer => RoleConstants.RepairerId,
+                RoleConstants.Surveyor => RoleConstants.SurveyorId,
+                RoleConstants.Approver => RoleConstants.ApproverId,
+                RoleConstants.Admin => RoleConstants.AdminId,
+                _ => 0
+            };
+
+        private static IActionResult Forbidden(
+            string message)
+        {
+            return new ObjectResult(new
+            {
+                Success = false,
+                Message = message
+            })
+            {
+                StatusCode = StatusCodes.Status403Forbidden
+            };
         }
 
         // =========================================================
@@ -42,9 +74,9 @@ namespace ClaimShield.Api.Controllers
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(20971520)]
         public async Task<IActionResult> Extract(
-            [FromForm] IFormFile file)
+            [FromForm] OcrExtractRequest request)
         {
-            if (file == null || file.Length == 0)
+            if (request.File == null || request.File.Length == 0)
             {
                 return BadRequest(new
                 {
@@ -54,8 +86,59 @@ namespace ClaimShield.Api.Controllers
             }
 
             using var stream = new MemoryStream();
-            await file.CopyToAsync(stream);
+            await request.File.CopyToAsync(stream);
             var bytes = stream.ToArray();
+
+            var result = await _ocrService.ExtractAsync(bytes);
+
+            return Ok(result);
+        }
+
+        // =========================================================
+        // EXTRACT TEXT FROM A DOCUMENT ALREADY UPLOADED TO A CLAIM
+        // (e.g. the repair quotation uploaded during Inspection) -
+        // reads the stored file server-side rather than requiring the
+        // browser to re-upload it just to see what's in it.
+        // POST: api/Ocr/extract-document/{claimDocumentId}
+        // =========================================================
+
+        [HttpPost("extract-document/{claimDocumentId:guid}")]
+        public async Task<IActionResult> ExtractDocument(
+            Guid claimDocumentId)
+        {
+            var document =
+                await _claimDocumentService.GetByIdAsync(claimDocumentId);
+
+            if (document == null)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "Claim document not found."
+                });
+            }
+
+            if (!_currentUserService.UserId.HasValue ||
+                !await _claimDocumentService.CanUserAccessClaimAsync(
+                    document.ClaimId,
+                    _currentUserService.UserId.Value,
+                    CurrentRoleId))
+            {
+                return Forbidden(
+                    "You are not authorized to read this document.");
+            }
+
+            var bytes =
+                await _claimDocumentService.GetFileBytesAsync(claimDocumentId);
+
+            if (bytes == null)
+            {
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "The stored file could not be found."
+                });
+            }
 
             var result = await _ocrService.ExtractAsync(bytes);
 

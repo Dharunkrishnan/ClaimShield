@@ -264,6 +264,8 @@ export function MyClaimDetailPage() {
                 label="Policy period"
                 value={`${formatDate(policy.startDate)} – ${formatDate(policy.endDate)}`}
               />
+              <InfoRow label="IDV" value={formatCurrency(policy.idv)} />
+              <InfoRow label="Add-ons" value={policy.addOns || '—'} />
             </>
           ) : (
             <p>No policy on record.</p>

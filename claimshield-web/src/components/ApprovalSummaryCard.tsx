@@ -4,6 +4,9 @@ import {
   getLiabilityDamageItems,
   getClaimInvoices,
   getPaymentsByClaim,
+  getRepairAssignmentsByClaim,
+  getRepairers,
+  getSurveyAssessment,
   processPayment,
   completePayment,
   submitApproverDecision,
@@ -14,6 +17,9 @@ import type {
   LiabilityDamageItemResponseDto,
   InvoiceResponseDto,
   PaymentResponseDto,
+  RepairAssignmentResponseDto,
+  UserResponseDto,
+  SurveyAssessmentResponseDto,
 } from '../lib/types'
 import { Decision } from '../lib/types'
 import { ClaimStatusName, LossTypeName, DamageCategoryName, PaymentStatus } from '../lib/statuses'
@@ -96,6 +102,9 @@ export function ApprovalSummaryCard({
   const [damageItems, setDamageItems] = useState<LiabilityDamageItemResponseDto[]>([])
   const [invoices, setInvoices] = useState<InvoiceResponseDto[]>([])
   const [payments, setPayments] = useState<PaymentResponseDto[]>([])
+  const [repairAssignment, setRepairAssignment] = useState<RepairAssignmentResponseDto | null>(null)
+  const [repairerUser, setRepairerUser] = useState<UserResponseDto | null>(null)
+  const [assessment, setAssessment] = useState<SurveyAssessmentResponseDto | null>(null)
   const [loaded, setLoaded] = useState(false)
 
   const [approving, setApproving] = useState(false)
@@ -111,11 +120,24 @@ export function ApprovalSummaryCard({
       getLiabilityDamageItems(claim.claimId).catch(() => [] as LiabilityDamageItemResponseDto[]),
       getClaimInvoices(claim.claimId).catch(() => [] as InvoiceResponseDto[]),
       getPaymentsByClaim(claim.claimId).catch(() => [] as PaymentResponseDto[]),
-    ]).then(([damageItemsResult, invoicesResult, paymentsResult]) => {
+      getRepairAssignmentsByClaim(claim.claimId).catch(() => [] as RepairAssignmentResponseDto[]),
+      getRepairers().catch(() => [] as UserResponseDto[]),
+      getSurveyAssessment(claim.claimId).catch(() => null),
+    ]).then(([damageItemsResult, invoicesResult, paymentsResult, repairAssignments, repairers, assessmentResult]) => {
       if (cancelled) return
       setDamageItems(damageItemsResult)
       setInvoices(invoicesResult)
       setPayments(paymentsResult)
+      setAssessment(assessmentResult)
+
+      const foundAssignment = repairAssignments[0] ?? null
+      setRepairAssignment(foundAssignment)
+      setRepairerUser(
+        foundAssignment
+          ? repairers.find((r) => r.userId === foundAssignment.repairerId) ?? null
+          : null,
+      )
+
       setLoaded(true)
     })
 
@@ -125,9 +147,38 @@ export function ApprovalSummaryCard({
   }, [claim.claimId])
 
   const { gross, deductions, net } = computeFinalAmount(claim)
-  const { workshopName, repairerName, workshopCode } = parseWorkshopRecommendation(
-    claim.workshopRecommendation,
-  )
+
+  // A claim's repairer info can come from three different places,
+  // checked in this order:
+  //
+  //  1. The Surveyor's own Repair Authorization choice
+  //     (SurveyReport.EstimatedRepairerName) - this is what the
+  //     Repair Authorization card on ClaimDetailPage.tsx actually
+  //     shows as "Workshop name" today, so it's the primary source.
+  //     REPAIRER_MASTER (the same static workshop->contact lookup the
+  //     Repair Authorization form itself is built from) resolves the
+  //     owner/contact person's name for it.
+  //  2. A real RepairAssignment (a Repairer formally assigned to a
+  //     real account) - a separate, Admin-driven mechanism from #1,
+  //     not currently populated by the Repair Authorization flow
+  //     itself, but still shown here when one exists.
+  //  3. The free-text Claim.WorkshopRecommendation string, from the
+  //     older customer/staff claim-registration flow.
+  const assessmentWorkshopName = assessment?.estimatedRepairerName ?? null
+  const assessmentMasterEntry = assessmentWorkshopName
+    ? REPAIRER_MASTER.find((entry) => entry.workshopName === assessmentWorkshopName)
+    : undefined
+
+  const { workshopName: parsedWorkshopName, repairerName: parsedRepairerName, workshopCode: parsedWorkshopCode } =
+    parseWorkshopRecommendation(claim.workshopRecommendation)
+
+  const assignedRepairerName = repairerUser
+    ? `${repairerUser.firstName} ${repairerUser.lastName ?? ''}`.trim()
+    : null
+
+  const workshopName = assessmentWorkshopName ?? parsedWorkshopName
+  const repairerName = assessmentMasterEntry?.repairerName ?? assignedRepairerName ?? parsedRepairerName
+  const workshopCode = assessmentMasterEntry?.id ?? parsedWorkshopCode
 
   const latestPayment =
     payments.length > 0
@@ -137,6 +188,40 @@ export function ApprovalSummaryCard({
       : null
 
   const invoiceTotal = invoices.reduce((sum, inv) => sum + inv.invoiceAmount, 0)
+
+  // No invoice file is ever uploaded for a claim - these are
+  // structured line items entered directly (ClaimInvoice), not a
+  // document - so "download the invoice" means exporting that real
+  // data as a file, not fetching something already stored.
+  const csvEscape = (value: string) => `"${value.replace(/"/g, '""')}"`
+
+  const handleDownloadInvoices = () => {
+    const header = ['Invoice Number', 'Date', 'Favour', 'Amount']
+    const rows = invoices.map((inv) => [
+      inv.invoiceNumber,
+      formatDate(inv.invoiceDate),
+      inv.invoiceFavourName,
+      inv.invoiceAmount.toFixed(2),
+    ])
+
+    const csvLines = [
+      `Claim ${claim.claimNumber}`,
+      `Total: ${invoiceTotal.toFixed(2)}`,
+      '',
+      header.map(csvEscape).join(','),
+      ...rows.map((row) => row.map(csvEscape).join(',')),
+    ]
+
+    const blob = new Blob([csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${claim.claimNumber}-invoices.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   const alreadyApproved = approverDecision?.decision === Decision.Approve
 
@@ -244,6 +329,15 @@ export function ApprovalSummaryCard({
           <h4>Invoice Particulars</h4>
           <p className="approval-mini-stat">{invoices.length} invoice{invoices.length === 1 ? '' : 's'}</p>
           <p className="approval-mini-total">{formatCurrency(invoiceTotal)}</p>
+          {invoices.length > 0 && (
+            <button
+              type="button"
+              className="link-inline-button"
+              onClick={handleDownloadInvoices}
+            >
+              Download invoice
+            </button>
+          )}
         </div>
         <div className="approval-mini-card">
           <h4>Depreciation</h4>
@@ -339,6 +433,12 @@ export function ApprovalSummaryCard({
               <>
                 <dt>Workshop code</dt>
                 <dd>{workshopCode}</dd>
+              </>
+            )}
+            {!assessmentMasterEntry && assignedRepairerName && (
+              <>
+                <dt>Assigned date</dt>
+                <dd>{formatDate(repairAssignment?.assignedDate ?? null)}</dd>
               </>
             )}
           </dl>

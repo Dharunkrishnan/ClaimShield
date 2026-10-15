@@ -1504,9 +1504,9 @@ button:disabled {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 1.1rem;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 1.75rem;
   margin: 0 0 0.35rem;
 }
 
@@ -1516,14 +1516,24 @@ button:disabled {
   gap: 0.35rem;
 }
 
+/* Fluid against .claim-detail's own rendered width (via
+   container-type: inline-size there), not the browser viewport - cqw
+   responds to the sidebar collapse/expand toggle freeing up space,
+   which plain vw units can't see since the viewport itself doesn't
+   change size when only the sidebar does. The sidebar toggle alone
+   changes this container's width by a fixed ~176px (240px sidebar
+   vs 64px collapsed) regardless of window size, so the curve is
+   deliberately steep over a short 1000-1300px range - a shallower
+   curve stretched across the full possible width range made that
+   fixed 176px swing produce only a ~1px, barely-visible change. */
 .claim-detail-info-label {
-  font-size: 0.7rem;
+  font-size: clamp(0.55rem, calc(-0.45rem + 1.6cqw), 0.85rem);
   font-weight: 600;
   color: var(--color-muted);
 }
 
 .claim-detail-info-value {
-  font-size: 0.85rem;
+  font-size: clamp(0.65rem, calc(-0.517rem + 1.867cqw), 1rem);
   font-weight: 700;
   color: var(--color-text);
 }
@@ -1539,6 +1549,40 @@ button:disabled {
 .claim-detail-back-link {
   margin: 0 0 0.35rem;
   font-size: 0.78rem;
+}
+
+.claim-detail-back-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.claim-detail-stage-nav-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.claim-detail-stage-nav-button:hover:not(:disabled) {
+  background: var(--color-selected-bg);
+  border-color: var(--color-primary);
+}
+
+.claim-detail-stage-nav-button:disabled {
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .lifecycle-stepper-track {
@@ -2086,100 +2130,9 @@ button:disabled {
 }
 
 
-.login-page {
-  position: relative;
-  min-height: 100vh;
-  display: flex;
-  align-items: stretch;
-  overflow: hidden;
-  background: linear-gradient(180deg, #eef4fc 0%, #e3ecf9 100%);
-}
+/* Login page styles are in src/routes/LoginPage.css */
 
-.login-page-left {
-  flex: 1 1 420px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-}
 
-.login-page-right {
-  flex: 1 1 480px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-}
-
-.login-illustration {
-  width: 100%;
-  max-width: 480px;
-  height: auto;
-}
-
-@media (max-width: 900px) {
-  .login-page-left {
-    display: none;
-  }
-}
-
-.login-card {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 380px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  background: #dce9fb;
-  border: 1px solid #c7d9f4;
-  border-radius: 20px;
-  padding: 2.5rem 2.25rem;
-  box-shadow: 0 20px 50px rgba(37, 99, 199, 0.12);
-}
-
-.login-mark {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 0.75rem;
-}
-
-.login-card h1 {
-  font-size: 1.5rem;
-  letter-spacing: -0.01em;
-}
-
-.login-card input {
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.login-card input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 199, 0.15);
-}
-
-.login-card button {
-  width: 100%;
-  padding: 0.7rem 1rem;
-  margin-top: 1rem;
-}
-
-.login-card .login-link-button {
-  all: unset;
-  display: block;
-  width: fit-content;
-  margin: 0.85rem auto 0;
-  padding: 0.2rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-primary);
-  cursor: pointer;
-}
-
-.login-card .login-link-button:hover {
-  text-decoration: underline;
-}
 
 /* Icon alignment for nav/header/buttons using lucide-react */
 
@@ -2191,7 +2144,24 @@ button:disabled {
 
 .app-header .brand-icon {
   display: inline-flex;
-  color: #ffffff;
+}
+
+.app-header .brand-icon img {
+  display: block;
+  animation: brand-icon-blink 1.8s ease-in-out infinite;
+}
+
+/* Same pulse shape/timing as the lifecycle stepper's shield blink,
+   in the logo's own blue rather than the stepper's green - that
+   green specifically means "complete", which doesn't apply to the
+   brand mark itself. */
+@keyframes brand-icon-blink {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(37, 99, 199, 0.65));
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(37, 99, 199, 0.95));
+  }
 }
 
 .app-header nav {
@@ -2713,9 +2683,16 @@ button:disabled {
   margin: 0;
 }
 
+/* The generic button:hover rule (index.css ~line 250) has higher
+   specificity than this chip's own :hover background (element +
+   2 pseudo-classes beats a single class + pseudo-class), so its blue
+   gradient silently wins over the lighter background intended here -
+   same root cause as the quotation "View" button fix. Set the text
+   to white on hover instead of fighting that background. */
 .chat-quick-prompt-chip:hover {
   border-color: var(--color-primary-light);
   background: #f0f6ff;
+  color: #ffffff;
 }
 
 .chat-msg-row {
@@ -5235,14 +5212,40 @@ form .survey-action-primary {
   text-decoration: underline;
 }
 
+/* The generic button:hover rule (index.css ~line 250) still applies
+   its blue gradient background here - all: unset above only resets
+   the resting state, it doesn't stop a later, higher-specificity
+   hover rule from re-adding one. Rather than fight that background,
+   switch the text to white on hover so it reads correctly against
+   it, instead of dark blue-on-blue. */
 .link-inline-button:hover {
-  color: var(--color-primary-dark);
+  color: #ffffff;
 }
 
 /* RepairAuthorizationCard - reduce its overall footprint, matching
    the compactness already applied to Decision Support Risk. */
 .repair-authorization-card {
   padding: 0.9rem 1.1rem;
+}
+
+.quotation-extract-block {
+  margin-bottom: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.quotation-ocr-text {
+  margin: 0.4rem 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
 }
 
 .repair-authorization-card .fact-grid {
@@ -5511,6 +5514,16 @@ form .survey-action-primary {
   min-width: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
+  /* Lets the claim header's font size respond to how much width the
+     sidebar collapse/expand toggle actually frees up, not just to
+     the browser window itself - vw units can't see that, since the
+     viewport doesn't change size when only the sidebar does. Placed
+     on .claim-detail (a plain block box at 100% of its already-
+     resolved parent) rather than the flex item (.app-main) itself -
+     testing showed cqw values don't reliably re-evaluate here when
+     the resize is driven by a flex-basis change on an ancestor. */
+  container-type: inline-size;
+  container-name: claim-detail;
   box-sizing: border-box !important;
 }
 
@@ -5537,27 +5550,27 @@ form .survey-action-primary {
 }
 
 .app-shell-sidebar .claim-detail-info-row {
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  grid-auto-flow: row !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
   margin: 0 0 0.4rem !important;
   padding: 0 !important;
-  gap: 0 !important;
+  gap: 0.3rem 0.35rem !important;
   align-items: center !important;
-  justify-items: center !important;
+  justify-content: space-between !important;
   box-sizing: border-box !important;
 }
 
 .app-shell-sidebar .claim-detail-info-item {
   display: flex !important;
-  width: 100% !important;
+  width: auto !important;
   min-width: 0 !important;
+  flex-shrink: 0 !important;
   align-items: center !important;
-  justify-content: center !important;
-  gap: 0.35rem !important;
+  justify-content: flex-start !important;
+  gap: 0.2rem !important;
   white-space: nowrap !important;
   box-sizing: border-box !important;
 }
@@ -5585,8 +5598,7 @@ form .survey-action-primary {
 
 @media (max-width: 700px) {
   .app-shell-sidebar .claim-detail-info-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    row-gap: 0.4rem !important;
+    gap: 0.4rem 1.25rem !important;
   }
 
   .app-shell-sidebar>.app-body-with-sidebar>.app-main {
@@ -8422,11 +8434,58 @@ form .survey-action-primary {
 }
 
 .reports-table-wrap .queue-table th,
+.card .reports-table-wrap .queue-table th {
+  white-space: nowrap;
+}
+
 .reports-table-wrap .queue-table td,
-.card .reports-table-wrap .queue-table th,
 .card .reports-table-wrap .queue-table td {
   white-space: normal;
   overflow-wrap: break-word;
+}
+
+/* Proportional column widths matching each header's actual content
+   length - table-layout: fixed alone divides columns equally
+   regardless of content, which made longer headers (Claim Number,
+   Policy Number, Payment Status) wrap onto two lines while shorter
+   ones (Status) stayed on one, producing an uneven, misaligned look.
+   Columns, in order after removing SLA Status: Claim Number, Customer
+   Name, Policy Number, Status, Payment Status, Registered Date,
+   Total TAT (Days). */
+.reports-table-wrap .queue-table th:nth-child(1),
+.reports-table-wrap .queue-table td:nth-child(1) {
+  width: 15%;
+}
+
+.reports-table-wrap .queue-table th:nth-child(2),
+.reports-table-wrap .queue-table td:nth-child(2) {
+  width: 14%;
+}
+
+.reports-table-wrap .queue-table th:nth-child(3),
+.reports-table-wrap .queue-table td:nth-child(3) {
+  width: 15%;
+}
+
+.reports-table-wrap .queue-table th:nth-child(4),
+.reports-table-wrap .queue-table td:nth-child(4) {
+  width: 12%;
+}
+
+.reports-table-wrap .queue-table th:nth-child(5),
+.reports-table-wrap .queue-table td:nth-child(5) {
+  width: 14%;
+}
+
+.reports-table-wrap .queue-table th:nth-child(6),
+.reports-table-wrap .queue-table td:nth-child(6) {
+  width: 15%;
+}
+
+.reports-table-wrap .queue-table th:nth-child(7),
+.reports-table-wrap .queue-table td:nth-child(7) {
+  width: 15%;
+  white-space: nowrap;
 }
 
 /* =====================================================================
@@ -8930,6 +8989,38 @@ button.repair-auth-close-deny-btn-danger:hover {
   }
 }
 
+/* Every stage's shield blinks the same way once it turns green
+   (complete) - one shared animation/timing applied uniformly via the
+   .complete modifier every stage already gets, so there's no risk of
+   different stages drifting out of sync with each other or blinking
+   on different timing. Mirrors the active stage's own pulse (same
+   duration/easing shape) rather than inventing a different motion
+   language for this app. */
+.app-sidebar-claim-stage-icon.complete {
+  animation: claim-stage-shield-blink 1.8s ease-in-out infinite;
+}
+
+/* The "you are here" ring (claim-stage-pulse, on .current-page) and
+   the green blink animate different properties (box-shadow vs
+   filter), so a stage that's both complete AND the one currently
+   open can run both at once - this just needs higher specificity
+   than either rule alone so the shorthand "animation" declaration
+   doesn't let one silently replace the other. */
+.app-sidebar-claim-stage.current-page .app-sidebar-claim-stage-icon.complete {
+  animation:
+    claim-stage-pulse 1.8s ease-in-out infinite,
+    claim-stage-shield-blink 1.8s ease-in-out infinite;
+}
+
+@keyframes claim-stage-shield-blink {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(22, 131, 75, 0.65));
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(22, 131, 75, 0.9));
+  }
+}
+
 /* Checkmark/X pops in with a spring bounce when the shield fills in,
    rather than silently appearing at full size. */
 .app-sidebar-claim-stage-check {
@@ -9053,6 +9144,38 @@ button.repair-auth-close-deny-btn-danger:hover {
   }
   50% {
     filter: drop-shadow(0 0 5px rgba(217, 164, 65, 0.85));
+  }
+}
+
+/* Every stage's shield blinks the same way once it turns green
+   (complete) - one shared animation/timing applied uniformly via the
+   .complete modifier every stage already gets, so there's no risk of
+   different stages drifting out of sync with each other or blinking
+   on different timing. Mirrors the active stage's own pulse (same
+   duration/easing shape) rather than inventing a different motion
+   language for this app. */
+.app-sidebar-claim-stage-icon.complete {
+  animation: claim-stage-shield-blink 1.8s ease-in-out infinite;
+}
+
+/* The "you are here" ring (claim-stage-pulse, on .current-page) and
+   the green blink animate different properties (box-shadow vs
+   filter), so a stage that's both complete AND the one currently
+   open can run both at once - this just needs higher specificity
+   than either rule alone so the shorthand "animation" declaration
+   doesn't let one silently replace the other. */
+.app-sidebar-claim-stage.current-page .app-sidebar-claim-stage-icon.complete {
+  animation:
+    claim-stage-pulse 1.8s ease-in-out infinite,
+    claim-stage-shield-blink 1.8s ease-in-out infinite;
+}
+
+@keyframes claim-stage-shield-blink {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(22, 131, 75, 0.65));
+  }
+  50% {
+    filter: drop-shadow(0 0 5px rgba(22, 131, 75, 0.9));
   }
 }
 
@@ -9194,4 +9317,377 @@ button.repair-auth-close-deny-btn-danger:hover {
   background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   box-shadow: 0 4px 12px rgba(37, 99, 199, 0.25);
   z-index: 0;
+}/* =====================================================================
+   Help page - rich reference layout: header with tip banner, getting-
+   started card with a horizontal flow diagram, a grid of action cards,
+   a tips list, and a support-options card.
+   ===================================================================== */
+
+.help-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.help-tip-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.1rem;
+  background: #eaf1fc;
+  border: 1px solid #cddef7;
+  border-radius: 999px;
+  color: var(--color-primary-dark);
+  font-size: 0.85rem;
+  font-weight: 600;
+  max-width: 32rem;
+}
+
+.help-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding-bottom: 0.9rem;
+  margin-bottom: 1.1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.help-section-header h2 {
+  margin: 0 0 0.2rem;
+  padding: 0;
+  border: none;
+  font-size: 1.05rem;
+}
+
+.help-section-header h2::after {
+  display: none;
+}
+
+.help-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.help-section-icon-blue {
+  background: #eaf1fc;
+  color: var(--color-primary);
+}
+
+.help-section-icon-amber {
+  background: #fff3cd;
+  color: #7a5c00;
+}
+
+/* Getting started + flow diagram, side by side */
+
+.help-getting-started-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr;
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+.help-getting-started-copy,
+.help-flow-panel {
+  min-width: 0;
+}
+
+.help-getting-started-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.help-getting-started-copy > div {
+  min-width: 0;
+}
+
+.help-getting-started-copy h2 {
+  margin: 0 0 0.4rem;
+  padding: 0;
+  border: none;
+  font-size: 1.15rem;
+}
+
+.help-getting-started-copy h2::after {
+  display: none;
+}
+
+.help-getting-started-copy p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.55;
+}
+
+.help-flow-panel {
+  padding: 1.1rem 1.25rem;
+  background: #f4f8ff;
+  border: 1px solid #dbe7fb;
+  border-radius: var(--radius-lg);
+}
+
+.help-flow-title {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.help-flow-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.2rem;
+  overflow-x: visible;
+  flex-wrap: nowrap;
+}
+
+.help-flow-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.help-flow-stage-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-flow-stage-icon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0.4rem;
+  border-radius: 9px;
+  background: #ffffff;
+  border: 1px solid #dbe7fb;
+  color: var(--color-primary);
+  box-sizing: border-box;
+}
+
+.help-flow-stage-label {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.help-flow-arrow {
+  display: none;
+}
+
+.help-flow-footnote {
+  margin: 0.9rem 0 0;
+  font-size: 0.76rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .help-getting-started-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Common actions grid */
+
+.help-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+}
+
+.help-action-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #fbfcfe;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.help-action-card:hover {
+  box-shadow: var(--shadow-card);
+  border-color: var(--color-primary-light);
+  transform: translateY(-1px);
+}
+
+.help-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.help-action-icon-green {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.help-action-icon-purple {
+  background: #f1eaff;
+  color: #7040d8;
+}
+
+.help-action-icon-amber {
+  background: #fff3cd;
+  color: #7a5c00;
+}
+
+.help-action-icon-blue {
+  background: #eaf1fc;
+  color: var(--color-primary);
+}
+
+.help-action-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.help-action-title {
+  margin: 0 0 0.3rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.help-action-description {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+.help-action-chevron {
+  color: var(--color-muted);
+  flex-shrink: 0;
+  margin-top: 0.3rem;
+}
+
+/* Tips + support, side by side */
+
+.help-two-col-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .help-two-col-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.help-tip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.help-tip-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.help-tip-list svg {
+  color: var(--color-success);
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.help-support-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.help-support-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  background: #f4f8ff;
+  border: 1px solid #dbe7fb;
+  border-radius: var(--radius);
+}
+
+.help-support-item svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.help-support-title {
+  margin: 0 0 0.2rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.help-support-description {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.help-support-footnote {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  background: #f0f6ff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.help-support-footnote svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+/* Header notification bell - plain icon link (no sidebar pill). */
+.header-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  color: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.header-icon-link:hover {
+  background: rgba(255, 255, 255, 0.14);
 }

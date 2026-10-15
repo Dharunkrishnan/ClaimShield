@@ -43,6 +43,12 @@ namespace ClaimShield.Api.Controllers
                 RoleConstants.Repairer,
                 StringComparison.OrdinalIgnoreCase);
 
+        private bool IsSurveyor =>
+            string.Equals(
+                _currentUserService.RoleName,
+                RoleConstants.Surveyor,
+                StringComparison.OrdinalIgnoreCase);
+
         private bool IsApprover =>
             string.Equals(
                 _currentUserService.RoleName,
@@ -154,7 +160,7 @@ namespace ClaimShield.Api.Controllers
         public async Task<IActionResult> GetByClaim(
             Guid claimId)
         {
-            if (!IsAdmin && !IsRepairer && !IsApprover)
+            if (!IsAdmin && !IsRepairer && !IsApprover && !IsSurveyor)
             {
                 return Forbidden(
                     "You are not authorized to view repair estimates for this claim.");
@@ -164,9 +170,13 @@ namespace ClaimShield.Api.Controllers
                 await _repairEstimateService.GetByClaimAsync(
                     claimId);
 
-            // Approver sees every estimate for the claim, unfiltered
-            // (needed to review/approve); Repairer only sees their own.
-            if (!IsAdmin && !IsApprover)
+            // Approver and Surveyor see every estimate for the claim,
+            // unfiltered (Approver needs this to review/approve;
+            // Surveyor's own Approve/Reject access on this controller -
+            // see the /approve and /reject actions below - would
+            // otherwise be pointless if they could never see the
+            // estimates to begin with). Repairer only sees their own.
+            if (!IsAdmin && !IsApprover && !IsSurveyor)
             {
                 estimates = await FilterOwnedAsync(estimates);
             }

@@ -415,6 +415,29 @@ namespace ClaimShield.Api.Services
         }
 
         // =========================================================
+        // RAW FILE BYTES
+        // Server-side only - used by OcrController to run text
+        // extraction against a document that's already been uploaded,
+        // rather than requiring a fresh upload just to OCR it.
+        // =========================================================
+
+        public async Task<byte[]?> GetFileBytesAsync(
+            Guid claimDocumentId)
+        {
+            var document =
+                await _claimDocumentRepository.GetByIdAsync(
+                    claimDocumentId);
+
+            if (document == null)
+            {
+                return null;
+            }
+
+            return await _storageService.DownloadAsync(
+                document.FilePath);
+        }
+
+        // =========================================================
         // MAPPING
         // =========================================================
 

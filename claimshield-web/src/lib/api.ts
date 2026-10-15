@@ -557,6 +557,15 @@ export const extractDocumentOcr = (file: File) => {
   return requestForm<OcrExtractionResultDto>('/api/Ocr/extract', formData)
 }
 
+// Runs OCR against a document already uploaded to a claim (e.g. the
+// repair quotation uploaded during Inspection) - reads the stored
+// file server-side rather than requiring it to be re-uploaded.
+export const extractOcrFromClaimDocument = (claimDocumentId: string) =>
+  request<OcrExtractionResultDto>(
+    `/api/Ocr/extract-document/${claimDocumentId}`,
+    { method: 'POST' },
+  )
+
 // Liability stage - Invoice Particulars
 export const getClaimInvoices = (claimId: string) =>
   request<InvoiceResponseDto[]>(`/api/ClaimInvoices/claim/${claimId}`)

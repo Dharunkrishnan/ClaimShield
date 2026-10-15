@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams, useOutletContext } from 'react-router-dom'
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { CreatePaymentForm } from '../components/CreatePaymentForm'
 import {
   ApiError,
@@ -16,6 +17,7 @@ import {
   getRepairEstimatesByClaim,
   getSurveyAssessment,
   closeOrDenyFromRepairAuthorization,
+  extractOcrFromClaimDocument,
   holdClaim,
   rejectRepairEstimate,
   requestAdditionalInfo,
@@ -29,6 +31,7 @@ import type {
   ClaimDocumentResponseDto,
   ClaimResponseDto,
   InternalClaimScoringDto,
+  OcrExtractionResultDto,
   PaymentResponseDto,
   RepairEstimateResponseDto,
   SurveyAssessmentResponseDto,
@@ -103,11 +106,11 @@ function BandBadge({ bandName }: { bandName: string }) {
 
 export function ClaimDetailPage() {
   const { claimId, stage: stageParam } = useParams<{ claimId: string; stage?: string }>()
-const navigate = useNavigate()
+  const navigate = useNavigate()
 
-const { refreshClaimWorkflow } = useOutletContext<{
-  refreshClaimWorkflow: () => Promise<void>
-}>()
+  const { refreshClaimWorkflow } = useOutletContext<{
+    refreshClaimWorkflow: () => Promise<void>
+  }>()
   const stage = (stageParam ?? 'inspection') as (typeof STAGE_PATHS)[number]
   const { roleId, session } = useAuth()
   const currentUserId = session?.user.id ?? null
@@ -121,6 +124,28 @@ const { refreshClaimWorkflow } = useOutletContext<{
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+
+  // Quotation OCR extraction - keyed by claimDocumentId since the
+  // same quotation document can be referenced by multiple estimate
+  // entries. 'loading' while the request is in flight, an error
+  // string if it failed, otherwise the real extraction result.
+  const [quotationOcr, setQuotationOcr] = useState<
+    Record<string, OcrExtractionResultDto | 'loading' | string>
+  >({})
+
+  const handleExtractQuotationText = async (claimDocumentId: string) => {
+    setQuotationOcr((prev) => ({ ...prev, [claimDocumentId]: 'loading' }))
+    try {
+      const result = await extractOcrFromClaimDocument(claimDocumentId)
+      setQuotationOcr((prev) => ({ ...prev, [claimDocumentId]: result }))
+    } catch (err) {
+      setQuotationOcr((prev) => ({
+        ...prev,
+        [claimDocumentId]:
+          err instanceof ApiError ? err.message : 'Failed to extract text from this document.',
+      }))
+    }
+  }
 
   const loadAll = useCallback(async () => {
     if (!claimId) return
@@ -156,10 +181,13 @@ const { refreshClaimWorkflow } = useOutletContext<{
       setDocuments(documentData)
       setEstimates(estimateData)
       setPayments(paymentData)
+
+      return { claim: claimData, payments: paymentData }
     } catch (err) {
       setLoadError(
         err instanceof ApiError ? err.message : 'Failed to load this claim.',
       )
+      return null
     } finally {
       setLoading(false)
     }
@@ -168,6 +196,41 @@ const { refreshClaimWorkflow } = useOutletContext<{
   useEffect(() => {
     void loadAll()
   }, [loadAll])
+
+  // Runs after any successful lifecycle action (completing an
+  // inspection, submitting a decision, authorizing repair, saving
+  // liability figures, processing payment, approving, closing, etc.)
+  // - refreshes both this page's own claim data AND the sidebar's
+  // separate workflow state (via the Outlet context from
+  // ProtectedLayout.tsx) concurrently. Without calling
+  // refreshClaimWorkflow here too, the sidebar has no way to know a
+  // stage just completed until a full page reload, even though this
+  // page's own state updates correctly right away.
+  //
+  // It also auto-advances the URL to whatever stage just became
+  // reachable, rather than leaving the person on the stage they just
+  // finished until they manually click the next one in the sidebar.
+  // This only ever fires right after THIS page's own action handlers
+  // call it - which only happens while viewing the stage that action
+  // belongs to - so it can't yank someone away from a stage they
+  // opened purely to review (that path never calls this).
+  const refreshAfterAction = useCallback(async () => {
+    const [loadResult] = await Promise.all([loadAll(), refreshClaimWorkflow()])
+
+    if (!loadResult || !claimId) return
+
+    const newReachableIndex = getReachableStageIndex(
+      loadResult.claim.statusId,
+      loadResult.payments,
+      loadResult.claim.repairAuthorizationStatusId,
+      loadResult.claim.liabilitySubmitted,
+    )
+    const currentIndex = STAGE_PATHS.indexOf(stage)
+
+    if (newReachableIndex > currentIndex) {
+      navigate(`/claims/${claimId}/${STAGE_PATHS[newReachableIndex]}`)
+    }
+  }, [loadAll, refreshClaimWorkflow, claimId, stage, navigate])
 
   // Guard against reaching a stage's page a claim hasn't actually
   // gotten to yet - via a typed URL, browser back/forward, or a stale
@@ -277,36 +340,60 @@ const { refreshClaimWorkflow } = useOutletContext<{
   const canManageInfoRequest =
     roleId === RoleId.Surveyor && claim.statusId !== ClaimStatus.Closed
 
+  const currentStageIndex = STAGE_PATHS.indexOf(stage)
+  const reachableStageIndex = getReachableStageIndex(
+    claim.statusId,
+    payments,
+    claim.repairAuthorizationStatusId,
+    claim.liabilitySubmitted,
+  )
+  const canGoToPrevStage = currentStageIndex > 0
+  const canGoToNextStage = currentStageIndex < reachableStageIndex
+
   return (
     <div className="claim-detail">
       <div className="claim-detail-sticky-header">
-        <p className="claim-detail-back-link">
-          <Link to="/queue">← Back to my queue</Link>
-        </p>
+        <div className="claim-detail-back-row">
+          <button
+            type="button"
+            className="claim-detail-stage-nav-button"
+            disabled={!canGoToPrevStage}
+            onClick={() =>
+              navigate(`/claims/${claimId}/${STAGE_PATHS[currentStageIndex - 1]}`)
+            }
+            title="Previous stage"
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+          <button
+            type="button"
+            className="claim-detail-stage-nav-button"
+            disabled={!canGoToNextStage}
+            onClick={() =>
+              navigate(`/claims/${claimId}/${STAGE_PATHS[currentStageIndex + 1]}`)
+            }
+            title="Next stage"
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
 
         <div className="claim-detail-info-row">
           <div className="claim-detail-info-item">
-            <span className="claim-detail-info-label">Claim Number:</span>
+            <span className="claim-detail-info-label">Claim No:</span>
             <span className="claim-detail-info-value">{claim.claimNumber}</span>
           </div>
 
           <div className="claim-detail-info-item">
-            <span className="claim-detail-info-label">Policy Number:</span>
+            <span className="claim-detail-info-label">Policy No:</span>
             <span className="claim-detail-info-value">{claim.policyNumber ?? '—'}</span>
           </div>
 
           <div className="claim-detail-info-item">
-            <span className="claim-detail-info-label">Insured Name:</span>
+            <span className="claim-detail-info-label">Insured:</span>
             <span className="claim-detail-info-value">{claim.customerName ?? '—'}</span>
           </div>
 
-          <div className="claim-detail-info-item">
-            <span className="claim-detail-info-label">Status:</span>
-            <ClaimStatusBadge statusId={claim.statusId} />
-          </div>
-        </div>
-
-        <div className="claim-detail-info-row">
           <div className="claim-detail-info-item">
             <span className="claim-detail-info-label">Vehicle No:</span>
             <span className="claim-detail-info-value">
@@ -326,6 +413,11 @@ const { refreshClaimWorkflow } = useOutletContext<{
             <span className="claim-detail-info-value">
               {claim.incidentLocation ?? '—'}
             </span>
+          </div>
+
+          <div className="claim-detail-info-item">
+            <span className="claim-detail-info-label">Status:</span>
+            <ClaimStatusBadge statusId={claim.statusId} />
           </div>
 
           <div className="claim-detail-info-item">
@@ -355,7 +447,7 @@ const { refreshClaimWorkflow } = useOutletContext<{
             claim={claim}
             roleId={roleId}
             currentUserId={currentUserId}
-            onCompleted={() => void loadAll()}
+            onCompleted={() => void refreshAfterAction()}
           />
         )
       )}
@@ -440,7 +532,7 @@ const { refreshClaimWorkflow } = useOutletContext<{
               canResume={canResume}
               onDone={(message) => {
                 setActionMessage(message)
-                void loadAll()
+                void refreshAfterAction()
               }}
             />
           )}
@@ -452,7 +544,7 @@ const { refreshClaimWorkflow } = useOutletContext<{
                 hasOpenRequest={!!claim.infoRequestReason}
                 onDone={(message) => {
                   setActionMessage(message)
-                  void loadAll()
+                  void refreshAfterAction()
                 }}
               />
             )}
@@ -474,7 +566,7 @@ const { refreshClaimWorkflow } = useOutletContext<{
                   onHold={canHold ? (reason) => holdClaim(claim.claimId, reason) : undefined}
                   onDone={(message) => {
                     setActionMessage(message)
-                    void loadAll()
+                    void refreshAfterAction()
                   }}
                   readOnly={!canSurveyorDecide}
                   existingDecision={surveyorDecision}
@@ -491,7 +583,7 @@ const { refreshClaimWorkflow } = useOutletContext<{
                 }
                 onDone={(message) => {
                   setActionMessage(message)
-                  void loadAll()
+                  void refreshAfterAction()
                 }}
                 readOnly={!canApproverDecide}
                 existingDecision={approverDecision}
@@ -533,21 +625,55 @@ const { refreshClaimWorkflow } = useOutletContext<{
               }
               onDone={(message) => {
                 setActionMessage(message)
-                void loadAll()
+                void refreshAfterAction()
               }}
             />
 
-            {(estimates.length > 0 || canManagePaymentsAndEstimates) && (
-              <section className="card repair-authorization-card">
-                <h2>Repair estimates</h2>
-                {estimates.length === 0 && <p>No repair estimates submitted yet.</p>}
-                {estimates.length > 0 && (
-                  <ul className="timeline">
-                    {estimates.map((estimate) => {
-                      const quotationDoc = documents.find(
-                        (d) => d.documentTypeId === DocumentType.RepairEstimateDocument,
-                      )
-                      return (
+            {(estimates.length > 0 || canManagePaymentsAndEstimates) && (() => {
+              const quotationDoc = documents.find(
+                (d) => d.documentTypeId === DocumentType.RepairEstimateDocument,
+              )
+              return (
+                <section className="card repair-authorization-card">
+                  <h2>Repair estimates</h2>
+
+                  {quotationDoc && (
+                    <div className="quotation-extract-block">
+                      <button
+                        type="button"
+                        className="link-inline-button"
+                        onClick={() => void downloadDocument(quotationDoc.claimDocumentId)}
+                      >
+                        View quotation ({quotationDoc.originalFileName})
+                      </button>{' '}
+                      <button
+                        type="button"
+                        className="link-inline-button"
+                        disabled={quotationOcr[quotationDoc.claimDocumentId] === 'loading'}
+                        onClick={() => void handleExtractQuotationText(quotationDoc.claimDocumentId)}
+                      >
+                        {quotationOcr[quotationDoc.claimDocumentId] === 'loading'
+                          ? 'Reading document…'
+                          : 'Extract quotation text'}
+                      </button>
+                      {quotationOcr[quotationDoc.claimDocumentId] &&
+                        quotationOcr[quotationDoc.claimDocumentId] !== 'loading' &&
+                        (typeof quotationOcr[quotationDoc.claimDocumentId] === 'string' ? (
+                          <p className="error-text">
+                            {quotationOcr[quotationDoc.claimDocumentId] as string}
+                          </p>
+                        ) : (
+                          <pre className="quotation-ocr-text">
+                            {(quotationOcr[quotationDoc.claimDocumentId] as OcrExtractionResultDto)
+                              .rawText || 'No readable text was found in this document.'}
+                          </pre>
+                        ))}
+                    </div>
+                  )}
+
+                  {estimates.length > 0 && (
+                    <ul className="timeline">
+                      {estimates.map((estimate) => (
                         <li key={estimate.repairEstimateId}>
                           <strong>{formatCurrency(estimate.estimatedAmount)}</strong>{' '}
                           submitted {formatDate(estimate.submittedDate)}
@@ -557,18 +683,6 @@ const { refreshClaimWorkflow } = useOutletContext<{
                           <span className="badge">
                             {estimate.approvalStatus ?? 'Pending'}
                           </span>
-                          {quotationDoc && (
-                            <>
-                              {' '}
-                              <button
-                                type="button"
-                                className="link-inline-button"
-                                onClick={() => void downloadDocument(quotationDoc.claimDocumentId)}
-                              >
-                                View quotation
-                              </button>
-                            </>
-                          )}
                           {estimate.estimateRemarks && <p>{estimate.estimateRemarks}</p>}
                           {estimate.approvalRemarks && (
                             <p>
@@ -581,17 +695,17 @@ const { refreshClaimWorkflow } = useOutletContext<{
                                 estimate={estimate}
                                 onDone={(message) => {
                                   setActionMessage(message)
-                                  void loadAll()
+                                  void refreshAfterAction()
                                 }}
                               />
                             )}
                         </li>
-                      )
-                    })}
-                  </ul>
-                )}
-              </section>
-            )}
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )
+            })()}
           </div>
         </>
       )}
@@ -629,7 +743,7 @@ const { refreshClaimWorkflow } = useOutletContext<{
               }}
               onAmountSaved={(message) => {
                 setActionMessage(message)
-                void loadAll()
+                void refreshAfterAction()
               }}
             />
           )}
@@ -650,7 +764,7 @@ const { refreshClaimWorkflow } = useOutletContext<{
                   // workflow. The Approval stage's own payment action (in
                   // ApprovalSummaryCard) still shows its own notification
                   // normally when used there.
-                  void loadAll()
+                  void refreshAfterAction()
                 }}
               />
             )}
@@ -666,11 +780,11 @@ const { refreshClaimWorkflow } = useOutletContext<{
             canManagePayments={canManagePaymentsAndEstimates}
             onApproved={(message) => {
               setActionMessage(message)
-              void loadAll()
+              void refreshAfterAction()
             }}
             onPaymentDone={(message) => {
               setActionMessage(message)
-              void loadAll()
+              void refreshAfterAction()
             }}
           />
         </>
@@ -684,7 +798,7 @@ const { refreshClaimWorkflow } = useOutletContext<{
               claimStatusId={claim.statusId}
               onDone={(message) => {
                 setActionMessage(message)
-                void loadAll()
+                void refreshAfterAction()
               }}
             />
           )}

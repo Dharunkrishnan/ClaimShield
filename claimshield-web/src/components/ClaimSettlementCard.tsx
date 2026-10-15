@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { Calculator, Eye, Pencil, RefreshCw, Save, Send } from 'lucide-react'
+import { Calculator, Pencil, RefreshCw, Save, Send } from 'lucide-react'
 import {
   ApiError,
   computeClaimSettlement,
@@ -93,7 +93,6 @@ export function ClaimSettlementCard({
   const [loaded, setLoaded] = useState(false)
   const [computing, setComputing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [showSettlementPreview, setShowSettlementPreview] = useState(false)
 
   const [editingFigures, setEditingFigures] = useState(false)
 
@@ -258,10 +257,6 @@ export function ClaimSettlementCard({
     }
   }
 
-  const handleViewSettlement = () => {
-    setShowSettlementPreview(true)
-  }
-
   const handleSaveFigures = async (event: FormEvent) => {
     event.preventDefault()
     setSavingFigures(true)
@@ -412,15 +407,6 @@ export function ClaimSettlementCard({
               {submitting ? 'Submitting…' : liabilitySubmitted ? 'Submitted' : 'Submit'}
             </button>
           )}
-          <button
-            type="button"
-            className="liability-view-button"
-            onClick={handleViewSettlement}
-            title="View settlement summary"
-          >
-            <Eye size={14} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
-            View
-          </button>
         </div>
       </section>
 
@@ -561,48 +547,6 @@ export function ClaimSettlementCard({
           )}
         </section>
       )}
-
-      <Modal
-        open={showSettlementPreview}
-        onClose={() => setShowSettlementPreview(false)}
-        title="Liability Settlement Preview"
-      >
-        <div className="liability-settlement-preview">
-          <div className="liability-settlement-preview-header">
-            <div>
-              <h3>Liability Settlement</h3>
-              <p>Assessment summary</p>
-            </div>
-            <button
-              type="button"
-              className="liability-settlement-print-button"
-              onClick={() => window.print()}
-            >
-              Print / Save PDF
-            </button>
-          </div>
-
-          <div className="liability-settlement-preview-grid">
-            <InfoRow label="Total Labour" value={formatCurrency(displayTotalLabour)} />
-            <InfoRow label="Total Parts" value={formatCurrency(displayTotalParts)} />
-            <InfoRow label="Tax" value={formatCurrency(displayTax)} />
-            <InfoRow label="Gross" value={formatCurrency(gross)} />
-            <InfoRow label="Depreciation" value={formatCurrency(displayDep)} />
-            <InfoRow label="Dep Waiver" value={formatCurrency(displayDepWaiver)} />
-            <InfoRow label="Compulsory Excess" value={formatCurrency(displayCompulsoryExcess)} />
-            <InfoRow label="Imposed Excess" value={formatCurrency(displayImposedExcess)} />
-            <InfoRow label="Salvage Deductions" value={formatCurrency(displaySalvage)} />
-            <InfoRow label="Other Deduction" value={formatCurrency(displayOtherDeduction)} />
-            <InfoRow label="Total Deduction" value={formatCurrency(totalDeduction)} />
-            <InfoRow label="Towing Amount" value={formatCurrency(displayTowing)} />
-          </div>
-
-          <div className="liability-settlement-preview-total">
-            <span>Net Assessment</span>
-            <strong>{formatCurrency(netAssessment)}</strong>
-          </div>
-        </div>
-      </Modal>
 
       <Modal open={editingFigures} onClose={() => setEditingFigures(false)} title="Edit Assessment Summary">
         <form onSubmit={(e) => void handleSaveFigures(e)}>

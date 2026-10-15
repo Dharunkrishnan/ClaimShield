@@ -3,6 +3,8 @@ using System.Text.RegularExpressions;
 using ClaimShield.Api.Interfaces.Services;
 using ClaimShield.Api.Models.DTOs.Ocr;
 
+using SkiaSharp;
+
 using Tesseract;
 
 namespace ClaimShield.Api.Services
@@ -73,13 +75,24 @@ namespace ClaimShield.Api.Services
         {
             return Task.Run(() =>
             {
+                // Tesseract's Pix.LoadFromMemory only understands raster
+                // image formats (PNG/JPEG/TIFF/BMP) - a quotation or
+                // report uploaded as a PDF fails there with "Failed to
+                // load image from memory". Render the first page down to
+                // a PNG first in that case; everything downstream is
+                // unchanged either way.
+                var rasterBytes =
+                    IsPdf(imageBytes)
+                        ? RenderFirstPdfPageToPng(imageBytes)
+                        : imageBytes;
+
                 using var engine =
                     new TesseractEngine(
                         _tessDataPath,
                         "eng",
                         EngineMode.Default);
 
-                using var img = Pix.LoadFromMemory(imageBytes);
+                using var img = Pix.LoadFromMemory(rasterBytes);
                 using var page = engine.Process(img);
 
                 var rawText = page.GetText();
@@ -116,6 +129,38 @@ namespace ClaimShield.Api.Services
                     Confidence = confidence
                 };
             });
+        }
+
+        private static bool IsPdf(
+            byte[] bytes)
+        {
+            // "%PDF" magic bytes - checking the actual file content
+            // rather than trusting a file extension/content-type, since
+            // either could be wrong or missing.
+            return bytes.Length >= 4 &&
+                bytes[0] == 0x25 &&
+                bytes[1] == 0x50 &&
+                bytes[2] == 0x44 &&
+                bytes[3] == 0x46;
+        }
+
+        private static byte[] RenderFirstPdfPageToPng(
+            byte[] pdfBytes)
+        {
+            // PDFtoImage's own default DPI (72, matching a PDF's native
+            // unit) renders text far too small/blurry for Tesseract to
+            // read reliably - 300 is the standard recommended
+            // resolution for OCR accuracy.
+            using var bitmap =
+                PDFtoImage.Conversion.ToImage(
+                    pdfBytes,
+                    page: 0,
+                    options: new PDFtoImage.RenderOptions(Dpi: 300));
+
+            using var image = SKImage.FromBitmap(bitmap);
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+
+            return data.ToArray();
         }
 
         private static string? ExtractRegistrationNumber(
