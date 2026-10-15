@@ -9676,3 +9676,18 @@ button.repair-auth-close-deny-btn-danger:hover {
   color: var(--color-primary);
   flex-shrink: 0;
 }
+/* Header notification bell - plain icon link (no sidebar pill). */
+.header-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  color: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.header-icon-link:hover {
+  background: rgba(255, 255, 255, 0.14);
+}

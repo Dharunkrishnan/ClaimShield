@@ -374,11 +374,24 @@ export function ProtectedLayout() {
             ClaimShield+
           </span>
           <div className="header-right">
-            <SidebarLink
+            {/* Plain link, NOT a SidebarLink: SidebarLink renders the
+                shared "sidebar-active-pill" (Framer layoutId). Using it
+                here meant that on /handler/notifications two pills with
+                the same layoutId existed at once, and the header one
+                stretched over the whole header (hiding the brand and
+                user name) and fought with the sidebar pill on hover. */}
+            <a
               href="/handler/notifications"
-              icon={<Bell size={19} color="#ffffff" />}
-              label=""
-            />
+              className="header-icon-link"
+              aria-label="Notifications"
+              title="Notifications"
+              onClick={(event) => {
+                event.preventDefault()
+                navigate('/handler/notifications')
+              }}
+            >
+              <Bell size={19} color="#ffffff" />
+            </a>
             <span className="header-user">
               {displayName} · {roleName}
             </span>
