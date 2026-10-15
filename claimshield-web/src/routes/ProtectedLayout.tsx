@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import {
-  ShieldCheck,
   LayoutDashboard,
   FileText,
   Car,
@@ -19,7 +18,6 @@ import {
   Bell,
   HelpCircle,
   FolderKanban,
-  Radar,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -193,7 +191,7 @@ function SidebarLink(props: SidebarLinkProps) {
 // exact :claimId param name used by whichever nested route actually
 // matches underneath it.
 const CLAIM_ROUTE_PATTERN =
-  /^\/claims\/([0-9a-fA-F-]{36})(?:\/([a-z-]+))?/
+  /^\/claims\/([0-9a-fA-F-]{36})(?:\/([a-z0-9-]+))?/
 
 export function ProtectedLayout() {
   const auth = useAuth()
@@ -371,7 +369,7 @@ export function ProtectedLayout() {
               whileHover={{ scale: 1.15, rotate: -8 }}
               transition={{ type: 'spring', stiffness: 400, damping: 12 }}
             >
-              <ShieldCheck size={22} strokeWidth={2.2} />
+              <img src="/favicon.svg" alt="" width={22} height={22} />
             </motion.span>
             ClaimShield+
           </span>
@@ -448,7 +446,7 @@ export function ProtectedLayout() {
                 <button
                   type="button"
                   className="app-sidebar-exit-claim"
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate(`/claims/${claimIdInRoute}/360`)}
                 >
                   <ArrowLeft size={16} />
                   {!collapsed && <span>Exit claim</span>}
@@ -590,10 +588,9 @@ export function ProtectedLayout() {
                     <SidebarLink href="/handler/dashboard" icon={<Gauge size={18} />} label="Dashboard" collapsed={collapsed} index={0} />
                     <SidebarLink href="/handler/claims" icon={<FolderKanban size={18} />} label="Claims" collapsed={collapsed} index={1} />
                     <SidebarLink href="/handler/reports" icon={<FileText size={18} />} label="Reports" collapsed={collapsed} index={2} />
-                    <SidebarLink href="/handler/track-claim" icon={<Radar size={18} />} label="Track Claim" collapsed={collapsed} index={3} />
-                    <SidebarLink href="/handler/register-claim" icon={<FilePlus2 size={18} />} label="Register Claim" collapsed={collapsed} index={4} />
-                    <SidebarLink href="/handler/notifications" icon={<Bell size={18} />} label="Notifications" collapsed={collapsed} index={5} />
-                    <SidebarLink href="/handler/help" icon={<HelpCircle size={18} />} label="Help" collapsed={collapsed} index={6} />
+                    <SidebarLink href="/handler/register-claim" icon={<FilePlus2 size={18} />} label="Register Claim" collapsed={collapsed} index={3} />
+                    <SidebarLink href="/handler/notifications" icon={<Bell size={18} />} label="Notifications" collapsed={collapsed} index={4} />
+                    <SidebarLink href="/handler/help" icon={<HelpCircle size={18} />} label="Help" collapsed={collapsed} index={5} />
                   </>
                 )}
                 {(roleId === RoleId.Approver || roleId === RoleId.Admin) && (
@@ -634,7 +631,7 @@ export function ProtectedLayout() {
             whileHover={{ scale: 1.15, rotate: -8 }}
             transition={{ type: 'spring', stiffness: 400, damping: 12 }}
           >
-            <ShieldCheck size={22} strokeWidth={2.2} />
+            <img src="/favicon.svg" alt="" width={22} height={22} />
           </motion.span>
           ClaimShield
         </span>

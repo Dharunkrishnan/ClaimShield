@@ -112,8 +112,8 @@ function InfoCard({
 // Within Policy Details specifically: Policy Number, Policy Holder
 // Name, Policy Type, and Policy Period are always shown view-only
 // even inside the edit modal's summary, per instruction - only
-// Coverage Amount, Premium Amount, and Add-ons are actually editable
-// there.
+// Coverage Amount, Premium Amount, IDV, and Add-ons are actually
+// editable there.
 //
 // Repairer Details and Surveyor Details have no Edit link - there is
 // no update endpoint for assignment records, so rather than fake one,
@@ -161,6 +161,7 @@ export function Claim360Page() {
   // --- Policy form fields (only the genuinely editable ones) ---
   const [coverageAmount, setCoverageAmount] = useState('')
   const [premiumAmount, setPremiumAmount] = useState('')
+  const [idv, setIdv] = useState('')
   const [addOns, setAddOns] = useState('')
 
   // --- Vehicle form fields ---
@@ -261,6 +262,7 @@ export function Claim360Page() {
         if (foundPolicy) {
           setCoverageAmount(String(foundPolicy.coverageAmount ?? ''))
           setPremiumAmount(String(foundPolicy.premiumAmount ?? ''))
+          setIdv(foundPolicy.idv != null ? String(foundPolicy.idv) : '')
           setAddOns(foundPolicy.addOns ?? '')
         }
 
@@ -365,6 +367,8 @@ export function Claim360Page() {
         policyNumber: policy.policyNumber,
         coverageAmount: coverageAmount ? Number(coverageAmount) : 0,
         premiumAmount: premiumAmount ? Number(premiumAmount) : 0,
+        idv: idv ? Number(idv) : null,
+        addOns: addOns || null,
         startDate: policy.startDate,
         endDate: policy.endDate,
         policyTypeId: policy.policyTypeId,
@@ -551,7 +555,7 @@ export function Claim360Page() {
             </InfoCard>
 
             {policy && (
-              <InfoCard title="Policy Details" tint>
+              <InfoCard title="Policy Details" onEdit={() => setEditing('policy')} tint>
                 <div className="detail-panel-col">
                   <InfoRow label="Policy number" value={policy.policyNumber} />
                   <InfoRow label="Policy holder name" value={claim.customerName ?? '—'} />
@@ -569,6 +573,7 @@ export function Claim360Page() {
                 <div className="detail-panel-col">
                   <InfoRow label="Coverage amount" value={formatCurrency(policy.coverageAmount)} />
                   <InfoRow label="Premium amount" value={formatCurrency(policy.premiumAmount)} />
+                  <InfoRow label="IDV" value={formatCurrency(policy.idv)} />
                   <InfoRow label="Add-ons" value={policy.addOns || '—'} />
                 </div>
               </InfoCard>
@@ -761,6 +766,17 @@ export function Claim360Page() {
                 step="0.01"
                 value={premiumAmount}
                 onChange={(e) => setPremiumAmount(e.target.value)}
+              />
+            </div>
+            <div className="survey-field">
+              <label htmlFor="c360-idv">IDV (₹)</label>
+              <input
+                id="c360-idv"
+                type="number"
+                min="0"
+                step="0.01"
+                value={idv}
+                onChange={(e) => setIdv(e.target.value)}
               />
             </div>
             <div className="survey-field survey-field-wide">

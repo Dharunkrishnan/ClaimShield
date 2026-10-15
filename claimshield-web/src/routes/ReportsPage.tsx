@@ -68,8 +68,18 @@ export function ReportsPage() {
     fetchClaimsReportRows(reportStatus)
       .then(({ headers, rows }) => {
         if (cancelled) return
-        setPreviewHeaders(headers)
-        setPreviewRows(rows)
+        // SLA Status column removed from the report view per request -
+        // filtered out here rather than in the backend's CSV
+        // generation, since the full downloaded CSV (Export button)
+        // should be unaffected, only this in-page preview table.
+        const slaIndex = headers.findIndex((h) => h.toLowerCase().includes('sla'))
+        if (slaIndex === -1) {
+          setPreviewHeaders(headers)
+          setPreviewRows(rows)
+        } else {
+          setPreviewHeaders(headers.filter((_, i) => i !== slaIndex))
+          setPreviewRows(rows.map((row) => row.filter((_, i) => i !== slaIndex)))
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -87,9 +97,6 @@ export function ReportsPage() {
 
   return (
     <div>
-      <h1>Reports</h1>
-      <p className="subtitle">Export claim-level reporting data, or preview it here first.</p>
-
       <section className="card">
         <div className="handler-queue-header">
           <h2>
@@ -107,13 +114,17 @@ export function ReportsPage() {
               <option value="paid">Paid only</option>
               <option value="outstanding">Outstanding only</option>
             </select>
-            <button type="button" onClick={() => void handleDownloadReport()} disabled={reportDownloading}>
-              <Download size={14} style={{ verticalAlign: '-2px', marginRight: '0.3rem' }} />
-              {reportDownloading ? 'Preparing…' : 'Export CSV'}
+            <button
+              type="button"
+              onClick={() => void handleDownloadReport()}
+              disabled={reportDownloading}
+              title={reportDownloading ? 'Preparing…' : 'Export CSV'}
+              aria-label={reportDownloading ? 'Preparing…' : 'Export CSV'}
+            >
+              <Download size={14} />
             </button>
           </div>
         </div>
-        <p>Claim number, status, payment status, registered date, total TAT, and SLA status for your claims.</p>
         {reportError && <p className="error-text">{reportError}</p>}
         {previewError && <p className="error-text">{previewError}</p>}
         {previewLoading && <SkeletonBlock lines={3} />}
@@ -164,7 +175,7 @@ export function ReportsPage() {
             </table>
             {previewRows.length > REPORT_PREVIEW_LIMIT && (
               <p className="subtitle" style={{ marginTop: '0.6rem' }}>
-                Showing {REPORT_PREVIEW_LIMIT} of {previewRows.length} rows — use Export CSV for the full report.
+                Showing {REPORT_PREVIEW_LIMIT} of {previewRows.length} rows — use the download button above for the full report.
               </p>
             )}
           </div>

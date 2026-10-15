@@ -113,9 +113,6 @@ export function ClaimsListPage() {
 
   return (
     <div>
-      <h1>Claims</h1>
-      <p className="subtitle">Search, filter, and open any claim assigned to you.</p>
-
       {error && <p className="error-text">{error}</p>}
 
       {!error && loading && (

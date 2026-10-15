@@ -20,6 +20,10 @@ namespace ClaimShield.Api.Models.DTOs.Policies
 
         public decimal PremiumAmount { get; set; }
 
+        public decimal? IDV { get; set; }
+
+        public string? AddOns { get; set; }
+
         public DateTime StartDate { get; set; }
 
         public DateTime EndDate { get; set; }

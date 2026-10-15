@@ -72,6 +72,8 @@ namespace ClaimShield.Api.Services
             policy.PolicyNumber = request.PolicyNumber;
             policy.CoverageAmount = request.CoverageAmount;
             policy.PremiumAmount = request.PremiumAmount;
+            policy.IDV = request.IDV;
+            policy.AddOns = request.AddOns;
             policy.StartDate = request.StartDate;
             policy.EndDate = request.EndDate;
             policy.PolicyTypeId = request.PolicyTypeId;

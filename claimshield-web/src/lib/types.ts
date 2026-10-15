@@ -429,6 +429,8 @@ export interface UpdatePolicyRequest {
   policyNumber: string
   coverageAmount: number
   premiumAmount: number
+  idv: number | null
+  addOns: string | null
   startDate: string
   endDate: string
   policyTypeId: number | null

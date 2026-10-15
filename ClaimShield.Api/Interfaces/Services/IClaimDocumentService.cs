@@ -35,5 +35,8 @@ namespace ClaimShield.Api.Interfaces.Services
 
         Task<string?> GetDownloadUrlAsync(
             Guid claimDocumentId);
+
+        Task<byte[]?> GetFileBytesAsync(
+            Guid claimDocumentId);
     }
 }
